@@ -1,0 +1,393 @@
+object formEditOrderItem_ProductManufacturing: TformEditOrderItem_ProductManufacturing
+  Left = 506
+  Top = 171
+  Width = 520
+  Height = 563
+  Caption = 'formEditOrderItem_ProductManufacturing'
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  OldCreateOrder = False
+  Position = poOwnerFormCenter
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Splitter1: TSplitter
+    Left = 0
+    Top = 289
+    Width = 504
+    Height = 3
+    Cursor = crVSplit
+    Align = alTop
+  end
+  object GroupBox1: TGroupBox
+    Left = 0
+    Top = 0
+    Width = 504
+    Height = 289
+    Align = alTop
+    Caption = #1054#1073#1097#1072#1103' '#1080#1085#1092#1086#1088#1084#1072#1094#1080#1103
+    TabOrder = 0
+    object lbFIO: TLabel
+      Left = 16
+      Top = 24
+      Width = 120
+      Height = 13
+      Caption = #1060'.'#1048'.'#1054'. '#1080#1085#1080#1094#1080#1072#1090#1086#1088#1072':'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object lbOrderOpen: TLabel
+      Left = 13
+      Top = 54
+      Width = 141
+      Height = 13
+      Caption = #1044#1072#1090#1072' '#1086#1090#1082#1088#1099#1090#1080#1103' '#1079#1072#1082#1072#1079#1072':'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object Label6: TLabel
+      Left = 256
+      Top = 55
+      Width = 159
+      Height = 13
+      Caption = #1044#1072#1090#1072' '#1080#1089#1087#1086#1083#1085#1077#1085#1080#1103' '#1079#1072#1082#1072#1079#1072': '
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object Label1: TLabel
+      Left = 14
+      Top = 89
+      Width = 87
+      Height = 13
+      Caption = #1054#1073#1086#1079#1085#1072#1095#1077#1085#1080#1077': '
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object Label3: TLabel
+      Left = 5
+      Top = 128
+      Width = 97
+      Height = 13
+      Caption = #1053#1072#1080#1084#1077#1085#1086#1074#1072#1085#1080#1077': '
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object Label4: TLabel
+      Left = 20
+      Top = 163
+      Width = 78
+      Height = 13
+      Caption = #1050#1086#1083#1080#1095#1077#1089#1090#1074#1086': '
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object lb: TLabel
+      Left = 181
+      Top = 165
+      Width = 97
+      Height = 13
+      Caption = #1045#1076'. '#1080#1079#1084#1077#1088#1077#1085#1080#1103': '
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object Label2: TLabel
+      Left = 7
+      Top = 218
+      Width = 86
+      Height = 13
+      Caption = #1050#1086#1084#1084#1077#1085#1090#1072#1088#1080#1080':'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = [fsBold]
+      ParentFont = False
+    end
+    object edFIO: TEdit
+      Left = 138
+      Top = 22
+      Width = 223
+      Height = 21
+      Enabled = False
+      ReadOnly = True
+      TabOrder = 0
+    end
+    object dtpOrderItemsCreationDate: TDateTimePicker
+      Left = 159
+      Top = 52
+      Width = 89
+      Height = 21
+      Date = 40218.904512812500000000
+      Time = 40218.904512812500000000
+      Enabled = False
+      TabOrder = 1
+    end
+    object dtpOrderItemsExecutionDate: TDateTimePicker
+      Left = 415
+      Top = 52
+      Width = 86
+      Height = 21
+      Date = 40218.904512812500000000
+      Time = 40218.904512812500000000
+      Enabled = False
+      MinDate = 2.000000000000000000
+      TabOrder = 2
+    end
+    object edObjectName: TEdit
+      Left = 98
+      Top = 125
+      Width = 402
+      Height = 21
+      ReadOnly = True
+      TabOrder = 3
+      OnChange = DefaultOnChangeActions
+    end
+    object edObjectVolume: TEdit
+      Left = 98
+      Top = 163
+      Width = 39
+      Height = 21
+      TabOrder = 4
+      Text = '1'
+      OnChange = DefaultOnChangeActions
+      OnKeyPress = edObjectVolumeKeyPress
+    end
+    object cbMeasurementsUnits: TComboBox
+      Left = 278
+      Top = 164
+      Width = 101
+      Height = 21
+      ItemHeight = 13
+      TabOrder = 5
+    end
+    object memNotes: TMemo
+      Left = 98
+      Top = 200
+      Width = 403
+      Height = 49
+      Lines.Strings = (
+        #1042#1072#1096#1080' '#1082#1086#1084#1084#1077#1085#1090#1072#1088#1080#1080)
+      TabOrder = 6
+      OnChange = DefaultOnChangeActions
+    end
+    object cbAddAttachment: TCheckBox
+      Left = 8
+      Top = 264
+      Width = 137
+      Height = 17
+      Caption = #1044#1086#1073#1072#1074#1080#1090#1100' '#1074#1083#1086#1078#1077#1085#1080#1103
+      TabOrder = 7
+    end
+    object edObjectIdentificator: TEdit
+      Left = 98
+      Top = 88
+      Width = 288
+      Height = 21
+      ReadOnly = True
+      TabOrder = 8
+      OnChange = DefaultOnChangeActions
+    end
+    object bbSelectObjectManufacture: TBitBtn
+      Left = 387
+      Top = 85
+      Width = 115
+      Height = 25
+      Caption = #1057#1087#1088#1072#1074#1086#1095#1085#1080#1082' '#1080#1079#1076#1077#1083#1080#1081
+      TabOrder = 9
+      OnClick = bbSelectObjectManufactureClick
+    end
+  end
+  object gbAttachements: TGroupBox
+    Left = 0
+    Top = 292
+    Width = 504
+    Height = 129
+    Align = alTop
+    Caption = #1042#1083#1086#1078#1077#1085#1080#1103
+    TabOrder = 1
+    object sbAddAttachment: TSpeedButton
+      Left = 4
+      Top = 15
+      Width = 107
+      Height = 33
+      Caption = #1044#1086#1073#1072#1074#1080#1090#1100
+      Glyph.Data = {
+        F6060000424DF606000000000000360000002800000017000000180000000100
+        180000000000C0060000C30E0000C30E00000000000000000000D0D0D09E9E9E
+        A8A8A8A6A6A6A6A6A6A6A6A6A6A6A6A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7
+        A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A9A9A9A3A3A300
+        0000B0B0B08383839A9A9A959595959595959595949594949593959593949593
+        93949393939293939292939192939292929191929091919092908F918F8F9391
+        918B8989494847000000C2C2C2E2E2E2FFFFFFFEFEFEFEFEFEFEFDFEFDFEFCFC
+        FDFBFCFDFBFBFCFAFAFBF9FAFBF8F9FAF8F8F9F7F7F8F6F7F8F6F6F7F5F5F5F3
+        F6F4F3F5F2F1F8F6F5E5E2E2626161000000C0C0C0D6D6D6F6F6F6EFEFEFEFEF
+        EFEEEEEEEEEEEDEDEEECECEDECECEDEBEBECEAEBECEAEAEBE9E9EAE9E8E9E7E7
+        E8E6E7E8E6E6E7E5E6E6E4E6E4E3EAE8E7D8D6D55D5C5C000000C0C0C0D9D9D9
+        FAFAFAF2F2F2F3F3F3F2F2F2F1F1F1F1F1F0F0F1EFF0F1EFEEEFEDEEEFEDEDEE
+        ECECEDEBEBECEAEBECEAEBECEAEAEBE9E9EAE8E8E9E7EDECEADAD9D85D5D5D00
+        0000C0C0C0DADADAFBFBFBF3F3F3F4F4F4F3F3F3F2F2F2F2F2F2F1F2F0F0F1EF
+        F0F1EFF0EFEDF1F0EFF1F2F1EFF1EFEDEEEBEBECEAEBECEAEAEBE9E9EAE8ECEE
+        EBDADBD95E5E5E000000C0C0C0DBDBDBFCFCFCF4F4F4F4F4F4F4F4F4F3F3F3F2
+        F3F2F2F2F3F2F1F1F1F1F0F4F4F4ECEAE9E0DED8E1E1DDEEF0EFEFF0EEECEDEB
+        ECEDEBEAEAE9EEEFEDDBDCDA5D5D5D000000C0C0C0DBDBDBFDFDFDF5F5F5F6F6
+        F6F5F5F5F4F4F4F4F4F4F3F3F3F2F3F2F5F5F3DDD5C6BFA787B89C75B69C78C1
+        B4A2E5E5E3EFF0EFEDEDEBECEDEAF0F1EEDCDDDC5D5D5D000000C0C0C0DCDCDC
+        FEFEFEF6F6F6F6F6F6F5F5F5F5F5F5F5F5F5F3F3F3F6F8F8E7DED2BFA078CDB4
+        93E4D5BFDBC4A3BB9A6DBDAF9CEDECECEFEFEDECEDEBF1F2EFDDDEDD5E5E5E00
+        0000C0C0C0DDDDDDFFFFFFF6F6F6F7F7F7F7F7F7F6F6F6F5F5F5F4F5F4F9FAF7
+        D4BDA0C4AB8AF3F0ECF7F9FBF9FBFBE1CEB2B69A73DFDCD4F2F3F2ECEDEBF2F3
+        F1DEDFDE5E5E5E000000C1C1C1DEDEDEFFFFFFF8F8F8F8F8F8F7F7F7F7F7F7F7
+        F7F6F5F5F6F8F8F5D1B797C9B8A0F6F6F7EFEDEDF3F3F6ECE2D2BC9E75DCD8CC
+        F3F4F5EEEEEDF3F3F2DFE0DF5D5D5D000000C1C1C1DEDEDEFFFFFFF9F9F9F9F9
+        F9FBFBFBF8F8F8F7F7F7F6F7F7FBFAF6D1B998C9B9A2F6F3EFC4B29DD8D2CCEF
+        E5D7BC9E77DDD8CFF5F5F7EFEFEEF4F4F4E1E1E15E5E5E000000C1C1C1DFDFDF
+        FFFFFFF9F9F9FBFBFBFEFEFEF8F8F8F8F8F8F6F8F7FAFAF6D2BB9DCBBBA7F6F1
+        EBC2A580D3C9BEEFE6D8BC9F79DED8D1F6F6F8F0F0EFF5F6F5E1E1E15D5D5D00
+        0000C0C0C0DFDFDFFFFFFFFCFCFCFEFEFEFEFEFEF9FAFAF9F9F9F7F8F8FBFBF8
+        D4BC9FCCBBA9F7F2EDC7AA88D6CCC2F0E8DBBFA27CDFD9D2F7F7F9F1F1F0F6F7
+        F6E2E2E25D5D5D000000C1C1C1E0E0E0FFFFFFFDFDFDFDFDFDFEFEFEFAFAFAFA
+        FAFAF8FAFAFCFCF9D5BEA3CBBDAAF7F3EDC9AB89D6CDC3F1E9DDBFA380E1DBD4
+        F8F8FAF2F2F2F7F7F7E3E3E35E5E5E000000C1C1C1E1E1E1FFFFFFFDFDFDFEFE
+        FEFEFEFEFBFBFBFBFBFBF9FAFAFCFCFBD6C0A7CDBFACF8F3EECAAE8DD8CFC4F3
+        E9DEBFA583E0DBD5F9F9FBF3F2F2F8F8F8E4E4E45E5E5E000000C1C1C1E1E1E1
+        FFFFFFFEFEFEFFFFFFFEFEFEFCFCFCFBFBFBFAFBFBFDFCFBD7C2A9CFC1AFF8F4
+        EFCBB091D5CDC3F3EADEC1A685E0DBD4FAFBFCF4F3F3F9F9F9E5E5E55D5D5D00
+        0000C0C0C0DFDFDFFFFFFFFCFCFCFDFDFDFDFDFDFAFAFAFAFAFAFAF9FAFBFBFA
+        D8C5ACCFC2B0F9F8F6D4BCA1C1AA92CCB69DC4AD90EAE7E3F7F8F8F3F3F3F8F8
+        F8E5E4E45E5E5E000000C2C2C2E3E3E3FFFFFFFEFEFEFFFFFFFFFFFFFFFFFFFF
+        FFFFFFFFFFFFFFFFDECBB5CFC1B0FFFFFFF9F1E8E1CAB0DAC5AAEEE8DCFDFFFF
+        FCFCFDFEFEFDFFFFFFECECEC5F5F5F000000BDBDBDC4C4C4E0E0E0DADADADBDB
+        DBDBDBDBDADADADADADADADADAD9DAD9D8C6B4C3B19EC5C6C6D8D9DAD7D6D4D6
+        D5D3D0D0D0D6CFC6CDCAC4D5D5D6DBDBDBCCCCCC595959000000919191121212
+        252525222222222222222222222222222222242424181919776E62DEC6B0685F
+        573C3D3D2D2E3037383972665BCEB5986C63591D1E202323232121211A1A1A00
+        00008D8D8D000000030303000000000000000000000000000000010101000000
+        161412B1A18FE5CEB7A09383867B6EA49481DFC7A9A595832625240000000101
+        010000000B0B0B0000008B8B8B00000003030300000000000000000000000000
+        000000000001010100000013100E7B6F63BCA996C5B19AB7A58C74695D1B1919
+        000000010101000000000000090909000000D7D7D7A3A3A3A8A8A8A7A7A7A7A7
+        A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A7A9A8A8A3A3A3A0A0A0B9B7B4CBC9C5BB
+        BAB8A5A5A5A2A3A2A7A8A7A7A7A7A7A7A7A7A7A6AAAAAA000000}
+    end
+    object sbDeleteAttachment: TSpeedButton
+      Left = 4
+      Top = 83
+      Width = 107
+      Height = 33
+      Caption = #1059#1076#1072#1083#1080#1090#1100
+      Glyph.Data = {
+        42020000424D4202000000000000420000002800000010000000100000000100
+        1000030000000002000000000000000000000000000000000000007C0000E003
+        00001F0000001F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C
+        1F7C1F7C1F7C1F7C1F7C00001F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C
+        00001F7C1F7C1F7C0040004000001F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C
+        007C1F7C1F7C1F7C007C007C004000001F7C1F7C1F7C1F7C1F7C1F7C1F7C0000
+        1F7C1F7C1F7C1F7C007C007C007C00401F7C1F7C1F7C1F7C1F7C1F7C0000007C
+        1F7C1F7C1F7C1F7C1F7C007C007C004000001F7C1F7C1F7C1F7C000000401F7C
+        1F7C1F7C1F7C1F7C1F7C1F7C007C007C004000001F7C1F7C0000007C007C1F7C
+        1F7C1F7C1F7C1F7C1F7C1F7C1F7C007C007C004000000000007C007C1F7C1F7C
+        1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C007C007C0040007C007C1F7C1F7C1F7C
+        1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C0040007C007C007C00001F7C1F7C1F7C
+        1F7C1F7C1F7C1F7C1F7C1F7C1F7C0000007C007C007C007C004000001F7C1F7C
+        1F7C1F7C1F7C1F7C1F7C00000000007C007C007C1F7C1F7C007C004000001F7C
+        1F7C1F7C1F7C1F7C00400040007C007C007C1F7C1F7C1F7C1F7C007C00400000
+        1F7C1F7C1F7C1F7C007C007C007C007C1F7C1F7C1F7C1F7C1F7C1F7C007C0040
+        00001F7C1F7C1F7C007C007C007C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C
+        00401F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C1F7C
+        1F7C1F7C1F7C}
+    end
+    object sbRenameAttachment: TSpeedButton
+      Left = 4
+      Top = 49
+      Width = 107
+      Height = 33
+      Caption = #1055#1077#1088#1077#1080#1084#1077#1085#1086#1074#1072#1090#1100
+    end
+    object pnlAttachmentList: TPanel
+      Left = 135
+      Top = 15
+      Width = 367
+      Height = 112
+      Align = alRight
+      BevelOuter = bvNone
+      Caption = 'pnlAttachmentList'
+      TabOrder = 0
+      object lbAttachments: TListBox
+        Left = 0
+        Top = 0
+        Width = 367
+        Height = 112
+        Style = lbOwnerDrawVariable
+        Align = alClient
+        ItemHeight = 13
+        MultiSelect = True
+        TabOrder = 0
+      end
+    end
+  end
+  object pnlBottomForm: TPanel
+    Left = 0
+    Top = 421
+    Width = 504
+    Height = 51
+    Align = alTop
+    BevelOuter = bvNone
+    TabOrder = 2
+    object bbSave: TBitBtn
+      Left = 114
+      Top = 10
+      Width = 97
+      Height = 32
+      Caption = #1055#1088#1080#1084#1077#1085#1080#1090#1100
+      Enabled = False
+      TabOrder = 0
+      OnClick = bbSaveClick
+      Kind = bkOK
+    end
+    object bbCancel: TBitBtn
+      Left = 282
+      Top = 10
+      Width = 75
+      Height = 32
+      Caption = #1054#1090#1084#1077#1085#1072
+      TabOrder = 1
+      Kind = bkCancel
+    end
+  end
+  object opdAddFile: TOpenPictureDialog
+    Options = [ofEnableSizing]
+    Left = 168
+    Top = 313
+  end
+end

@@ -1,0 +1,271 @@
+object formImportSprav: TformImportSprav
+  Left = 343
+  Top = 94
+  Width = 979
+  Height = 563
+  Caption = #1048#1084#1087#1086#1088#1090' '#1089#1087#1088#1072#1074#1086#1095#1085#1080#1082#1086#1074
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  OldCreateOrder = False
+  OnClose = FormClose
+  OnCreate = FormCreate
+  PixelsPerInch = 96
+  TextHeight = 13
+  object Splitter1: TSplitter
+    Left = 457
+    Top = 0
+    Height = 476
+  end
+  object StatusBar1: TStatusBar
+    Left = 0
+    Top = 517
+    Width = 971
+    Height = 19
+    Panels = <
+      item
+        Width = 50
+      end
+      item
+        Width = 150
+      end
+      item
+        Width = 150
+      end>
+  end
+  object Panel1: TPanel
+    Left = 0
+    Top = 476
+    Width = 971
+    Height = 41
+    Align = alBottom
+    TabOrder = 1
+    object bbRenameResize: TBitBtn
+      Left = 8
+      Top = 8
+      Width = 161
+      Height = 25
+      Caption = #1052#1086#1076#1080#1092#1080#1082#1072#1094#1080#1103' '#1089#1090#1088#1091#1082#1090#1091#1088#1099
+      Enabled = False
+      TabOrder = 0
+    end
+    object BitBtn1: TBitBtn
+      Left = 328
+      Top = 8
+      Width = 121
+      Height = 25
+      Caption = #1050#1086#1085#1074#1077#1088#1090#1080#1088#1086#1074#1072#1085#1080#1077
+      TabOrder = 1
+      OnClick = BitBtn1Click
+      Glyph.Data = {
+        36030000424D3603000000000000360000002800000010000000100000000100
+        18000000000000030000120B0000120B00000000000000000000FF00FFFF00FF
+        D7864BDA9859DFA66FDEA56DDEA46CDDA26BDDA169DCA068DC9F67DB9E65D58D
+        4AD07836FF00FFFF00FFFF00FFFF00FFDD9E60FFFFFFFFFFFFFFFFFEFFFEFDFF
+        FEFCFFFDFBFFFDFBFFFCFAFFFCF9FFFEFDD6904EFF00FFFF00FFFF00FFFF00FF
+        E3AF7BFFFFFEFFFCFAFFFBF6FFF9F2FFF7EEFFF5EBFFF3E7FFF1E3057A08FFFB
+        F7DDA36CFF00FFFF00FFFF00FFFF00FFE5B380FFFDFCFFF7F0FFF6ECFFF4E8FF
+        F2E5FFF0E1FFEEDDFFECD92DC746057A08DFA770FF00FFFF00FFFF00FFFF00FF
+        E6B684FFFCF9FFF2E6FFF1E2FFEFDE059008058B0805870805830837D05333CC
+        4E057A08FF00FFFF00FFFF00FFFF00FFE8B989FFFBF7FFEDDCFFECD8FFEAD448
+        B54B85FFC147E06C44DC6640D9613DD65B39D256057A08FF00FFFF00FFFF00FF
+        EABD8DFFFAF4FFE8D2FFE7CEFFE5CB48B54B85FFC151EA7A4DE77449E26F46DF
+        6A42DC643FD85F057A08FF00FFFF00FFEBC091FFF8F2FFE4C8FFE2C4FFE0C148
+        B54B85FFC185FFC185FFC153EC7D4FE8784CE672057F08FF00FFFF00FFFF00FF
+        EDC496FFF7EFFFDFBEFFDDBAFFDBB748B54B48B54B48B54B48B54B5BF48958F1
+        85058708FF00FFFF00FFFF00FFFF00FFEFC79AFFF6EDFFDAB4FFD8B0FFD6ADFF
+        D4A9FFD2A5FFD0A2FFCE9E85FFC1059008E9BB8BFF00FFFF00FFFF00FFFF00FF
+        F0CA9EFFF5EAFFD5AAFFD3A7FFD1A3FFCF9FFFCD9CFFCC9AFFCC99059808FFF2
+        E6EBBE8FFF00FFFF00FFFF00FFFF00FFF2CDA3FFF3E8FFD0A0FFCE9DFFCD9AFF
+        CC99FFCC99FFFFFFFFFFFFFFFFFFFEF7F0E9B882FF00FFFF00FFFF00FFFF00FF
+        F3D1A7FFF2E6FFCC99FFCC99FFCC99FFCC99FFCC99FFFFFFFFFFFFFEFAF7EDC2
+        91EB9988FF00FFFF00FFFF00FFFF00FFF5D4ABFFF2E6FFCC99FFCC99FFCC99FF
+        CC99FFCC99FFFFFFFEFBF7EFC697EE9E8FFF00FFFF00FFFF00FFFF00FFFF00FF
+        F6D4A9FFFFFFFFF2E6FFF2E6FFF2E6FFF2E6FFF2E6FEF8F1F1CB9DF0A295FF00
+        FFFF00FFFF00FFFF00FFFF00FFFF00FFF5C79EF7D7ACF7D9B1F7D8B0F6D7AFF6
+        D6ADF5D5ACF1C58EF2A79CFF00FFFF00FFFF00FFFF00FFFF00FF}
+    end
+    object cbOEMtoANSI: TCheckBox
+      Left = 184
+      Top = 8
+      Width = 129
+      Height = 17
+      Caption = #1050#1086#1085#1074#1077#1088#1090' OEM->ANSI'
+      TabOrder = 2
+    end
+    object pbConverting: TProgressBar
+      Left = 496
+      Top = 8
+      Width = 150
+      Height = 17
+      TabOrder = 3
+    end
+  end
+  object GroupBox1: TGroupBox
+    Left = 0
+    Top = 0
+    Width = 457
+    Height = 476
+    Align = alLeft
+    Caption = #1048#1089#1090#1086#1095#1085#1080#1082' '#1076#1072#1085#1085#1099#1093
+    TabOrder = 2
+    object Panel2: TPanel
+      Left = 2
+      Top = 15
+      Width = 453
+      Height = 41
+      Align = alTop
+      BevelOuter = bvNone
+      BorderStyle = bsSingle
+      TabOrder = 0
+      object SpeedButton1: TSpeedButton
+        Left = 385
+        Top = 8
+        Width = 23
+        Height = 22
+        Glyph.Data = {
+          36030000424D3603000000000000360000002800000010000000100000000100
+          18000000000000030000120B0000120B000000000000000000009F2DEA0077C6
+          507E97DA9859DFA66FDEA56DDEA46CDDA26BDDA169DCA068DC9F67DB9E65D58D
+          4AD07836FF00FFFF00FF0077C600B8F70088D260AADBFFFFFFFFFFFEFFFEFDFF
+          FEFCFFFDFBFFFDFBFFFCFAFFFCF9FFFEFDD6904EFF00FFFF00FF604ADB0097DE
+          00C8FF0097DE60A9DAFFFBF6FFF9F2FFF7EEFFF5EBFFF3E7FFF1E3FFEFE0FFFB
+          F7DDA36CFF00FFFF00FFFF00FF604ADB0099DE00D3FF0099DE60A7D4FFF4E8FF
+          F2E5FFF0E1FFEEDDFFECD9FFEAD6FFFAF4DFA770FF00FFFF00FFFF00FFFF00FF
+          578FAD008BD200D4F9697185A46559BC7545B36B4495524EFFE7CFFFE5CCFFF8
+          F2E1AA75FF00FFFF00FFFF00FFFF00FFE8B98960A9D86E768CCA8C5AFFB33AFF
+          B632FFB32CF9A42AAC694BFFE1C2FFF7EFE2AD79FF00FFFF00FFFF00FFFF00FF
+          EABD8DFFFAF4B6847AFFC15AFFC75AFFC557FFBE44FFBA3BEBA03DA36861FFF6
+          EDE4B17DFF00FFFF00FFFF00FFFF00FFEBC091FFF8F2D5A888FFE19EFFE19FFF
+          E09AFFDB8FFFC95DFFBF46B07461FFF5EAE6B482FF00FFFF00FFFF00FFFF00FF
+          EDC496FFF7EFDABBADFFEFC2FFEFC0FFEEBDFFEBB8FFE5AAFFC85AB0796EFFF3
+          E8E7B886FF00FFFF00FFFF00FFFF00FFEFC79AFFF6EDD5B8B7FFF7DCFFF9DBFF
+          F8D9FFF5D4FFF3D0EDB874BB897FFFF2E6E9BB8BFF00FFFF00FFFF00FFFF00FF
+          F0CA9EFFF5EAFFD5AAEAD7D3FFFDEFFFFEEEFFFDEAFAEDDDBF938BFFCC99FFF2
+          E6EBBE8FFF00FFFF00FFFF00FFFF00FFF2CDA3FFF3E8FFD0A0FFCE9DE0C7C3E6
+          D3D1E4D0CDD2B5B3FFFFFFFFFFFFFEF7F0E9B882FF00FFFF00FFFF00FFFF00FF
+          F3D1A7FFF2E6FFCC99FFCC99FFCC99FFCC99FFCC99FFFFFFFFFFFFFEFAF7EDC2
+          91EB9988FF00FFFF00FFFF00FFFF00FFF5D4ABFFF2E6FFCC99FFCC99FFCC99FF
+          CC99FFCC99FFFFFFFEFBF7EFC697EE9E8FFF00FFFF00FFFF00FFFF00FFFF00FF
+          F6D4A9FFFFFFFFF2E6FFF2E6FFF2E6FFF2E6FFF2E6FEF8F1F1CB9DF0A295FF00
+          FFFF00FFFF00FFFF00FFFF00FFFF00FFF5C79EF7D7ACF7D9B1F7D8B0F6D7AFF6
+          D6ADF5D5ACF1C58EF2A79CFF00FFFF00FFFF00FFFF00FFFF00FF}
+        OnClick = SpeedButton1Click
+      end
+      object edSourceTable: TEdit
+        Left = 0
+        Top = 8
+        Width = 385
+        Height = 21
+        ReadOnly = True
+        TabOrder = 0
+      end
+    end
+    object dbgrSource: TDBGrid
+      Left = 2
+      Top = 56
+      Width = 453
+      Height = 418
+      Align = alClient
+      DataSource = dsSource
+      TabOrder = 1
+      TitleFont.Charset = DEFAULT_CHARSET
+      TitleFont.Color = clWindowText
+      TitleFont.Height = -11
+      TitleFont.Name = 'MS Sans Serif'
+      TitleFont.Style = []
+      Columns = <
+        item
+          Expanded = False
+          Visible = True
+        end
+        item
+          Expanded = False
+          Visible = True
+        end
+        item
+          Expanded = False
+          Visible = True
+        end>
+    end
+  end
+  object GroupBox2: TGroupBox
+    Left = 460
+    Top = 0
+    Width = 511
+    Height = 476
+    Align = alClient
+    Caption = #1041#1072#1079#1072' '#1076#1072#1085#1085#1099#1093' ClientData'
+    TabOrder = 3
+    object Panel3: TPanel
+      Left = 2
+      Top = 15
+      Width = 507
+      Height = 41
+      Align = alTop
+      TabOrder = 0
+      object lbSpravNameClientData: TLabel
+        Left = 8
+        Top = 16
+        Width = 144
+        Height = 13
+        Caption = #1053#1072#1080#1084#1077#1085#1086#1074#1072#1085#1080#1077' '#1089#1087#1088#1072#1074#1086#1095#1085#1080#1082#1072
+        Enabled = False
+      end
+      object edSpravNameClientData: TEdit
+        Left = 160
+        Top = 8
+        Width = 161
+        Height = 21
+        Enabled = False
+        TabOrder = 0
+        Text = 'spr'
+      end
+    end
+    object DBGrid1: TDBGrid
+      Left = 2
+      Top = 56
+      Width = 507
+      Height = 418
+      Align = alClient
+      DataSource = dsDestony
+      TabOrder = 1
+      TitleFont.Charset = DEFAULT_CHARSET
+      TitleFont.Color = clWindowText
+      TitleFont.Height = -11
+      TitleFont.Name = 'MS Sans Serif'
+      TitleFont.Style = []
+    end
+  end
+  object odGetSourceTable: TOpenDialog
+    Filter = 'dBase III, IV|*.dbf'
+    Left = 418
+    Top = 23
+  end
+  object dbQSource: TQuery
+    Left = 248
+    Top = 72
+  end
+  object dsSource: TDataSource
+    DataSet = dbQSource
+    Left = 320
+    Top = 80
+  end
+  object dsDestony: TDataSource
+    DataSet = dbTDestony
+    Left = 540
+    Top = 104
+  end
+  object dbQDestony: TQuery
+    DataSource = dsDestony
+    Left = 620
+    Top = 80
+  end
+  object dbTDestony: TTable
+    Left = 668
+    Top = 80
+  end
+end
