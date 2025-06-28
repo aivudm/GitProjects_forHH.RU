@@ -1,0 +1,136 @@
+[MainWindow]
+Create=1
+Visible=1
+State=0
+Left=0
+Top=0
+Width=1024
+Height=106
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=1016
+ClientHeight=60
+
+[ProjectManager]
+LargeButtons=1
+Column0Width=75
+Column1Width=125
+Column2Width=125
+
+[PropertyInspector]
+Create=1
+Visible=1
+State=0
+Left=-4
+Top=109
+Width=190
+Height=609
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=182
+ClientHeight=585
+SplitPos=76
+
+[HistoryLists\hiOpenFile]
+Count=4
+H0=d:\garry program\for_ntserver70\setconnect\dbntconnect.dpr
+H1=d:\garry program\for_ntserver70\setconnect\setconnect.pas
+H2=d:\garry program\garry_changer\inschang.pas
+H3=d:\garry program\garry_changer\for_ida.dpr
+
+[HistoryLists\hiLibUnitAliases]
+Count=2
+H0=VerInfo=RxVerInf;
+H1=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+
+[Closed Files]
+File_0=SourceModule,'C:\Program Files\Borland\Delphi 3\BIN\Controls.pas',0,1,3322,1,3336,0,0
+File_1=SourceModule,'D:\Garry Program\For_NtServer70\CrackTl32v20\CrkTl32.pas',0,1,145,15,154,0,0
+File_2=SourceModule,'D:\Garry Program\For_NtServer70\ModelTL32V20.pas',0,1,1,1,1,0,0
+File_3=SourceModule,'C:\Garry_Program\For_NtServer70\GetUnlockCode.pas',0,1,23,46,26,1,0
+File_4=SourceModule,'C:\Garry_Program\OSError\VisErrorOS.pas',0,1,31,63,35,1,0
+File_5=SourceModule,'C:\Program Files\Borland\Delphi 3\Demos\RESXPLOR\RXMain.pas',0,1,225,1,236,0,0
+File_6=SourceModule,'C:\Program Files\Borland\Delphi 3\BIN\StdCtrls.pas',0,1,3719,1,3729,0,0
+File_7=SourceModule,'C:\Program Files\Borland\Delphi 3\Demos\THREADS\SortThds.pas',0,1,169,1,179,0,0
+File_8=SourceModule,'C:\Program Files\Borland\Delphi 3\Demos\THREADS\ThSort.pas',0,1,113,1,123,0,0
+File_9=PackageEditModule,'C:\Program Files\Borland\Delphi 3\COMPONENTS\ZIPPER\Tziptv.dpk',0,200,108,585,405,1
+
+[Modules]
+Module0=C:\Garry_Program\Cracking\For_NtServer70\SetConnect\SetConnect.pas
+Module1=C:\Garry_Program\Cracking\For_NtServer70\SetConnect\DBNTConnect.dpr
+Count=2
+EditWindowCount=1
+
+[C:\Garry_Program\Cracking\For_NtServer70\SetConnect\SetConnect.pas]
+ModuleType=SourceModule
+FormState=1
+FormOnTop=0
+
+[C:\Garry_Program\Cracking\For_NtServer70\SetConnect\DBNTConnect.dpr]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[EditWindow0]
+Create=1
+Visible=1
+State=0
+Left=98
+Top=107
+Width=926
+Height=636
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=918
+ClientHeight=609
+SplitPos=50
+MessagePane=0
+ViewCount=2
+CurrentView=1
+View0=0
+View1=1
+
+[View0]
+Module=C:\Garry_Program\Cracking\For_NtServer70\SetConnect\DBNTConnect.dpr
+CursorX=1
+CursorY=1
+TopLine=1
+LeftCol=1
+
+[View1]
+Module=C:\Garry_Program\Cracking\For_NtServer70\SetConnect\SetConnect.pas
+CursorX=1
+CursorY=370
+TopLine=348
+LeftCol=1
+
+[Watches]
+Count=0
+
+[Breakpoints]
+Count=2
+Breakpoint0='C:\GARRYK\Garry_Program\For_NtServer70\SetConnect\SetConnect.pas',331,'',0,1
+Breakpoint1='D:\Garry Program\For_NtServer70\SetConnect\SetConnect.pas',101,'',0,1
+
+[PVCS Browser]
+Left=236
+Top=105
+Width=625
+Height=393
+State=0
+Visible=0
+[PVCS VDiff]
+Left=257
+Top=160
+Width=591
+Height=492
+Layout=1
+Orientation=1
+State=0
+Visible=0
+File1Color=16711680
+File2Color=255
+SpaceColor=16776960
+TextColor=0
+[Project Resource Expert]
+Visible=0

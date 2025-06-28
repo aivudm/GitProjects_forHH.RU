@@ -1,0 +1,42 @@
+program CrakCent;
+
+uses
+  Forms, Windows,  SysUtils, Dialogs,
+  CrkTl32 in 'CrkTl32.pas' {Form1};
+
+{$R *.RES}
+var
+   PathBuffer: PChar;
+
+begin
+FlagError:= False;
+try
+ GetMem(PathBuffer, MaxLengthDOSPath);
+ GetWindowsDirectory(PathBuffer, MaxLengthDOSPath);
+ WorkingFileName:= StrPas(PathBuffer);
+ if WorkingFileName[length(WorkingFileName)]<>'\' then
+  WorkingFileName:= WorkingFileName+'\';
+ WorkingFileName:= WorkingFileName+ NameTrialLimitDLL;
+ if FileExists(WorkingFileName) then
+  begin
+   FlagError:= not CrackTrialLimitDLL(WorkingFileName);
+  end
+ else
+  begin
+   FlagError:= true;
+   MessageDlg('Не найден файл:'+#13+#10+
+              WorkingFileName,
+              mtError,[mbOK],0);
+  end;
+if not FlagError then
+ begin
+  Application.CreateForm(TForm1, Form1);
+  Application.Run;
+ end;
+
+finally
+ FreeMem(PathBuffer, MaxLengthDOSPath);
+end;
+
+
+end.

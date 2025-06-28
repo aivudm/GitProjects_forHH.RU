@@ -1,0 +1,38 @@
+Hello Centura and DynaSoft!
+Unfortunately, I badly know the English language, I write you in Russian,
+and the translation is made By the program - interpreter, therefore quality
+of language will be most likely ridiculous, not Think that it is a joke - I
+write very seriously!
+
+I the engineer from Russia, me 26 years. I am interested by methods of
+protection of the information (in particular software) from illegal copying.
+On leisure has looked your creations - SQL NTServer7.0.0 and 7.5.1, CTD7.5.1.
+Servers are written wonderfully, protection good, but in one place is very
+unsuccessful decision, which, it is possible to tell, brings to nothing all
+efforts. For many your potential clients in Russia the price 8008 $ for
+UnLimit Connection is rather high, therefore many will prefer CrackVersion
+(though it and extremely dangerously), if she(it) can easily be found. O'k,
+I shall pass(proceed) directly to business: I offer you the cooperation,
+namely, I can make testing of your software (or electronic) on efficiency of
+protection from illegal copying. And also I have concrete offers on updating
+your method of protection (TSF - File) to make it(him) by more effective, 
+(more precisely to clean(remove) a very weak place in protection), because of
+which it(he) loses the power. In a result the program becomes more protected 
+and many fans(amateurs) free-of-charge (broken open copies) should all the 
+same get legally, for money legal copies.
+
+P.S. For acknowledgement(confirmation) of the words I send three EXE-Files. 
+First of them [SetConnect] establishes quantity(amount) of the solved 
+connections on NTServer 7.x.x., Second [GetUnLockCode] gives out Purchase 
+UnLock Code for many last yours Products (and if to specify TSF-File, 
+RegistrationNumber it is not necessary to enter - The program considers(counts)
+from him(it) independently and enough to press "button", Third [TSFReader] -
+reads a file of a TSF-format for the versions 7.x.x. Naturally, these programs
+I did not distribute and I am not going! (in any case), As I want to emphasize,
+that this mine hobby. Ask to not confuse me with hackers and crackers. I the 
+supporter of honour earnings of money.
+
+If suddenly you something will interest, I shall be glad to cooperation with 
+you. In general, The variant - I is possible(probable) I shall be your 
+non-staff employee in Russia. 
+Write to me on www.                          with a mark " for Garry "

@@ -1,0 +1,129 @@
+[MainWindow]
+Create=1
+Visible=1
+State=0
+Left=0
+Top=0
+Width=1018
+Height=106
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=1010
+ClientHeight=60
+
+[ProjectManager]
+LargeButtons=1
+Column0Width=75
+Column1Width=125
+Column2Width=125
+
+[PropertyInspector]
+Create=1
+Visible=1
+State=0
+Left=-3
+Top=105
+Width=190
+Height=609
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=182
+ClientHeight=585
+SplitPos=76
+
+[HistoryLists\hiOpenFile]
+Count=4
+H0=d:\garry program\for_ntserver70\setconnect\dbntconnect.dpr
+H1=d:\garry program\for_ntserver70\setconnect\setconnect.pas
+H2=d:\garry program\garry_changer\inschang.pas
+H3=d:\garry program\garry_changer\for_ida.dpr
+
+[HistoryLists\hiLibUnitAliases]
+Count=1
+H0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
+
+[Closed Files]
+File_0=SourceModule,'C:\Program Files\Borland\Delphi 3\BIN\Controls.pas',0,1,2441,1,2454,0,0
+File_1=SourceModule,'C:\Program Files\Borland\Delphi 3\BIN\StdCtrls.pas',0,1,2510,1,2523,0,0
+File_2=SourceModule,'D:\Garry Program\For_NtServer70\SetConnect\SetConnect.pas',0,1,95,6,101,1,0
+File_3=SourceModule,'D:\Garry Program\For_NtServer70\CrackTl32v20\CrkTl32.pas',0,1,145,15,154,0,0
+File_4=SourceModule,'D:\Garry Program\For_NtServer70\ModelTL32V20.pas',0,1,1,1,1,0,0
+File_5=SourceModule,'C:\Garry_Program\For_NtServer70\GetUnlockCode.pas',0,1,23,46,26,1,0
+File_6=SourceModule,'C:\Garry_Program\OSError\VisErrorOS.pas',0,1,31,63,35,1,0
+File_7=SourceModule,'C:\Program Files\Borland\Delphi 3\Demos\RESXPLOR\RXMain.pas',0,1,225,1,236,0,0
+File_8=SourceModule,'C:\Program Files\Borland\Delphi 3\Demos\THREADS\SortThds.pas',0,1,169,1,179,0,0
+File_9=SourceModule,'C:\Program Files\Borland\Delphi 3\Demos\THREADS\ThSort.pas',0,1,113,1,123,0,0
+
+[Modules]
+Module0=C:\Garry_Program\For_NtServer70\SetConnect\TMP\tmp.pas
+Module1=C:\Garry_Program\For_NtServer70\SetConnect\TMP\Mytmp.dpr
+Count=2
+EditWindowCount=1
+
+[C:\Garry_Program\For_NtServer70\SetConnect\TMP\tmp.pas]
+ModuleType=SourceModule
+FormState=1
+FormOnTop=0
+
+[C:\Garry_Program\For_NtServer70\SetConnect\TMP\Mytmp.dpr]
+ModuleType=SourceModule
+FormState=0
+FormOnTop=0
+
+[EditWindow0]
+Create=1
+Visible=1
+State=0
+Left=187
+Top=106
+Width=831
+Height=616
+MaxLeft=-1
+MaxTop=-1
+ClientWidth=823
+ClientHeight=589
+SplitPos=50
+MessagePane=1
+ViewCount=1
+CurrentView=0
+View0=0
+
+[View0]
+Module=C:\Garry_Program\For_NtServer70\SetConnect\TMP\tmp.pas
+CursorX=45
+CursorY=78
+TopLine=69
+LeftCol=1
+
+[Watches]
+Count=0
+
+[Breakpoints]
+Count=1
+Breakpoint0='D:\TEMP\tmp.pas',42,'',0,1
+
+[PVCS Browser]
+Left=236
+Top=105
+Width=625
+Height=393
+State=0
+Visible=0
+
+[PVCS VDiff]
+Left=257
+Top=160
+Width=591
+Height=492
+Layout=1
+Orientation=1
+State=0
+Visible=0
+File1Color=16711680
+File2Color=255
+SpaceColor=16776960
+TextColor=0
+
+[Project Resource Expert]
+Visible=0
+

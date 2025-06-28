@@ -1,0 +1,31 @@
+function TFrmMain.LookDir(const Path: string): Boolean;
+const
+  FileNotFound = 18;
+var
+  FileInfo: TSearchRec;
+  DosCode: Integer;
+begin
+  Result := DirExists(Path);
+  if not Result then Exit;
+  DosCode := FindFirst(NormalDir(Path) + '*.*', faAnyFile, FileInfo);
+  try
+    while DosCode = 0 do begin
+      if (FileInfo.Name[1] <> '.') and (FileInfo.Attr <> faVolumeID) then
+      begin
+        if (FileInfo.Attr and faDirectory = faDirectory) then
+          Result := LookDir(NormalDir(Path) + FileInfo.Name) and Result
+        else
+         if (FileInfo.Attr and faVolumeID <> faVolumeID) then
+          begin
+            if (FileInfo.Attr and 1 = 1) then
+              FileSetAttr(NormalDir(Path) + FileInfo.Name, faArchive);
+            Result := Save1FileInfo(NormalDir(Path), FileInfo.Name,
+            FileDateTime(NormalDir(Path) + FileInfo.Name), FileInfo.Size) and Result;
+          end;
+      end;
+      DosCode := FindNext(FileInfo);
+    end;
+  finally
+    FindClose(FileInfo);
+  end;
+end;
