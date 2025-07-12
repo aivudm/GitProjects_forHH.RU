@@ -18,8 +18,10 @@ const
   sDelimiterNumTask = '#';
   DllFileName = 'Primer_MT_3.dll';
   iMaxDigitPi = 10000;
-//----- Для задач подклбчаемыз из dll для теста --------------
-  DllProcName_NickName = 'GetLibraryNickName';
+//----- Для задач подключаемых из dll для теста --------------
+  DllProcName_LibraryInfo = 'GetLibraryAPI';
+
+  MaxStringInfoLength = 64;
 
 implementation
 

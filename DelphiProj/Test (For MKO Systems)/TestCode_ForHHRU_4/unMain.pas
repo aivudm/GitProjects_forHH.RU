@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
-  Vcl.Menus, unConst, unVariables, unTools;
+  Vcl.Menus, unConst, unVariables, unTools, unUtils,
+  IOUtils, Types, DateUtils;
 
 type
 
@@ -24,6 +25,8 @@ type
     bThreadPause: TButton;
     bStop: TButton;
     sbMain: TStatusBar;
+    Button1: TButton;
+    Button2: TButton;
     procedure miToolsClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure lbThreadListMouseUp(Sender: TObject; Button: TMouseButton;
@@ -33,6 +36,8 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure lbThreadListClick(Sender: TObject);
     procedure lbThreadListKeyPress(Sender: TObject; var Key: Char);
+    procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
   private
     { Private declarations }
 //    message WM_WINDOWPOSCHANGING;
@@ -99,18 +104,120 @@ begin
  formTools.tmCheckThreadReport.Enabled:= true;
 end;
 
+procedure TformMain.Button1Click(Sender: TObject);
+var
+  tmpTargetFile: WideString;
+  tmpStreamWriter: TStreamWriter;
+  inputParam1, inputParam2, inputParam3: WideString;
+  inputParam4: BOOL;
+  tmpPeriodFlush: Cardinal;
+  iProcedureWorkTime: DWORD;
+  iTargetWorkTime: WORD;
+
+begin
+  inputParam1:= '*.txt'; //Маска
+  inputParam2:= 'C:\Users\user\AppData\Roaming\Primer_MT_3'; // Директория старта поиска
+  inputParam3:= 'D:\Install\ResultSearchByMask1.txt'; // Имя файла для записи результата, если inputParam4 - true
+  inputParam4:= true;                                  // Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
+
+  tmpPeriodFlush:= 1;
+
+  iTargetWorkTime:= 1000;
+
+//--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
+  case inputParam4 of
+    true:
+     begin
+       if TPath.GetFileName(inputParam3) <> '' then
+        if TPath.GetDirectoryName(inputParam3) <> '' then
+          tmpStreamWriter:= TFile.CreateText(inputParam3)
+        else
+     end;
+
+    false:   //--- Настройка памяти для выгрузки результата
+      begin
+
+      end;
+    else
+  end;
+
+  tmpPeriodFlush:= 1;
+
+  for tmpTargetFile in TDirectory.GetFiles(inputParam2, inputParam1,
+                TSearchOption.soAllDirectories) do
+  begin
+    tmpStreamWriter.WriteLine(tmpTargetFile + ', ');
+    if (GetTickCount() - iProcedureWorkTime) >=  iTargetWorkTime then
+     begin
+      tmpStreamWriter.Flush;
+      iProcedureWorkTime:= GetTickCount(); // запоминаем текущее значение тиков
+     end;
+  end;
+ tmpStreamWriter.Close;
+
+end;
+
+procedure TformMain.Button2Click(Sender: TObject);
+var
+  tmp_hDllTask: THandle;
+  tmpCallingDLL1Proc2: TCallingDLL1Proc2;
+  tmpBSTR, tmpWString: WideString; //--- Для обмена строками с Dll только BSTR (или в Делфи WideString)
+  i, tmpInfoRecordSize, tmpInfoRecordCount: Byte;
+  inputParam1, inputParam2, inputParam3: WideString;
+  inputParam4: BOOL;
+  tmpResult: Pointer;
+  tmpResultSize: DWORD;
+  tmpDllFileName: string;
+
+begin
+  inputParam1:= '*.txt'; //Маска
+  inputParam2:= 'C:\Users\user\AppData\Roaming\Primer_MT_3'; // Директория старта поиска
+  inputParam3:= 'D:\Install\ResultSearchByMask1.txt'; // Имя файла для записи результата, если inputParam4 - true
+  inputParam4:= true;                                  // Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
+  tmpDllFileName:= 'D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Win32\Debug\PrimerDll_1_MT_4.dll';
+try
+
+if  Win32Platform = VER_PLATFORM_WIN32_NT then
+  begin
+   tmp_hDllTask:= LoadLibrary(PChar(tmpDllFileName)); //, 0, LOAD_LIBRARY_AS_DATAFILE{DONT_RESOLVE_DLL_REFERENCES});
+  end
+  else
+   tmp_hDllTask:= LoadLibrary(PChar(tmpDllFileName)); //, 0, 0{DONT_RESOLVE_DLL_REFERENCES});
+
+ @tmpCallingDLL1Proc2:= GetProcAddress(tmp_hDllTask, 'FileFinderByMask');
+ if @tmpCallingDLL1Proc2 <> nil then
+   tmpCallingDLL1Proc2(inputParam1, inputParam2, inputParam3, inputParam4, 1000, tmpResult, tmpResultSize);
+
+finally
+  FreeLibrary(tmp_hDllTask);
+end;
+
+end;
+
 procedure TformMain.FormClose(Sender: TObject; var Action: TCloseAction);
 var
   i: word;
 begin
+try
  formInfo:= TformInfo.Create(Application);
  formInfo.lMessageInfo.Caption:= sWaitForAppClosing;
  formInfo.Show;
  Application.ProcessMessages;
- formTools.Close;
- formTools.Free;
+
+ if Assigned(formTools) then
+ begin
+  formTools.Close;
+  formTools.Free;
+ end;
+
+ if Assigned(formTools) then
+ begin
  formInfo.Close;
  formInfo.Free;
+ end;
+finally
+ FinalizeLibraryes;
+end;
 end;
 
 procedure TformMain.HandleProc(var updMessage: TMessage);

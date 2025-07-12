@@ -87,7 +87,7 @@ object formTools: TformTools
       OnClick = Button1Click
     end
     object lbLibraryList: TListBox
-      Left = 0
+      Left = 3
       Top = 22
       Width = 270
       Height = 97

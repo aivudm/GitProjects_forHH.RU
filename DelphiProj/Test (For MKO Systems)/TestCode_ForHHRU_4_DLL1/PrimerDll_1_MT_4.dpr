@@ -11,17 +11,45 @@ library PrimerDll_1_MT_4;
   using PChar or ShortString parameters. }
 
 uses
-  System.SysUtils,
-  System.Classes,
-  unMain in 'unMain.pas';
+  Windows,
+  SysUtils,
+  Classes,
+  ActiveX,
+  unLibrary1API in 'unLibrary1API.pas',
+  unVariables in 'unVariables.pas',
+  unEditInputParams in 'unEditInputParams.pas' {formEditParams},
+  unErrorException in 'unErrorException.pas';
+
+function GetLibraryAPI(const inputIID: TGUID; var Intf): HRESULT; stdcall;
+var
+  tmpIID: TGUID;
+begin
+  try
+    tmpIID := ILibraryAPI;
+//--- Проверка на соответствие запрашиваемого и реализованного интерфейса
+    if CompareMem(@inputIID, @tmpIID, SizeOf(tmpIID)) then
+    begin
+//--- Проверка на существование экземпляра интерфейса DllAPI
+      if LibraryAPI = nil then
+        LibraryAPI := TLibraryAPI.Create;
+      Pointer(Intf) := nil;
+      ILibraryAPI(Intf) := LibraryAPI;
+      Result := S_OK;
+    end
+    else
+      Result := E_NOINTERFACE;
+    ActiveX.SetErrorInfo(0, nil);
+  except
+    on E: Exception do
+      Result := HandleSafeCallException(E, ExceptAddr);
+  end;
+end;
+
 
 {$R *.res}
 
 exports
-  _GetLibraryNickName name 'GetLibraryNickName',
-  Task1_FileFinderByMask name 'FileFinderByMask',
-  Task2_FileFinderByPattern name 'FileFinderByPattern';
-
+  GetLibraryAPI name 'GetLibraryAPI';
 
 begin
 end.

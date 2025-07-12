@@ -48,18 +48,6 @@ type
 //    property PtrPred: Pointer read FPtrPred write FTaskState;
   end;
 
-  TTaskSource1 = class sealed (TTaskSource)
-   private
-    const
-     FTaskSourceName: string  = 'Пустой цикл (sleep())';
-   protected
-   public
-    constructor Create(TaskItemNum: word); overload;
-    class procedure TaskProcedure(TaskItem: TTaskItem); inline;
-//    procedure TaskProcedure; inline;
-  end;
-
-
   TTaskSource2 = class (TTaskSource)
    private
     const
@@ -70,19 +58,6 @@ type
     class procedure TaskProcedure(TaskItem: TTaskItem); overload; inline;
   end;
 
-  TTaskSource3 = class (TTaskSource)
-   private
-    const
-     FTaskSourceName: string  = 'Определение простых чисел'; //--- 'Определение простых чисел методом перебора'
-   protected
-    FCurrentNumber: Int64;
-    procedure SetCurrentNumber(inNumber: Int64);
-   public
-    constructor Create(TaskItemNum: word); overload;
-    class procedure TaskProcedure(TaskItem: TTaskItem); overload; inline;
-
-    property CurrentNumber: Int64 read FCurrentNumber write SetCurrentNumber;
-  end;
 
 //--- После создания необходимо самостоятельно следить за жизненным циклом классов - TaskSource
 //--- так как здесь не возможно их хранить в TObjectList... --------------------
@@ -99,7 +74,7 @@ type
   TTaskSource4 = class (TTaskSource)
    private
     const
-     FTaskSourceName: string  = 'Определение простых чисел'; //--- 'Определение простых чисел методом перебора'
+     FTaskSourceName: string  = 'Новые задачи для теста'; //--- 'Определение простых чисел методом перебора'
    protected
     FCurrentNumber: Int64;
     procedure SetCurrentNumber(inNumber: Int64);
@@ -149,6 +124,7 @@ type
     FClientUDP: TIdUDPClient;
     procedure thrSendInfoToView;
    protected
+    FTaskLibraryId: word;
     FTaskTemplateId: word;
     FTaskProcedure: TTaskProcedure;
 
@@ -159,7 +135,7 @@ type
 //    ExecProcedure: TTaskProcedure;   //--- Фактический адрес подпрограммы будет назначен в конструкторе
     procedure Execute; override;
    public
-    constructor Create(TaskTemplateId: word; BeginState: TTaskState); overload;
+    constructor Create(TaskLibraryId, TaskTemplateId: word; BeginState: TTaskState); overload;
     destructor Destroy(); overload;
     procedure OnTerminate(Sender: TObject); overload;
     procedure SetTaskNum(TaskNum: word);
@@ -178,7 +154,7 @@ type
     function GetTaskState(): TTaskState;
     function PrepareOutString(TaskNum: integer; sPersonThreadInfo: string): string;
     function GetTaskStateName(inTaskState: TTaskState): string;
-    function InitTaskSource(SelectedTaskNum: byte; TaskItemNum: word): Pointer;
+    function InitTaskSource(SelectedLibraryNum, SelectedTaskNum: byte; TaskItemNum: word): Pointer;
     function IsTerminated: boolean;
 
     property TaskName: string read FTaskName;
@@ -257,7 +233,6 @@ type
  var
     TaskList: TTaskList;
 
-    tmpTaskSource: TTaskSource1;
     CriticalSection: TCriticalSection;
     OutInfo_ForViewing: TOutInfo_ForViewing;
     ReportingTaskItemNum: integer;
@@ -314,21 +289,6 @@ begin
 end;
 
 
-//------------- procedure TTaskSource1 -----------------------------------------
-constructor TTaskSource1.Create(TaskItemNum: word);
-var
-  tmpProc: TTaskProcedure;
-begin
- inherited Create(TaskItemNum);
-(*
-// FTaskSourceName:= TaskNameArray[0];
- TaskList[TaskItemNum].SetTaskSource(self);
- tmpProc:= TaskProcedure;
-// TaskList[TaskItemNum].FTaskProcedure:= TMethod(pooTmp).Code;
- TaskList[TaskItemNum].FTaskProcedure:= tmpProc;
-*)
-end;
-
 //------------- procedure TTaskSource2 -----------------------------------------
 constructor TTaskSource2.Create(TaskItemNum: word);
 begin
@@ -341,17 +301,6 @@ begin
  @CallingDLLProc:= GetProcAddress(hDllTask, FDllProcName);
  FCallingDLLProc:= CallingDLLProc;
 
- // Для данного шаблона источника задачи требуется наличие писателя в файл (пока только в текстовый)
- TaskList[TaskItemNum].SetStreamWriter(FileList.Add(TFileItem.Create(TaskItemNum)));
-
-end;
-
-//------------- procedure TTaskSource3 -----------------------------------------
-constructor TTaskSource3.Create(TaskItemNum: word);
-var
-  tmpProc: TTaskProcedure;
-begin
- inherited Create(TaskItemNum);
  // Для данного шаблона источника задачи требуется наличие писателя в файл (пока только в текстовый)
  TaskList[TaskItemNum].SetStreamWriter(FileList.Add(TFileItem.Create(TaskItemNum)));
 
@@ -379,11 +328,6 @@ begin
 
 end;
 
-procedure TTaskSource3.SetCurrentNumber(inNumber: Int64);
-begin
- FCurrentNumber:= inNumber;
-end;
-
 
 //------------------------------------------------------------------------------
 //---------- Данные для TTaskSourceList ----------------------------------------------
@@ -403,7 +347,7 @@ end;
 //------------------------------------------------------------------------------
 //---------- Данные для TTaskItem ----------------------------------------------
 //------------------------------------------------------------------------------
-constructor TTaskItem.Create(TaskTemplateId: word; BeginState: TTaskState);
+constructor TTaskItem.Create(TaskLibraryId, TaskTemplateId: word; BeginState: TTaskState);
 var
   tmpWord: word;
   tmpBool: boolean;
@@ -415,6 +359,7 @@ begin
 
  inherited  Create(false); //--- отложим запуск потока до AfterConstraction
  //--- В этом конструкторе всё выдаём по умолчанию
+ FTaskLibraryId:= TaskLibraryId; // Номер задачи-шаблона из массива aTaskNameArray
  FTaskTemplateId:= TaskTemplateId; // Номер задачи-шаблона из массива aTaskNameArray
  FTaskName:= aTemplateTaskNameArray[FTaskTemplateId];
  FreeOnTerminate:= true;
@@ -745,29 +690,6 @@ end;
    //--- Заглушка (пустышка), например для "затыкания№, если что-то погло не так в консипукторе TaskItem
  end;
 
-class procedure TTaskSource1.TaskProcedure(TaskItem: TTaskItem);
- //--- Calculate_Dummy
-  var
-  i: Int64;
-  eTmp: extended;
-  maxValue: Int64;
- begin
-//  curTaskItem:= TaskItem;
-  inc(TaskItem.FTaskStepCount);
-  maxValue:= 10; //1000000; //exp(6*ln(10));
-
-  repeat
-   for i:=1 to maxValue do
-   begin
-    sleep(300);  //--- Поэтому эта задача и называется "Пустой цикл"
-//    eTmp:= ln(123456678.1234567);
-   end;
-  until (TaskItem.TaskState = TTaskState(tsTerminate)) or (TaskItem.TaskState = TTaskState(tsPause)) or (TaskItem.TaskState = TTaskState(tsReportPause));
-
-  TaskItem.InfoFromTask:= 'Пройден ' + IntToStr(TaskItem.FTaskStepCount) + ' усл.цикл';
-
- end;
-
 class procedure TTaskSource2.TaskProcedure(TaskItem: TTaskItem);
  //--- Calculate (Пи): вызов из библиотеки (.dll)
 var
@@ -775,11 +697,6 @@ var
   tmpStr: string;
   tmpCallingDLLProc: TCallingDLLProc;
  begin
-  if IsTaskDllAttached(DllFileName) = -1 then
-  begin
-   Showmessage('Не удаётся подключить библиотеку с прототипами задач');
-   exit;
-  end;
 
 //  tmpCallingDLLProc:= FCallingDLLProc;
   if @FCallingDLLProc = nil then
@@ -807,56 +724,6 @@ var
 
  end;
 
-class procedure TTaskSource3.TaskProcedure(TaskItem: TTaskItem);
- //--- Calculate_SimpleNumber
- // Данная задача представлена не в сторонней библиотеке, а в теле   TaskSource3.TaskProcedure
- // пример работы с локально реализованным шаблоном задачи
-  var
-  i: Int64;
-//  eTmp: extended;
-  iTestNumber: Int64;
-  fStreamWriter: TStreamWriter;
-  Proc_IsSimple: function (TestNumber: Int64): boolean;
-  function IsSimple (TestNumber: Int64): boolean; inline;
-   var
-    i: Int64;
-   begin
-    Result:= true;
-    for i:= 2 to (TestNumber - 1) do
-      begin
-        if (TestNumber mod i) = 0  then
-         begin
-           Result:= false;
-           break;
-         end;
-      end;
-  end; // function IsSimple
- begin
-  fStreamWriter:= FileList[TaskItem.StreamWriterNum].StreamWriter;
-  inc(TaskItem.FTaskStepCount);
-//  CurrentNumber:= CurrentNumber + 1;
-  if TaskItem.FTaskStepCount < 3 then
-   begin
-    iTestNumber:= 3;
-    fStreamWriter.WriteLine('Простые числа:');
-   end
-  else
-   iTestNumber:= TaskItem.FTaskStepCount;
-
-  i:= TaskItem.FStopWatch.ElapsedMilliseconds; // запоминаем текщее значение времени работы потока - необходимо его вычитать в "until"
-  repeat
-   if IsSimple(iTestNumber) then
-   begin
-    FileList[TaskItem.StreamWriterNum].StreamWriter.Write(IntToStr(iTestNumber) + ', ');
-    inc(iTestNumber);
-   end;
-  until (iTestNumber = high(Int64)) or ((TaskItem.FStopWatch.ElapsedMilliseconds - i) >= TaskItem.FPeriodReport)
-        or (TaskItem.TaskState = TTaskState(tsTerminate)) or (TaskItem.TaskState = TTaskState(tsPause)) or (TaskItem.TaskState = TTaskState(tsReportPause));
-
-  inc(TaskItem.FTaskStepCount); // зафиксируем завершение очередного условного цикла
-  TaskItem.InfoFromTask:= 'Пройден ' + IntToStr(TaskItem.FTaskStepCount) + ' усл.цикл, ' + Format('найдено: %d простых чисел', [iTestNumber]);
-
- end;
 
 class procedure TTaskSource4.TaskProcedure(TaskItem: TTaskItem);
  //--- Прототип источника задачи для теста hh.ru: вызов из библиотеки (.dll)
@@ -865,11 +732,6 @@ var
   tmpStr: string;
   tmpCallingDLLProc: TCallingDLLProc;
  begin
-  if IsTaskDllAttached(DllFileName) = -1 then
-  begin
-   Showmessage('Не удаётся подключить библиотеку с прототипами задач');
-   exit;
-  end;
 
 //  tmpCallingDLLProc:= FCallingDLLProc;
   if @FCallingDLLProc = nil then
@@ -899,7 +761,7 @@ var
 
 
 
-function TTaskItem.InitTaskSource(SelectedTaskNum: byte; TaskItemNum: word): Pointer;
+function TTaskItem.InitTaskSource(SelectedLibraryNum, SelectedTaskNum: byte; TaskItemNum: word): Pointer;
 var
  tmpPointer: Pointer;
  tmpProc: TTaskProcedure;
@@ -907,11 +769,6 @@ begin
  case SelectedTaskNum of
   0:
   begin
-//   tmpProc:= TTaskSource1.Create().TaskProcedure;
-   Result:= TTaskSource1.Create(TaskItemNum);
-//   TaskList[TaskItemNum].FTaskProcedure:= tmpProc;
-   TaskList[TaskItemNum].FTaskProcedure:= TTaskSource1(Result).TaskProcedure;
-//   tmpProc(TaskList[TaskItemNum]);  --- для отработки
   end;
   1:
   begin
@@ -920,13 +777,12 @@ begin
   end;
   2:
   begin
-   Result:= TTaskSource3.Create(TaskItemNum);
-   TaskList[TaskItemNum].FTaskProcedure:= TTaskSource3(Result).TaskProcedure;
   end;
   3:  // Задачи для тестового примера от hh.ru
   begin
    Result:= TTaskSource4.Create(TaskItemNum);
    TaskList[TaskItemNum].FTaskProcedure:= TTaskSource4(Result).TaskProcedure;
+   // LibraryTaskInfoList[tmpLibraryNum].TaskDllProcName
   end;
   else Result:= nil;
  end;

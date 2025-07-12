@@ -69,12 +69,13 @@ begin
 
 
   //--- Назначение задачи (из списка доступных задач) новому потоку
-  //--- 1. Создаём новый объект "Задача" (сразу назначаем Исходник задачи), затем помещаем его в массив объектов типа "Список Задач"
-  //--- Порядковый номер шаблона задачи точно соответствует порядковому номеру в визуальном компоненте lbTemplateTaskList
-  iTaskListNum:= TaskList.Add(TTaskItem.Create(lbTemplateTaskList.ItemIndex, tsNotDefined));
+  //--- 1. Создаём новый объект "Задача", затем помещаем его в массив объектов типа "Список Задач"
+  //--- Порядковый номер библиотеки в Перечне библиотек и порядковый номер шаблона задачи точно соответствуют
+  //--- их порядковым номерам в визуальных компонентах lbLibraryList и lbTemplateTaskList
+  iTaskListNum:= TaskList.Add(TTaskItem.Create(lbLibraryList.ItemIndex, lbTemplateTaskList.ItemIndex, tsNotDefined));
   //--- 2. Создаём новый объект "Исходник Задачи", затем помещаем его в массив объектов типа "Список Исходников Задач" - нужна реализация каждого объекта, так как они будут выполняться в потоках
   TaskList[iTaskListNum].SetTaskNum(iTaskListNum);
-  pTaskSource:= TaskList[iTaskListNum].InitTaskSource(lbTemplateTaskList.ItemIndex, iTaskListNum);
+  pTaskSource:= TaskList[iTaskListNum].InitTaskSource(lbLibraryList.ItemIndex, lbTemplateTaskList.ItemIndex, iTaskListNum);
 //  TaskList[iTaskListNum].SetTaskSource(pTaskSource); // перенесён внутрь TaskList[iTaskListNum].InitTaskSource
   //--- 3. Создаём новый объект "Поток", привязываем его к Задаче и запускаем его на выполнение
 //  iThreadNum:= ThreadList.Add(TThreadType1.Create(iSelectedTask));
@@ -97,9 +98,8 @@ end;
 
 procedure TformTools.Button1Click(Sender: TObject);
 var
- tmpItem, tmpItem1, tmpDllProcNum: word;
- tmpString: string;
- tmpTaskDllProcName: TArray<string>;
+ tmpItem, tmpItem1, tmpLibraryNum: word;
+ tmpLibraryTask: TLibraryTask;
 
 begin
  if TFile.Exists(sWorkDirectory) then
@@ -107,29 +107,29 @@ begin
  if Not odGetLibrary.Execute(formTools.Handle) then Exit;
 
  lbLibraryList.Clear;
+
  for tmpItem:= 0 to odGetLibrary.Files.Count-1 do
  begin
 
-  tmpString:= GetDllLibraryNickName(odGetLibrary.Files.Strings[tmpItem]);
+//--- Создание объекта информации для библиотеки (каждой)
+//--- состоит из: имени шаблона задачи и индекса задачи в библиотеке
+//--- Индекс соответсвует индексу строки при получении списка реализуемых задач
+//--- полученных через интерфейс DllAPI
+  tmpLibraryNum:= LibraryList.Add(TLibraryTask.Create);
+  tmpLibraryTask:= LibraryList[tmpLibraryNum];
+ //--- Пр имени файла библиотеки (DLL) получим её наименование и список реализованных функций
+//    Список реализованных функций возвращается в переменную -  tmpTaskDllProcName);
+  GetLibraryInfo(odGetLibrary.Files.Strings[tmpItem], tmpLibraryTask);
  //--- Если наименование не получено от Dll, значит Dll "не наша", просто пропускаем её
-  if tmpString <> '' then
+  if tmpLibraryTask.LibraryName <> '' then
    begin
- //--- Добавим библиотеку в список доступных библиотек
-    tmpDllProcNum:= LibraryTaskInfoList.Add(TLibraryTaskInfo.Create);
+ //--- Добавим библиотеку в список доступных библиотек в визуальном компоненте (ListBox)
+    lbLibraryList.Items.Add(AnsiString(tmpLibraryTask.LibraryName));
 
+//   LibraryTaskInfoList[tmpLibraryNum].TaskTemplateName:= tmpTaskTemplateName;
 
-
-
- //    lbLibraryList.Items.Add(tmpString);
-
-
-
- //--- Получим из библиотеки имена экспортируемых процедур
-//    GetDLLExportList(odGetLibrary.Files.Strings[tmpItem], tmpTaskDllProcName);
-//    LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName:= tmpTaskDllProcName;
 //--- Для отработки заполним вручную пока
-
-    LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName:= ['GetLibraryNickName', 'FileFinderByMask', 'FileFinderByPattern'];
+//     LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName:= ['GetLibraryNickName', 'FileFinderByMask', 'FileFinderByPattern'];
 
  //--- Получим из библиотеки адреса процедур согласно наименованию
 {
@@ -141,6 +141,17 @@ begin
    end;
  end;
 
+{
+//--- Заполним элементы ListBox (Перечень библиотек) согласно перечня библиотек
+//--- Первый элемент пропускаем, так как это функция получения наименование самой библиотеки
+  for tmpItem:= 1 to (High(LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName)) do
+  begin
+   lbLibraryList.Items.Add(LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName[tmpItem]);
+  end;
+}
+//  lbLibraryList.ItemIndex:= 0;
+//  lbLibraryList.OnClick(Sender);
+
 end;
 
 procedure TformTools.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -148,6 +159,8 @@ var
   i: word;
 begin
  tmCheckThreadReport.Enabled:= false;
+ if TaskList.Count <1 then exit;
+ 
  for i:=0 to (TaskList.Count - 1) do
  begin
   if TaskList[i].GetTaskState = tsPause then
@@ -159,6 +172,7 @@ begin
  end;
 
  formMain.miTools.Enabled:= true;
+
 end;
 
 procedure TformTools.FormCreate(Sender: TObject);
@@ -179,14 +193,18 @@ end;
 procedure TformTools.lbLibraryListClick(Sender: TObject);
 var
   tmpItem: byte;
-  tmpDllProcNum: word;
+  tmpTaskTemplateIndex: Byte;
 begin
 //--- Выведем список доступных в библиотеке задач в визуальный компонент (ListBox)
   lbTemplateTaskList.Clear;
-  tmpDllProcNum:= lbLibraryList.ItemIndex;
-  for tmpItem:= 0 to (High(LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName[tmpItem])) do
+
+  tmpTaskTemplateIndex:= lbLibraryList.ItemIndex;
+  if tmpTaskTemplateIndex < 0 then exit;
+
+//--- Считаем с 1, так как первый элемент пропускаем - это всегда имя библиотеки
+  for tmpItem:= 0 to LibraryList[tmpTaskTemplateIndex].TaskCount do
   begin
-   lbTemplateTaskList.AddItem(LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName[tmpItem], Sender);
+   lbTemplateTaskList.AddItem(LibraryList[tmpTaskTemplateIndex].TaskTemplateName[tmpItem], Sender);
   end;
 end;
 

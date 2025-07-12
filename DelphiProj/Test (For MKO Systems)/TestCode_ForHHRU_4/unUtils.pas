@@ -2,16 +2,20 @@ unit unUtils;
 
 interface
 uses Vcl.Forms, System.Classes, System.SysUtils, Winapi.Windows, Winapi.Messages, IOUtils,
-     TlHelp32, ImageHlp; {PsAPI,}
+     TlHelp32, ImageHlp, {PsAPI,}
+     unVariables;
 
-function GetWorkingDirectoryName(): string;
-function IsTaskDllAttached(DllFileName: string): integer;
-function GetDllLibraryNickName(DllFileName: string): string;
-procedure GetDLLExportList(const DllFileName: string; var outputList: TArray<string>);
+function GetWorkingDirectoryName(): String;
+//function IsTaskDllAttached(DllFileName: String): Integer;
+procedure GetLibraryInfo(DllFileName: WideString; var inoutLibraryTask: TLibraryTask);
+//procedure GetDLLExportList(const DllFileName: string; var outputList: TArray<string>);
+//--- Получение элементов из строки, разделённых ';'
+procedure GetItemsFromString(SourceBSTR: WideString; var outputStringItems: TArray_WideString);
+procedure FinalizeLibraryes;
 
 
 implementation
-uses unConst, unVariables, unUtilCommon;
+uses unConst, unUtilCommon;
 
 function GetWorkingDirectoryName(): string;
 var
@@ -44,36 +48,146 @@ end;
 
 end;
 
-function IsTaskDllAttached(DllFileName: string): integer;
-begin
- Result:= -1;
-  if  Win32Platform = VER_PLATFORM_WIN32_NT then
-  begin
-   hDllTask:= LoadLibrary(PChar(DllFileName)); //, 0, LOAD_LIBRARY_AS_DATAFILE{DONT_RESOLVE_DLL_REFERENCES});
-  end
-  else
-   hDllTask:= LoadLibrary(PChar(DllFileName)); //, 0, 0{DONT_RESOLVE_DLL_REFERENCES});
- Result:= hDllTask;
-end;
 
-function GetDllLibraryNickName(DllFileName: string): string;
+function LoadDLL(const DllFileName: WideString): HMODULE;
 var
-  tmp_hDllTask: THandle;
-  tmpCallingDLLProc: TCallingDLLProc1;
+  DLLPath: String;
+  OldDir: String;
+  OldPath: UnicodeString;
+  {$IFDEF WIN32}
+  FPUControlWord: Word;
+  {$ENDIF}
+  {$IFDEF WIN64}
+  FPUControlWord: Word;
+  {$ENDIF}
 begin
- Result:= '';
-  if  Win32Platform = VER_PLATFORM_WIN32_NT then
-  begin
-   tmp_hDllTask:= LoadLibrary(PChar(DllFileName)); //, 0, LOAD_LIBRARY_AS_DATAFILE{DONT_RESOLVE_DLL_REFERENCES});
-  end
-  else
-   tmp_hDllTask:= LoadLibrary(PChar(DllFileName)); //, 0, 0{DONT_RESOLVE_DLL_REFERENCES});
+  OldDir := GetCurrentDir;
+  OldPath := GetEnvironmentVariable('PATH');
+  try
+    DLLPath := ExtractFilePath(DllFileName);
+    SetEnvironmentVariableW('PATH', PWideChar(DLLPath + ';' + OldPATH));
+    SetCurrentDir(DLLPath);
 
- @tmpCallingDLLProc:= GetProcAddress(tmp_hDllTask, DllProcName_NickName);
- if @tmpCallingDLLProc <> nil then
-   tmpCallingDLLProc(Result);
- FreeLibrary(tmp_hDllTask);
+    {$IFDEF WIN32}
+    asm
+      FNSTCW  FPUControlWord
+    end;
+    {$ENDIF}
+    {$IFDEF WIN64}
+    FPUControlWord := Get8087CW();
+    {$ENDIF}
+    try
+
+    Result := LoadLibraryW(PWideChar(DllFileName));
+    Win32Check(Result <> 0);
+
+    finally
+      {$IFDEF WIN32}
+      asm
+        FNCLEX
+        FLDCW FPUControlWord
+      end;
+      {$ENDIF}
+      {$IFDEF WIN64}
+      TestAndClearFPUExceptions(0);
+      Set8087CW(FPUControlWord);
+      {$ENDIF}
+    end;
+  finally
+    SetEnvironmentVariableW('PATH', PWideChar(OldPATH));
+    SetCurrentDir(OldPath);
+  end;
+  SetLastError(0);
 end;
+
+procedure GetItemsFromString(SourceBSTR: WideString; var outputStringItems: TArray_WideString);
+var
+  i: word;
+begin
+ if pos(';', SourceBSTR, 1) > 0 then
+ begin
+  i:= 0;
+  while pos(';', SourceBSTR, 1) > 0 do
+   begin
+    outputStringItems[i]:= Copy(SourceBSTR, 1, pos(';', SourceBSTR, 1) - 1);
+    delete(SourceBSTR, 1, Length(outputStringItems[i]) + 1); //--- удалим прочтённую запись и разделитель
+    inc(i);
+   end;
+ end;
+end;
+
+
+procedure GetLibraryInfo(DllFileName: WideString; var inoutLibraryTask: TLibraryTask);
+var
+  tmp_hTaskLibrary: THandle;  //--- он же HMODULE
+  tmpDLLAPIProc: TDLLAPIProc;
+  tmpCallingDLLProc: TCallingDLL1Proc1;
+  tmpBSTR, tmpWString: WideString; //--- Для обмена строками с Dll только BSTR (или в Делфи WideString)
+  i, tmpInfoRecordSize, tmpInfoRecordCount: Byte;
+  tmpIntrfDllAPI: ILibraryAPI;
+begin
+ inoutLibraryTask.LibraryName:= '';
+try
+
+
+ tmp_hTaskLibrary:= LoadDLL(DllFileName); //, 0, LOAD_LIBRARY_AS_DATAFILE{DONT_RESOLVE_DLL_REFERENCES});
+
+ @tmpDLLAPIProc:= GetProcAddress(tmp_hTaskLibrary, DllProcName_LibraryInfo);
+ Win32Check(Assigned(tmpDLLAPIProc));
+
+//--- Вызов интерфейса библиотеки с задачами
+ tmpDLLAPIProc(ILibraryAPI, tmpIntrfDllAPI);
+
+//--- Получим имя библиотеки
+ inoutLibraryTask.LibraryName:= tmpIntrfDllAPI.Name;
+
+ //--- Очистим переменную с именами шаблонов задач
+ inoutLibraryTask.Clear;
+//--- Получим имена реализованных задач
+ for i:= 0 to tmpIntrfDllAPI.GetTaskList.Count do
+ begin
+  inoutLibraryTask.TaskTemplateName[i]:= tmpIntrfDllAPI.GetTaskList.Strings[i];
+//  inoutLibraryTaskInfo.TaskLibraryIndex:= i;
+ end;
+
+// intrfDllAPI.GetFormParams;
+
+{
+//--- Выделим из полученной строки первую запись - функциональное наименование библиотеки
+  LibraryName:= AnsiString(Copy(tmpBSTR, 1, pos(';', tmpBSTR, 1) - 1));
+  delete(tmpBSTR, 1, Length(LibraryName) + 1); //--- удалим прочтённую запись и разделитель
+
+//--- Выделим наименования всех реализуемых задач
+GetItemsFromString(tmpBSTR, TaskDllProcName);
+}
+ if intrfDllAPI = nil then
+  intrfDllAPI:= tmpIntrfDllAPI;
+
+ tmpIntrfDllAPI:= nil;
+finally
+ if tmpintrfDllAPI <> nil then
+ begin
+  tmpintrfDllAPI:= nil;
+ end;
+ if tmp_hTaskLibrary <> 0 then
+//  FreeLibrary(tmp_hTaskLibrary);
+end;
+end;
+
+procedure FinalizeLibraryes;
+begin
+  if intrfDllAPI <> nil then
+  begin
+    intrfDllAPI.FinalizeDLL;         //--- Здесь вылетает ошибка
+    intrfDllAPI := nil;
+  end;
+  if hTaskLibrary <> 0 then
+  begin
+    FreeLibrary(hTaskLibrary);
+    hTaskLibrary := 0;
+  end;
+end;
+
 
 function GetThreadsInfo(PID: Cardinal): Boolean;
   var
