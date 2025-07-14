@@ -147,6 +147,7 @@ var
  case TaskLibraryIndex of
    0:
    begin
+//--- Критическая секция для доступа к структуре - входные параметры для задачи
     CriticalSection.Enter; //--- Выход из критической секции будет в начале задачи
     tmpInputForm_Task1:= TformEditParams_Task1.Create(nil);
     tmpInputForm_Task1.ShowModal;
