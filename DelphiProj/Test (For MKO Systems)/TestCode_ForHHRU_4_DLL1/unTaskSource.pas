@@ -37,8 +37,8 @@ begin
 try
     CriticalSection.Leave; //--- Вход в критическую секцию был до вызова окна с входными параметрами
 
-    Result:= 1;
-    exit;
+//    Result:= 1;
+//    exit;
 
   inputParam1:= '*.txt;*.txt1'; //Маска
   inputParam2:= 'C:\Users\user\AppData\Roaming\Primer_MT_3'; //Директория старта поиска
