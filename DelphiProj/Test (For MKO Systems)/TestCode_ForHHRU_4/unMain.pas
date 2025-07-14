@@ -27,6 +27,7 @@ type
     sbMain: TStatusBar;
     Button1: TButton;
     Button2: TButton;
+    Button3: TButton;
     procedure miToolsClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure lbThreadListMouseUp(Sender: TObject; Button: TMouseButton;
@@ -38,6 +39,7 @@ type
     procedure lbThreadListKeyPress(Sender: TObject; var Key: Char);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
   private
     { Private declarations }
 //    message WM_WINDOWPOSCHANGING;
@@ -160,7 +162,7 @@ end;
 procedure TformMain.Button2Click(Sender: TObject);
 var
   tmp_hDllTask: THandle;
-  tmpCallingDLL1Proc2: TCallingDLL1Proc2;
+  tmpCallingDLL1Proc1: TCallingDLL1Proc1;
   tmpBSTR, tmpWString: WideString; //--- Для обмена строками с Dll только BSTR (или в Делфи WideString)
   i, tmpInfoRecordSize, tmpInfoRecordCount: Byte;
   inputParam1, inputParam2, inputParam3: WideString;
@@ -184,12 +186,63 @@ if  Win32Platform = VER_PLATFORM_WIN32_NT then
   else
    tmp_hDllTask:= LoadLibrary(PChar(tmpDllFileName)); //, 0, 0{DONT_RESOLVE_DLL_REFERENCES});
 
- @tmpCallingDLL1Proc2:= GetProcAddress(tmp_hDllTask, 'FileFinderByMask');
- if @tmpCallingDLL1Proc2 <> nil then
-   tmpCallingDLL1Proc2(inputParam1, inputParam2, inputParam3, inputParam4, 1000, tmpResult, tmpResultSize);
+ @tmpCallingDLL1Proc1:= GetProcAddress(tmp_hDllTask, 'FileFinderByMask');
+ if @tmpCallingDLL1Proc1 <> nil then
+   tmpCallingDLL1Proc1(inputParam1, inputParam2, inputParam3, inputParam4, 1000, tmpResult, tmpResultSize);
 
 finally
   FreeLibrary(tmp_hDllTask);
+end;
+
+end;
+
+procedure TformMain.Button3Click(Sender: TObject);
+var
+  tmp_hTaskLibrary: THandle;  //--- он же HMODULE
+  tmpDLLAPIProc: TDLLAPIProc;
+  tmpBSTR, tmpWString: WideString; //--- Для обмена строками с Dll только BSTR (или в Делфи WideString)
+  i, tmpInfoRecordSize, tmpInfoRecordCount: Byte;
+  tmpIntrfDllAPI: ILibraryAPI;
+  tmpIntrfTaskSource: ITaskSource;
+//  tmpIInterface: IInterface;
+begin
+//-------------------------------------------------------------------------------------------------------
+//--- Отработка
+//-------------------------------------------------------------------------------------------------------
+try
+ tmp_hTaskLibrary:= LoadLibrary('D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Win32\Debug\PrimerDll_1_MT_4.dll');
+
+ @tmpDLLAPIProc:= GetProcAddress(tmp_hTaskLibrary, DllProcName_LibraryInfo);
+ Win32Check(Assigned(tmpDLLAPIProc));
+
+//--- Вызов интерфейса библиотеки API DLL
+ tmpDLLAPIProc(ILibraryAPI, tmpIntrfDllAPI);
+
+// tmpIInterface.QueryInterface(TGUID(ITaskSource), tmpTaskSource);
+
+ tmpIntrfDllAPI.InitDLL;
+ tmpIntrfTaskSource:= tmpIntrfDllAPI.NewTaskSource(0);
+ tmpIntrfTaskSource.TaskProcedure(0);
+ tmpIntrfDllAPI.FinalizeDLL;
+
+// tmpIntrfDllAPI.GetFormParams;
+
+
+
+ if intrfDllAPI = nil then
+  intrfDllAPI:= tmpIntrfDllAPI;
+
+ tmpIntrfDllAPI:= nil;
+finally
+ if tmpIntrfTaskSource <> nil then
+  tmpIntrfTaskSource:= nil;
+
+ if tmpintrfDllAPI <> nil then
+ begin
+  tmpintrfDllAPI:= nil;
+ end;
+ if tmp_hTaskLibrary <> 0 then
+//  FreeLibrary(tmp_hTaskLibrary);
 end;
 
 end;

@@ -21,8 +21,6 @@ const
 //----- Для задач подключаемых из dll для теста --------------
   DllProcName_LibraryInfo = 'GetLibraryAPI';
 
-  MaxStringInfoLength = 64;
-
 implementation
 
 end.

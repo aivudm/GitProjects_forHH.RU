@@ -1,7 +1,8 @@
 unit unVariables;
 
 interface
-uses Windows, SysUtils, Classes, ActiveX, ComObj;
+uses Windows, SysUtils, Classes, ActiveX, ComObj, System.Diagnostics, System.Contnrs, Dialogs,
+    unEditInputParams, unTaskSource;
 
 type
   BSTR = WideString;
@@ -14,63 +15,179 @@ type
 
 type
 
-  IBSTRItems = interface
+  TTaskState = (tsNotDefined = -1 {одно из применений - при запуске, до момента полного создания всех объектов задачи},
+                tsActive = 0, tsTerminate = 1, tsPause = 2, tsReportPause = 3);
+//--- FileFinderByMask
+  TCallingDLL1Proc1 = function (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT; stdcall;
+
+  IBSTRItems = interface (IInterface)
   ['{7988654F-59FB-401F-9E4C-972FF343C66B}']
     function GetCount: Integer; safecall;
-    function GetString(const AIndex: Integer): BSTR; safecall;
+    function GetString(const Index: Integer): BSTR; safecall;
 
     property Count: Integer read GetCount;
-    property Strings[const AIndex: Integer]: BSTR read GetString; default;
+    property Strings[const Index: Integer]: BSTR read GetString; default;
   end;
 
   TBSTRItems = class(TInterfacedObject, IBSTRItems)
   strict private
-    FStrings: array of String;
+    FBSTRItems: array of WideString;
   strict protected
     function GetCount: Integer; safecall;
-    function GetString(const AIndex: Integer): BSTR; safecall;
+    function GetString(const Index: Integer): BSTR; safecall;
   public
-    constructor Create(const AStrings: array of BSTR); reintroduce;
+    constructor Create(const inputBSTRItems: array of WideString); reintroduce;
+//    constructor Create(const AStrings: array of BSTR); reintroduce;
   end;
+
+
+type
+  ITaskSource = interface (IInterface)
+  ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
+   procedure TaskProcedure(TaskLibraryIndex: word); // virtual; abstract;
+  end;
+
+  TTaskSource = class (TInterfacedObject, ITaskSource)
+   private
+      FTaskLibraryIndex: word;
+      FTaskSourceList: word;
+      FTaskState: TTaskState;
+      FStopWatch: TStopWatch;
+   protected
+    procedure TaskProcedure(TaskLibraryIndex: word);
+   public
+    constructor Create(TaskLibraryIndex: word);
+   property TaskState: TTaskState read FTaskState write FTaskState;
+   property StopWatch: TStopWatch read FStopWatch write FStopWatch;
+  end;
+
+
+//  TTaskSourceList = TArray<TTaskSource>;
+   TTaskSourceList = class (TObjectList)
+   private
+    function GetItem(Index: integer): TTaskSource;
+    procedure SetItem(Index: integer; const Value: TTaskSource);
+   public
+    property Items[Index: integer]: TTaskSource read GetItem write SetItem; default;
+  end;
+
+
 
 
 var
   LoadLibraryEx: function(lpFileName: PChar; Reserved: THandle; dwFlags: DWORD): HMODULE; stdcall;
+  TaskSourceList: TTaskSourceList; //--- Массив для хранения всех созданных задач
+
+//  SetDllDirectory: function(lpPathName: PChar): BOOL; stdcall;
+//  SetSearchPathMode: function(Flags: DWORD): BOOL; stdcall;
+//  AddDllDirectory: function(Path: PWideChar): Pointer; stdcall;
+//  RemoveDllDirectory: function(Cookie: Pointer): BOOL; stdcall;
+//  SetDefaultDllDirectories: function(DirectoryFlags: DWORD): BOOL; stdcall;
+
+
+
 
 
 implementation
 uses unLibrary1API;
 
 
-resourcestring
-  rsInvalidDelete  = 'Попытка удалить объект %s при активной интерфейсной ссылке; счётчик ссылок: %d';
-  rsDoubleFree     = 'Попытка повторно удалить уже удалённый объект %s';
-  rsUseDeleted     = 'Попытка использовать уже удалённый объект %s';
+//resourcestring
+//  rsInvalidDelete  = 'Попытка удалить объект %s при активной интерфейсной ссылке; счётчик ссылок: %d';
+//  rsDoubleFree     = 'Попытка повторно удалить уже удалённый объект %s';
+//  rsUseDeleted     = 'Попытка использовать уже удалённый объект %s';
 
 
-{ TBSTRItems }
-constructor TBSTRItems.Create(const AStrings: array of WideString);
+{ TStrings }
+constructor TBSTRItems.Create(const inputBSTRItems: array of WideString);
 var
-  X: Integer;
+  i: integer;
 begin
   inherited Create;
 
-  SetLength(FStrings, Length(AStrings));
-  for X := 0 to High(FStrings) do
-    FStrings[X] := AStrings[X];
+  SetLength(FBSTRItems, length(inputBSTRItems));
+  for i := 0 to high(FBSTRItems) do
+    FBSTRItems[i] := inputBSTRItems[i];
 end;
 
 function TBSTRItems.GetCount: Integer;
 begin
-  Result := Length(FStrings);
+  Result := length(FBSTRItems);
 end;
 
-function TBSTRItems.GetString(const AIndex: Integer): BSTR;
+function TBSTRItems.GetString(const Index: Integer): BSTR;
 begin
-  Result := FStrings[AIndex];
+  Result := FBSTRItems[Index];
 end;
 
+//------------------------------------------------------------------------------
+//---------- Данные для TTaskSource... -----------------------------------------
+//------------------------------------------------------------------------------
 
+constructor TTaskSource.Create(TaskLibraryIndex: word);
+begin
+ inherited Create();
+   FTaskLibraryIndex:= TaskLibraryIndex;
+   FTaskSourceList:= TaskSourceList.Add(self);
+end;
+
+procedure TTaskSource.TaskProcedure(TaskLibraryIndex: word);
+var
+  tmpInt, tmpInt1: Integer;
+  tmpStr: string;
+  tmpInputForm_Task1: TformEditParams_Task1;
+ begin
+
+// Начинаем отсчёт времени работы очередного цикла текущей задачи задачи
+// зафиксируем текущее значение TaskItem.FStopWatch
+//  tmpInt1:= StopWatch.ElapsedMilliseconds;
+
+//  repeat
+
+ case TaskLibraryIndex of
+   0:
+   begin
+    CriticalSection.Enter; //--- Выход из критической секции будет в начале задачи
+    tmpInputForm_Task1:= TformEditParams_Task1.Create(nil);
+    tmpInputForm_Task1.ShowModal;
+    tmpInputForm_Task1.Free;
+    ShowMessage('После Free');
+
+//--- После заполения входных параметров запуск задачи на выполнение
+    ShowMessage('Пепед входом в Task1_FileFinderByMask'
+                + #13#10 + 'inputParam1 = ' + WideString(Task1_Parameters.inputParam1)
+                + #13#10 + 'inputParam2 = ' + WideString(Task1_Parameters.inputParam2)
+                + #13#10 + 'inputParam3 = ' + WideString(Task1_Parameters.inputParam3));
+//    Task1_FileFinderByMask(WideString(Task1_Parameters.inputParam1), WideString(Task1_Parameters.inputParam2), WideString(Task1_Parameters.inputParam3), Task1_Parameters.inputParam4, Task1_Parameters.inputParam5); //, nil, 0);
+//    Task1_FileFinderByMask('', '', '', Task1_Parameters.inputParam4, Task1_Parameters.inputParam5); //, nil, 0);
+//    Task1_FileFinderByMask(); //, nil, 0);
+    CriticalSection.Leave; //--- Для отработки - удалить!
+ShowMessage('После CriticalSection.Leave');
+
+   end;
+ end;
+
+//  until ((TaskItem.FStopWatch.ElapsedMilliseconds - tmpInt1) >= TaskItem.FPeriodReport)
+//        or (TaskItem.TaskState = TTaskState(tsTerminate)) or (TaskItem.TaskState = TTaskState(tsPause)) or (TaskItem.TaskState = TTaskState(tsReportPause));
+
+//  inc(TaskItem.FTaskStepCount); // зафиксируем завершение очередного условного цикла
+//  TaskItem.InfoFromTask:= 'Пройден ' + IntToStr(TaskItem.FTaskStepCount) + ' усл.цикл, ' + Format('"найдено": %d чисел ', [tmpInt]);
+
+ end;
+
+//------------------------------------------------------------------------------
+//---------- Данные для TTaskSourceList ----------------------------------------------
+//------------------------------------------------------------------------------
+
+function TTaskSourceList.GetItem(Index: integer): TTaskSource;
+begin
+ Result:= TTaskSource(inherited GetItem(Index));
+end;
+
+procedure TTaskSourceList.SetItem(Index: integer; const Value: TTaskSource);
+begin
+ inherited SetItem(Index, Value);
+end;
 
 
 end.

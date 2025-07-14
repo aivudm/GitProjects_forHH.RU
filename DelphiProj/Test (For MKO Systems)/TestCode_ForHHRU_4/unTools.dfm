@@ -79,7 +79,7 @@ object formTools: TformTools
     TabOrder = 2
     object Button1: TButton
       Left = 147
-      Top = 125
+      Top = 127
       Width = 123
       Height = 25
       Caption = #1044#1086#1073#1072#1074#1080#1090#1100' '#1073#1080#1073#1083#1080#1086#1090#1077#1082#1091
@@ -88,7 +88,7 @@ object formTools: TformTools
     end
     object lbLibraryList: TListBox
       Left = 3
-      Top = 22
+      Top = 24
       Width = 270
       Height = 97
       ItemHeight = 13

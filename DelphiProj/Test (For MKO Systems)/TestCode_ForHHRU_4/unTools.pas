@@ -63,6 +63,8 @@ procedure TformTools.btnNewThreadClick(Sender: TObject);
     iTaskListNum: word;
     iThreadNum: integer;
     pTaskSource: Pointer;
+    tmpIntrfDllAPI: ILibraryAPI;
+    tmpIntrfTaskSource: ITaskSource;
 begin
  try
 //--- Настроим передачу информации от потоков в главное окно согласно выбранному типу
@@ -73,13 +75,16 @@ begin
   //--- Порядковый номер библиотеки в Перечне библиотек и порядковый номер шаблона задачи точно соответствуют
   //--- их порядковым номерам в визуальных компонентах lbLibraryList и lbTemplateTaskList
   iTaskListNum:= TaskList.Add(TTaskItem.Create(lbLibraryList.ItemIndex, lbTemplateTaskList.ItemIndex, tsNotDefined));
-  //--- 2. Создаём новый объект "Исходник Задачи", затем помещаем его в массив объектов типа "Список Исходников Задач" - нужна реализация каждого объекта, так как они будут выполняться в потоках
+  //--- Запись номера задачи в текущем списке активных задач в объект TaskItem
   TaskList[iTaskListNum].SetTaskNum(iTaskListNum);
-  pTaskSource:= TaskList[iTaskListNum].InitTaskSource(lbLibraryList.ItemIndex, lbTemplateTaskList.ItemIndex, iTaskListNum);
-//  TaskList[iTaskListNum].SetTaskSource(pTaskSource); // перенесён внутрь TaskList[iTaskListNum].InitTaskSource
-  //--- 3. Создаём новый объект "Поток", привязываем его к Задаче и запускаем его на выполнение
-//  iThreadNum:= ThreadList.Add(TThreadType1.Create(iSelectedTask));
 
+  //--- 2. Создаём новый объект "Исходник Задачи", затем помещаем его в массив объектов типа "Список Исходников Задач" - нужна реализация каждого объекта, так как они будут выполняться в потоках
+  tmpIntrfDllAPI:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI;
+  tmpIntrfTaskSource:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex);
+  TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex));
+  tmpIntrfDllAPI:= nil;
+  tmpIntrfTaskSource:= nil;
+  //--- 3. Назначим рбъекты для отображения информации от задач (потоков)
   TaskList[iTaskListNum].HandleWinForView:= formMain.memInfoTread.Handle;
   TaskList[iTaskListNum].LineIndex_ForView:= formMain.memInfoTread.Lines.Add('Ожидание ответа от потока...');
 //  TaskList[iTaskNum].Resume; - Только для отработки, так как в реале запуск сразу после создания. Потом паузы и продолжение по событию FPauseEvent: TEvent;
@@ -111,14 +116,13 @@ begin
  for tmpItem:= 0 to odGetLibrary.Files.Count-1 do
  begin
 
-//--- Создание объекта информации для библиотеки (каждой)
+//--- Создание объекта библиотек
 //--- состоит из: имени шаблона задачи и индекса задачи в библиотеке
 //--- Индекс соответсвует индексу строки при получении списка реализуемых задач
 //--- полученных через интерфейс DllAPI
   tmpLibraryNum:= LibraryList.Add(TLibraryTask.Create);
   tmpLibraryTask:= LibraryList[tmpLibraryNum];
- //--- Пр имени файла библиотеки (DLL) получим её наименование и список реализованных функций
-//    Список реализованных функций возвращается в переменную -  tmpTaskDllProcName);
+ //--- По номеру библиотеки с списке библиотек получим её наименование и список реализованных в ней функций
   GetLibraryInfo(odGetLibrary.Files.Strings[tmpItem], tmpLibraryTask);
  //--- Если наименование не получено от Dll, значит Dll "не наша", просто пропускаем её
   if tmpLibraryTask.LibraryName <> '' then
@@ -126,18 +130,6 @@ begin
  //--- Добавим библиотеку в список доступных библиотек в визуальном компоненте (ListBox)
     lbLibraryList.Items.Add(AnsiString(tmpLibraryTask.LibraryName));
 
-//   LibraryTaskInfoList[tmpLibraryNum].TaskTemplateName:= tmpTaskTemplateName;
-
-//--- Для отработки заполним вручную пока
-//     LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName:= ['GetLibraryNickName', 'FileFinderByMask', 'FileFinderByPattern'];
-
- //--- Получим из библиотеки адреса процедур согласно наименованию
-{
-  for i:= (Low(LibraryTaskInfo.aTaskDllProcName)) to (High(LibraryTaskInfo.aTaskDllProcName)) do
-  begin
-   LibraryTaskInfo.:= ;
-  end;
- }
    end;
  end;
 
@@ -181,19 +173,14 @@ begin
 end;
 
 procedure TformTools.FormShow(Sender: TObject);
-var
-  i: byte;
 begin
-  for i:= (Low(aTemplateTaskNameArray) + 1) to (High(aTemplateTaskNameArray) + 1) do
-  begin
-   lbTemplateTaskList.AddItem(aTemplateTaskNameArray[i - 1], Sender);
-  end;
+ lbLibraryListClick(Sender);
 end;
 
 procedure TformTools.lbLibraryListClick(Sender: TObject);
 var
   tmpItem: byte;
-  tmpTaskTemplateIndex: Byte;
+  tmpTaskTemplateIndex: integer;
 begin
 //--- Выведем список доступных в библиотеке задач в визуальный компонент (ListBox)
   lbTemplateTaskList.Clear;

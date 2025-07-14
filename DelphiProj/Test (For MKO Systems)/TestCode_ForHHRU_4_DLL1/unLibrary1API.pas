@@ -3,7 +3,8 @@ unit unLibrary1API;
 {$MINENUMSIZE 4}
 interface
 uses
-  Windows, SysUtils, ActiveX, Classes, Diagnostics, IOUtils, unVariables, unEditInputParams;
+  Windows, SysUtils, ActiveX, Classes, Diagnostics, IOUtils, System.SyncObjs,
+  unVariables, unEditInputParams, unTaskSource;
 {
 //function _GetLibraryInfo (out outputParam1: WideString; out InfoRecordSize, InfoRecordCount: Byte): HRESULT; stdcall;
 procedure _GetLibraryInfo (out outputParam1: WideString); stdcall;
@@ -18,16 +19,18 @@ function Task2_FileFinderByPattern (var inputParam1, inputParam2: WideString; va
  }
 
 type
-  ILibraryAPI = interface
+  ILibraryAPI = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
     // Методы реализуемые DLL API
     function GetName: BSTR; safecall;
     function GetVersion: BSTR; safecall;
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
+    function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
 //--- Тестирование (удалить!)
-    procedure GetFormParams; safecall;
+//    procedure GetFormParams; safecall;
 
     property Name: BSTR read GetName;
     property Version: BSTR read GetVersion;
@@ -48,12 +51,14 @@ type
     function GetVersion: BSTR; safecall;
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
+    function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
 //--- Тестирование (удалить!)
-    procedure GetFormParams; safecall;
+//    procedure GetFormParams; safecall;
 
     // Функционал библиотеки:
-//    function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD): HRESULT;  safecall; //; out outputResult: Pointer = Pointer(nil); out outputResultSize: DWORD = 0): HRESULT;  safecall;
+
 //    function Task2_FileFinderByPattern (var inputParam1, inputParam2: WideString; var iResult: DWORD; iTargetWorkTime: WORD): HRESULT; safecall;
   public
     constructor Create;
@@ -92,10 +97,30 @@ begin
 end;
 
 
+procedure TLibraryAPI.InitDLL;
+begin
+ if Win32Check(not Assigned(TaskSourceList)) then
+   TaskSourceList:= TTaskSourceList.Create;
+ if Win32Check(not Assigned(CriticalSection)) then
+   CriticalSection:= TCriticalSection.Create();
+
+end;
+
 procedure TLibraryAPI.FinalizeDLL;
 begin
+ if Win32Check(Assigned(TaskSourceList)) then
+//    TaskSourceList.Free;
+ if Win32Check(not Assigned(CriticalSection)) then
+//   CriticalSection.Free;
+
+//--- Память выделялась через SysReAllocStringLen
+//--- для получения строк из визуальных компонентов
+ SysFreeString(Task1_Parameters.inputParam1);
+ SysFreeString(Task1_Parameters.inputParam2);
+ SysFreeString(Task1_Parameters.inputParam3);
+
 //  FNotify := nil;
-//  LibraryAPI := nil;
+  LibraryAPI := nil;
 end;
 
 
@@ -110,15 +135,25 @@ begin
   Result := TBSTRItems.Create(tmpInfoRecordData);
 end;
 
-
-procedure TLibraryAPI.GetFormParams;
+function TLibraryAPI.NewTaskSource(TaskLibraryIndex: word): ITaskSource;
 var
-  tmpformEditInputParams: TformEditParams;
+  tmpTaskSource: TTaskSource;
 begin
- tmpformEditInputParams:= TformEditParams.Create(nil);
- tmpformEditInputParams.ShowModal;
+  tmpTaskSource:= TTaskSource.Create(TaskLibraryIndex);
+  Result:= tmpTaskSource;
 end;
 
+
+{
+//--- Для отраьотки - удалить
+procedure TLibraryAPI.GetFormParams;
+var
+  tmpformEditInputParams: TformEditParams_Task1;
+begin
+ tmpformEditInputParams:= TformEditParams_Task1.Create(nil);
+ tmpformEditInputParams.ShowModal;
+end;
+}
 
 initialization
 //  LoadWinAPIFunctions;

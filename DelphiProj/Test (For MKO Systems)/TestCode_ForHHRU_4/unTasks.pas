@@ -20,88 +20,13 @@ type
 
   TTaskItem = class;
 //  TTaskProcedure = reference to procedure (TaskItem: TTaskItem); // of object;
-  TTaskProcedure = procedure (TaskItem: TTaskItem) of object;
-
-  TTaskSource = class (TObject)
-   private
-    const
-     FTaskSourceName: string  = 'Нет назначенного алгоритма';
-   private
-      FTaskItem: TTaskItem;
-//    FTimerOut: TTimer;
-//    FPtrPred: Pointer;
-//    FPtrNext: Pointer;
-   protected
-//    procedure TaskProcedure(TaskItem: TTaskItem); virtual; abstract;
-    procedure TaskProcedure(TaskItem: TTaskItem); virtual; abstract;
-   public
-    FTaskState: TTaskState;
-    FDllProcName: PWideChar;
-    class var FCallingDLLProc: TCallingDLLProc;
-    constructor Create(TaskItemNum: word);
-    function GetName: string;
-    property TaskState: TTaskState read FTaskState write FTaskState;
-    procedure SetTaskItem(TaskItem: TTaskItem);
-    function GetTaskItem: TTaskItem;
-
-    property DllProcName: PWideChar read FDllProcName;
-//    property PtrPred: Pointer read FPtrPred write FTaskState;
-  end;
-
-  TTaskSource2 = class (TTaskSource)
-   private
-    const
-     FTaskSourceName: string  = 'Расчёт числа Пи';
-   protected
-   public
-    constructor Create(TaskItemNum: word); overload;
-    class procedure TaskProcedure(TaskItem: TTaskItem); overload; inline;
-  end;
-
-
-//--- После создания необходимо самостоятельно следить за жизненным циклом классов - TaskSource
-//--- так как здесь не возможно их хранить в TObjectList... --------------------
-//  TTaskSourceList = TArray<TTaskSource>;
-(*   TTaskSourceList = class (TObjectList)   //--- Применён из-за встроенного менеджера памяти
-   private
-    function GetItem(Index: integer): TTaskSource;
-    procedure SetItem(Index: integer; const Value: TTaskSource);
-   public
-    property Items[Index: integer]: TTaskSource read GetItem write SetItem; default;
-  end;
-*)
-
-  TTaskSource4 = class (TTaskSource)
-   private
-    const
-     FTaskSourceName: string  = 'Новые задачи для теста'; //--- 'Определение простых чисел методом перебора'
-   protected
-    FCurrentNumber: Int64;
-    procedure SetCurrentNumber(inNumber: Int64);
-   public
-    constructor Create(TaskItemNum: word); overload;
-    class procedure TaskProcedure(TaskItem: TTaskItem); overload; inline;
-
-    property CurrentNumber: Int64 read FCurrentNumber write SetCurrentNumber;
-  end;
-
-//  TTaskSourceList = TArray<TTaskSource4>;
-  TTaskSource4List = class (TObjectList)   //--- Применён из-за встроенного менеджера памяти
-   private
-    function GetItem(Index: integer): TTaskSource4;
-    procedure SetItem(Index: integer; const Value: TTaskSource4);
-   public
-    property Items[Index: integer]: TTaskSource4 read GetItem write SetItem; default;
-  end;
-
-
-//------------------------------------------------------------------------------
+  TTaskProcedure = procedure (TaskLibraryIndex: word) of object;
 
   TTaskItem = class (TThread)
    private
     FTaskName: string;
-    FTaskNum: word;
-    FTaskSource: TTaskSource;
+    FTaskNumInList: word;
+    FTaskSource: ITaskSource;
     FTaskState: TTaskState;
     FPauseEvent: TEvent;
     FPeriodReport: TPeriodReport;
@@ -142,25 +67,25 @@ type
     procedure SetTaskState(inTaskState: TTaskState);
     procedure SetPeriodReport(PeriodReport: TPeriodReport);
     procedure SetHandleWinForView(WinForView: hWnd);
-    procedure SetTaskSource(TaskSource: TTaskSource);
+    procedure SetTaskSource(intrfTaskSource: ITaskSource);
     procedure SetTaskName(TaskItemName: string = '');
     procedure SetStreamWriter(TaskStreamWriter: word);
     procedure SendReportToMainProcess;
     procedure DeleteTaskFromViewingList;
     procedure CheckReportTime(TaskItem: TTaskItem);
     procedure MarkAsDeleted;
-    function GetTaskSource(): TTaskSource;
+    function GetTaskSource(): ITaskSource;
     function GetPeriodReport: TPeriodReport;
     function GetTaskState(): TTaskState;
     function PrepareOutString(TaskNum: integer; sPersonThreadInfo: string): string;
     function GetTaskStateName(inTaskState: TTaskState): string;
-    function InitTaskSource(SelectedLibraryNum, SelectedTaskNum: byte; TaskItemNum: word): Pointer;
+//    function InitTaskSource(SelectedLibraryNum, SelectedTaskNum: byte; TaskItemNum: word): Pointer;
     function IsTerminated: boolean;
 
     property TaskName: string read FTaskName;
-    property TaskNum: word read FTaskNum;
+    property TaskNum: word read FTaskNumInList;
 {$IFDEF MSWINDOWS}
-    property TaskSource: TTaskSource read FTaskSource write SetTaskSource;
+    property TaskSource: ITaskSource read FTaskSource write SetTaskSource;
     property TaskOSPriority: TTaskOSPriority read FTaskOSPriority write FTaskOSPriority;
 //    property TaskExecProcedure: TTaskProcedure read ExecProcedure;
     property TaskState: TTaskState read FTaskState write SetTaskState;
@@ -187,47 +112,6 @@ type
    public
     property Items[Index: integer]: TTaskItem read GetItem write SetItem; default;
   end;
-//------------------------------------------------------------------------------
-//---- Работаем с таймерами только через переменные объектов класса YaskItem ---
-//---- Организация таймеров в список необходимо только для простоты работы с памятью
-//---- избавление от утечек памяти
-(*
-  TTimerItem = class (TTimer)
-   private
-    FTaskItem: TTaskItem;
-//    FTaskNum: word;
-    FTimerCycleCount: Int64;
-   protected
-    function FOnTimer(Sender: TObject): TNotifyEvent; overload;
-
-   public
-    constructor Create(TaskItem: TTaskItem); overload;
-    procedure SetTaskNum(TaskNum: word);
-//    property TaskNum: word read FTaskNum write SetTaskNum;
-  end;
-
-  TTimerItem = class (TTimer)
-   private
-    FTaskItem: TTaskItem;
-//    FTaskNum: word;
-    FTimerCycleCount: Int64;
-   protected
-    function FOnTimer(Sender: TObject): TNotifyEvent; overload;
-
-   public
-    constructor Create(TaskItem: TTaskItem); overload;
-    procedure SetTaskNum(TaskNum: word);
-//    property TaskNum: word read FTaskNum write SetTaskNum;
-  end;
-
-  TTimerList1 = class (TObjectList)   //--- Применён из-за встроенного менеджера памяти
-   private
-    function GetItem(Index: integer): TTimerItem;
-    procedure SetItem(Index: integer; const Value: TTimerItem);
-   public
-    property Items[Index: integer]: TTimerItem read GetItem write SetItem; default;
-  end;
-*)
 
 
  var
@@ -243,13 +127,7 @@ type
 
 
 // {$L unThread.pas}
-// procedure Calc_NOP(TaskItemIndex: byte); external;
-// procedure Calculate_Dummy();
-// procedure Calculate_Dummy(TaskItemIndex: byte); external;
-// procedure Calculate_Pi_Gauss(TaskItemIndex: byte); external;
 
-
-procedure Calc_NOP(TaskItemIndex: byte);
 //function InitTaskSource(SelectedTaskNum: byte; TaskItemNum: word): Pointer;
 //procedure SendReportToMainProcess(TaskItem: TTaskItem);
 //function PrepareOutString(TaskNum: integer): string;
@@ -257,92 +135,6 @@ procedure Calc_NOP(TaskItemIndex: byte);
 
 implementation
 uses unMain, unUtilCommon, IdGlobal, unUtils;
-
-//------------------------------------------------------------------------------
-//---------- Данные для TTaskSource... -----------------------------------------
-//------------------------------------------------------------------------------
-
-function TTaskSource.GetName(): string;
-begin
-  Result:= self.FTaskSourceName;
-end;
-
-procedure TTaskSource.SetTaskItem(TaskItem: TTaskItem);
-begin
- self.FTaskItem:= TaskItem;
-end;
-
-function TTaskSource.GetTaskItem: TTaskItem;
-begin
- Result:= self.FTaskItem;
-end;
-
-constructor TTaskSource.Create(TaskItemNum: word);
-var
-  tmpProc: TTaskProcedure;
-begin
- inherited Create();
- TaskList[TaskItemNum].SetTaskSource(self);
- tmpProc:= TaskProcedure;
-// TaskList[TaskItemNum].FTaskProcedure:= TMethod(pooTmp).Code;
- TaskList[TaskItemNum].FTaskProcedure:= tmpProc;
-end;
-
-
-//------------- procedure TTaskSource2 -----------------------------------------
-constructor TTaskSource2.Create(TaskItemNum: word);
-begin
- inherited Create(TaskItemNum);
- if not aTaskDllProcNameArray[TaskList[TaskItemNum].FTaskTemplateId].IsEmpty then
-  FDllProcName:= PWideChar(aTaskDllProcNameArray[TaskList[TaskItemNum].FTaskTemplateId])
- else
-  FDllProcName:= '';
-
- @CallingDLLProc:= GetProcAddress(hDllTask, FDllProcName);
- FCallingDLLProc:= CallingDLLProc;
-
- // Для данного шаблона источника задачи требуется наличие писателя в файл (пока только в текстовый)
- TaskList[TaskItemNum].SetStreamWriter(FileList.Add(TFileItem.Create(TaskItemNum)));
-
-end;
-
-//------------- procedure TTaskSource4 -----------------------------------------
-procedure TTaskSource4.SetCurrentNumber(inNumber: Int64);
-begin
- FCurrentNumber:= inNumber;
-end;
-
-constructor TTaskSource4.Create(TaskItemNum: word);
-begin
- inherited Create(TaskItemNum);
- if not aTaskDllProcNameArray[TaskList[TaskItemNum].FTaskTemplateId].IsEmpty then
-  FDllProcName:= PWideChar(aTaskDllProcNameArray[TaskList[TaskItemNum].FTaskTemplateId])
- else
-  FDllProcName:= nil;
-
- @CallingDLLProc:= GetProcAddress(hDllTask, FDllProcName);
- FCallingDLLProc:= CallingDLLProc;
-
- // Для данного шаблона источника задачи требуется наличие писателя в файл (пока только в текстовый)
- TaskList[TaskItemNum].SetStreamWriter(FileList.Add(TFileItem.Create(TaskItemNum)));
-
-end;
-
-
-//------------------------------------------------------------------------------
-//---------- Данные для TTaskSourceList ----------------------------------------------
-//------------------------------------------------------------------------------
-(*
-function TTaskSourceList.GetItem(Index: integer): TTaskSource;
-begin
- Result:= TTaskSource(inherited GetItem(Index));
-end;
-
-procedure TTaskSourceList.SetItem(Index: integer; const Value: TTaskSource);
-begin
- inherited SetItem(Index, Value);
-end;
-*)
 
 //------------------------------------------------------------------------------
 //---------- Данные для TTaskItem ----------------------------------------------
@@ -361,15 +153,14 @@ begin
  //--- В этом конструкторе всё выдаём по умолчанию
  FTaskLibraryId:= TaskLibraryId; // Номер задачи-шаблона из массива aTaskNameArray
  FTaskTemplateId:= TaskTemplateId; // Номер задачи-шаблона из массива aTaskNameArray
- FTaskName:= aTemplateTaskNameArray[FTaskTemplateId];
+ FTaskName:= LibraryList[TaskLibraryId].TaskTemplateName[TaskTemplateId];
  FreeOnTerminate:= true;
  Priority:= tpNormal;
 // self.FDSiTimer.Interval:= TaskList[TaskItemNum].GetPeriodReport;
  FPeriodReport:= 2000; //--- миллисекунд
  FCycleTimeValue:= 1000;
-//----- Создание таймера - индивидуальный для каждого объекта ------------------
 //----- Для начала периода отчёта времени работы данной задачи -----------------
- FLastOSTickCount:= GetTickCount(); // "стаоым" способом
+ FLastOSTickCount:= GetTickCount(); // "стаhым" способом
  FStopWatch := TStopwatch.StartNew; // новым способом (появился в 10-й версии
 
 //--- Назначаем в визуальном компоненте номер строки для вывода информации о процессе
@@ -434,62 +225,18 @@ begin
  SetTaskState(tsActive);
  FTaskStepCount:= 0;  // обнулим счётчик условных циклов текущей задачи (потока)
  FStopWatch.StartNew; // Начинаем отсчёт времени текущей задачи (потока)
+
  // задержка необходима для исключения возможности "слишком раннего обращения"
  // к методам или полям обхекта, который ещй не создался полностью.
  sleep(100);
- repeat
 
-  FTaskProcedure(self); // вызов алгоритма задачи, заложенного в шаблоне задачи
-
-  try
-    CriticalSection.Enter;
-// curTaskItem:= self;
-
-    OutInfo_ForViewing.hWndViewObject:= self.FHandleWinForView;
-    OutInfo_ForViewing.IndexInViewComponent:= self.FLineIndex_ForView;
-    OutInfo_ForViewing.TextForViewComponent:= self.InfoFromTask;
-
-      case ExchangeType of
-     etSynchronize:
-      Synchronize(SendReportToMainProcess);
-     etClientServerUDP:
-      SendReportToMainProcess;
-    end;
-
-//  self.FCurrentTaskItem.TaskExecProcedure;
-//    SendReportToMainProcess(curTaskItem);
-//-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-//    TThread(TaskItem.ThreadItem).Synchronize(TaskItem.ThreadItem, SendReportToMainProcess());
-//    SendReportToMainProcess;
-
-   finally
-    CriticalSection.Leave;
-   end;
-
-   while (TaskState = tsPause) and (TaskState <> tsTerminate) do
-   begin
-    self.Suspended:= true; //--- Пережидаем паузу
-   end;
-
-(*
-  if self.TaskState = tsPause then
-   self.Suspend; //--- Для отработки (устарело) Пережидаем паузу
-*)
-  if self.TaskState = tsReportPause then
-  begin
-   self.SetTaskState(tsActive); //--- Если был отчёт, то выходим из состояния отчёта (для главного окна)
-  end; // if
-
- until (self.TaskState = tsTerminate);
+  self.FTaskSource.TaskProcedure(self.TaskNum); // FTaskProcedure(self.TaskNum); // вызов алгоритма задачи, заложенного в шаблоне задачи
 
  //--- Прекращаеи выполнение задачи
  //--- Фиксируем общее время выполнения задачи
  FElapsedMillseconds:= FStopWatch.ElapsedMilliseconds;
-// FTaskSource.StreamWriter.Close;
- FileList[StreamWriterNum].FStreamWriter.Flush;
- FileList[StreamWriterNum].FStreamWriter.Close;
  //--- Освобождение памяти не делаем, так как при создании поставили FreeOnTerminate
- TaskList[self.FTaskNum].Terminate;
+ TaskList[self.FTaskNumInList].Terminate;
  //--- Удаление задачи из списка объектов "задача" (информацию на компоненте отображения оставляем в окне просмотра...)
 // TaskList[self.FTaskNum].Destroy;
  //--- Удаление задачи из списка "задач" (информацию на компоненте отображения оставляем в окне просмотра...)
@@ -509,7 +256,7 @@ end;
 procedure TTaskItem.SetTaskName(TaskItemName: string = '');
 begin
  if TaskItemName = '' then
-  FTaskName:= self.FTaskSource.GetName
+//  FTaskName:= self.FTaskSource.GetName
  else
   FTaskName:= TaskItemName;
 end;
@@ -519,19 +266,19 @@ begin
    Result:= FTaskState;
 end;
 
-procedure TTaskItem.SetTaskSource(TaskSource: TTaskSource);
+procedure TTaskItem.SetTaskSource(intrfTaskSource: ITaskSource);
 begin
- self.FTaskSource:= TaskSource;
+ self.FTaskSource:= intrfTaskSource;
 end;
 
-function TTaskItem.GetTaskSource(): TTaskSource;
+function TTaskItem.GetTaskSource(): ITaskSource;
 begin
  Result:= FTaskSource;
 end;
 
 procedure TTaskItem.SetTaskNum(TaskNum: word);
 begin
- FTaskNum:= TaskNum;
+ FTaskNumInList:= TaskNum;
 end;
 
 procedure TTaskItem.SetTaskState(inTaskState: TTaskState);
@@ -591,7 +338,7 @@ end;
 
 procedure TTaskItem.SendReportToMainProcess;
 begin
-    OutInfo_ForViewing.TextForViewComponent:= AnsiString(PrepareOutString(self.FTaskNum, OutInfo_ForViewing.TextForViewComponent));
+    OutInfo_ForViewing.TextForViewComponent:= AnsiString(PrepareOutString(self.FTaskNumInList, OutInfo_ForViewing.TextForViewComponent));
 
     case ExchangeType of
      etSynchronize:
@@ -667,129 +414,30 @@ begin
  inherited SetItem(Index, Value);
 end;
 
-//------------------------------------------------------------------------------
-//---------- Данные для TTaskSource4List ----------------------------------------------
-//------------------------------------------------------------------------------
-function TTaskSource4List.GetItem(Index: integer): TTaskSource4;
-begin
- Result:= TTaskSource4(inherited GetItem(Index));
-end;
-
-procedure TTaskSource4List.SetItem(Index: integer; const Value: TTaskSource4);
-begin
- inherited SetItem(Index, Value);
-end;
-
-
-//------------------------------------------------------------------------------
-//------ Задачи для потоков ----------------------------------------------------
-//------------------------------------------------------------------------------
-
- procedure Calc_NOP(TaskItemIndex: byte);
- begin
-   //--- Заглушка (пустышка), например для "затыкания№, если что-то погло не так в консипукторе TaskItem
- end;
-
-class procedure TTaskSource2.TaskProcedure(TaskItem: TTaskItem);
- //--- Calculate (Пи): вызов из библиотеки (.dll)
-var
-  tmpInt, tmpInt1: Integer;
-  tmpStr: string;
-  tmpCallingDLLProc: TCallingDLLProc;
- begin
-
-//  tmpCallingDLLProc:= FCallingDLLProc;
-  if @FCallingDLLProc = nil then
-  begin
-   TaskItem.InfoFromTask:= 'Пройден ' + IntToStr(TaskItem.FTaskStepCount) + ' усл.цикл, ' + Format('; Ошибка: Не найдена подпрограмма ( %s )в библиотеке ( %s )', [aTaskDllProcNameArray[TaskItem.FTaskTemplateId], DllFileName]);
-   TaskItem.SetTaskState(tsTerminate);
-   exit;
-  end;
-
- // В библиотеке расположена подпрограмма:
-//  Calc_Algorithm_Pi (tmpInt, fsResult, 100); // 1 - некий параметр (Int), например, для обратной связи при длительных расчётах
-                                  // 2 - Файл, в который пишем результаты вычислений
-                                  // 3 - максимальное время на данную задачу при циклическом вызове из потока (в миллисекундах)
-// Начинаем отсчёт времени работы очередного цикла текущей задачи задачи
-// зафиксируем текущее значение TaskItem.FStopWatch
-  tmpInt1:= TaskItem.FStopWatch.ElapsedMilliseconds;
-
-  repeat
-   FCallingDLLProc(tmpInt, FileList[TaskItem.StreamWriterNum].FStreamWriter, TaskItem.FPeriodReport);
-  until ((TaskItem.FStopWatch.ElapsedMilliseconds - tmpInt1) >= TaskItem.FPeriodReport)
-        or (TaskItem.TaskState = TTaskState(tsTerminate)) or (TaskItem.TaskState = TTaskState(tsPause)) or (TaskItem.TaskState = TTaskState(tsReportPause));
-
-  inc(TaskItem.FTaskStepCount); // зафиксируем завершение очередного условного цикла
-  TaskItem.InfoFromTask:= 'Пройден ' + IntToStr(TaskItem.FTaskStepCount) + ' усл.цикл, ' + Format('"найдено": %d чисел ', [tmpInt]);
-
- end;
-
-
-class procedure TTaskSource4.TaskProcedure(TaskItem: TTaskItem);
- //--- Прототип источника задачи для теста hh.ru: вызов из библиотеки (.dll)
-var
-  tmpInt, tmpInt1: Integer;
-  tmpStr: string;
-  tmpCallingDLLProc: TCallingDLLProc;
- begin
-
-//  tmpCallingDLLProc:= FCallingDLLProc;
-  if @FCallingDLLProc = nil then
-  begin
-   TaskItem.InfoFromTask:= 'Пройден ' + IntToStr(TaskItem.FTaskStepCount) + ' усл.цикл, ' + Format('; Ошибка: Не найдена подпрограмма ( %s )в библиотеке ( %s )', [aTaskDllProcNameArray[TaskItem.FTaskTemplateId], DllFileName]);
-   TaskItem.SetTaskState(tsTerminate);
-   exit;
-  end;
-
- // В библиотеке расположена подпрограмма:
-//  Calc_Algorithm_Pi (tmpInt, fsResult, 100); // 1 - некий параметр (Int), например, для обратной связи при длительных расчётах
-                                  // 2 - Файл, в который пишем результаты вычислений
-                                  // 3 - максимальное время на данную задачу при циклическом вызове из потока (в миллисекундах)
-// Начинаем отсчёт времени работы очередного цикла текущей задачи задачи
-// зафиксируем текущее значение TaskItem.FStopWatch
-  tmpInt1:= TaskItem.FStopWatch.ElapsedMilliseconds;
-
-  repeat
-   FCallingDLLProc(tmpInt, FileList[TaskItem.StreamWriterNum].FStreamWriter, TaskItem.FPeriodReport);
-  until ((TaskItem.FStopWatch.ElapsedMilliseconds - tmpInt1) >= TaskItem.FPeriodReport)
-        or (TaskItem.TaskState = TTaskState(tsTerminate)) or (TaskItem.TaskState = TTaskState(tsPause)) or (TaskItem.TaskState = TTaskState(tsReportPause));
-
-  inc(TaskItem.FTaskStepCount); // зафиксируем завершение очередного условного цикла
-  TaskItem.InfoFromTask:= 'Пройден ' + IntToStr(TaskItem.FTaskStepCount) + ' усл.цикл, ' + Format('"найдено": %d чисел ', [tmpInt]);
-
- end;
-
-
-
+{
 function TTaskItem.InitTaskSource(SelectedLibraryNum, SelectedTaskNum: byte; TaskItemNum: word): Pointer;
 var
  tmpPointer: Pointer;
- tmpProc: TTaskProcedure;
 begin
  case SelectedTaskNum of
   0:
   begin
+    self.SetTaskSource(LibraryList[SelectedLibraryNum].LibraryAPI.NewTaskSource(TaskItemNum));
   end;
   1:
   begin
-   Result:= TTaskSource2.Create(TaskItemNum);
-   TaskList[TaskItemNum].FTaskProcedure:= TTaskSource2(Result).TaskProcedure;
   end;
   2:
   begin
   end;
   3:  // Задачи для тестового примера от hh.ru
   begin
-   Result:= TTaskSource4.Create(TaskItemNum);
-   TaskList[TaskItemNum].FTaskProcedure:= TTaskSource4(Result).TaskProcedure;
-   // LibraryTaskInfoList[tmpLibraryNum].TaskDllProcName
   end;
   else Result:= nil;
  end;
 // TTaskSource(Result).SetTaskItem(TaskList[TaskItemNum]);
- TaskList[TaskItemNum].SetTaskSource(Result);
 end;
-
+}
 
 //--- Подпрограммы вне классов
 //procedure SendReportToMainProcess(TaskItem: TTaskItem);
