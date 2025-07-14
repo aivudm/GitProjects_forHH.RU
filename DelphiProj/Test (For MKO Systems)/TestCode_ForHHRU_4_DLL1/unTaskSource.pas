@@ -17,34 +17,29 @@ var
   Task1_Parameters: TTask1_Parameters;
 
 
-//function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
-function Task1_FileFinderByMask (): integer; //: HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 
 
 implementation
 
-//function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
-function Task1_FileFinderByMask (): integer; //: HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 
 var
   inputParam5, iProcedureWorkTime: DWORD;
   tmpTargetFile: WideString;
   tmpStreamWriter: TStreamWriter;
-  inputParam1, inputParam2, inputParam3: WideString;
-  inputParam4: BOOL;
+//  inputParam1, inputParam2, inputParam3: WideString;
+//  inputParam4: BOOL;
 
 begin
 try
     CriticalSection.Leave; //--- Вход в критическую секцию был до вызова окна с входными параметрами
 
-//    Result:= 1;
-//    exit;
-
-  inputParam1:= '*.txt;*.txt1'; //Маска
-  inputParam2:= 'C:\Users\user\AppData\Roaming\Primer_MT_3'; //Директория старта поиска
-  inputParam3:= 'D:\Install\ResultSearchByMask.txt'; //Имя файла для записи результата, если inputParam4 - true
-  inputParam4:= true; //Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
-  inputParam5:= 1000; //Период отчёта о работе
+//  inputParam1:= '*.txt;*.txt1'; //Маска
+//  inputParam2:= 'C:\Users\user\AppData\Roaming\Primer_MT_3'; //Директория старта поиска
+//  inputParam3:= 'D:\Install\ResultSearchByMask.txt'; //Имя файла для записи результата, если inputParam4 - true
+//  inputParam4:= true; //Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
+//  inputParam5:= 1000; //Период отчёта о работе
 
 // iProcedureWorkTime:= GetTickCount(); // запоминаем значение тиков в начале подпрограммы
 

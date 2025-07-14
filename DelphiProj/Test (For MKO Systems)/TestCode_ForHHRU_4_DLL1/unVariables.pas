@@ -151,19 +151,15 @@ var
     tmpInputForm_Task1:= TformEditParams_Task1.Create(nil);
     tmpInputForm_Task1.ShowModal;
     tmpInputForm_Task1.Free;
-    ShowMessage('После Free');
 
 //--- После заполения входных параметров запуск задачи на выполнение
-    ShowMessage('Пепед входом в Task1_FileFinderByMask'
+{    ShowMessage('Пепед входом в Task1_FileFinderByMask'
                 + #13#10 + 'inputParam1 = ' + WideString(Task1_Parameters.inputParam1)
                 + #13#10 + 'inputParam2 = ' + WideString(Task1_Parameters.inputParam2)
                 + #13#10 + 'inputParam3 = ' + WideString(Task1_Parameters.inputParam3));
-//    Task1_FileFinderByMask(WideString(Task1_Parameters.inputParam1), WideString(Task1_Parameters.inputParam2), WideString(Task1_Parameters.inputParam3), Task1_Parameters.inputParam4, Task1_Parameters.inputParam5); //, nil, 0);
-//    Task1_FileFinderByMask('', '', '', Task1_Parameters.inputParam4, Task1_Parameters.inputParam5); //, nil, 0);
-//    Task1_FileFinderByMask(); //, nil, 0);
-    CriticalSection.Leave; //--- Для отработки - удалить!
-ShowMessage('После CriticalSection.Leave');
-
+}
+    Task1_FileFinderByMask(WideString(Task1_Parameters.inputParam1), WideString(Task1_Parameters.inputParam2), WideString(Task1_Parameters.inputParam3), Task1_Parameters.inputParam4, Task1_Parameters.inputParam5); //, nil, 0);
+    CriticalSection.Leave;
    end;
  end;
 

@@ -59,7 +59,6 @@ try
   Task1_Parameters.inputParam5:= 1000;
 
   Close;
-//ShowMessage('После Close');
 finally
 // FreeMem(tmpPWideChar);
 end;
