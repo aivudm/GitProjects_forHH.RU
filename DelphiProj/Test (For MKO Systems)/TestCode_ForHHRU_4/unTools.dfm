@@ -46,40 +46,40 @@ object formTools: TformTools
     Left = 8
     Top = 0
     Width = 270
-    Height = 57
-    Caption = #1058#1080#1087' '#1086#1073#1084#1077#1085#1072' '#1089' '#1082#1086#1084#1087#1086#1085#1077#1085#1090#1086#1084'  "'#1087#1088#1086#1089#1084#1086#1090#1088#1072'"'
+    Height = 81
+    Caption = #1058#1080#1087' '#1086#1073#1084#1077#1085#1072' '#1084#1086#1076#1091#1083#1077#1081' '#1089' '#1082#1086#1084#1087#1086#1085#1077#1085#1090#1086#1084'  "'#1087#1088#1086#1089#1084#1086#1090#1088#1072'"'
     TabOrder = 1
-    object rbSynchronize: TRadioButton
+    object rbMessage_WMCoptData: TRadioButton
       Left = 3
       Top = 16
       Width = 246
       Height = 17
-      Caption = #1052#1077#1090#1086#1076' Synchronize (TThread)'
+      Caption = #1057#1086#1086#1073#1097#1077#1085#1080#1077' WM_Copy_Data'
       Checked = True
       TabOrder = 0
       TabStop = True
-      OnClick = rbSynchronizeClick
+      OnClick = rbMessage_WMCoptDataClick
     end
-    object rbClientServer_http: TRadioButton
+    object rbClientServer_udp: TRadioButton
       Left = 3
-      Top = 39
+      Top = 37
       Width = 264
       Height = 17
-      Caption = #1050#1083#1080#1077#1085#1090'-'#1057#1077#1088#1074#1077#1088' (UDP)'
+      Caption = #1050#1083#1080#1077#1085#1090'-'#1057#1077#1088#1074#1077#1088' UDP'
       TabOrder = 1
-      OnClick = rbSynchronizeClick
+      OnClick = rbMessage_WMCoptDataClick
     end
   end
   object gbLibraryList: TGroupBox
     Left = 8
-    Top = 63
+    Top = 80
     Width = 273
-    Height = 155
+    Height = 138
     Caption = #1055#1077#1088#1077#1095#1077#1085#1100' '#1073#1080#1073#1083#1080#1086#1090#1077#1082
     TabOrder = 2
     object Button1: TButton
       Left = 147
-      Top = 127
+      Top = 103
       Width = 123
       Height = 25
       Caption = #1044#1086#1073#1072#1074#1080#1090#1100' '#1073#1080#1073#1083#1080#1086#1090#1077#1082#1091
@@ -90,7 +90,7 @@ object formTools: TformTools
       Left = 3
       Top = 24
       Width = 270
-      Height = 97
+      Height = 73
       ItemHeight = 13
       TabOrder = 1
       OnClick = lbLibraryListClick
@@ -105,12 +105,6 @@ object formTools: TformTools
         OnClick = miExitClick
       end
     end
-  end
-  object tmCheckThreadReport: TTimer
-    Enabled = False
-    OnTimer = tmCheckThreadReportTimer
-    Left = 248
-    Top = 40
   end
   object odGetLibrary: TOpenDialog
     DefaultExt = '*.dll'

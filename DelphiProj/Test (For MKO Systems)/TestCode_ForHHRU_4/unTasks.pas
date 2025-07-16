@@ -2,31 +2,40 @@ unit unTasks;
 
 interface
 uses
-  Vcl.Forms, System.Classes, System.SysUtils, System.SyncObjs, System.Diagnostics, Winapi.Windows, Vcl.ExtCtrls, System.Contnrs,
+  Winapi.Windows, Winapi.Messages, Vcl.Forms, System.Classes, System.SysUtils, System.SyncObjs, System.Diagnostics, Vcl.ExtCtrls, System.Contnrs,
   unConst, unVariables, IdUDPClient, Dialogs, IOUtils;
 
 type
 
+//------------------------------------------------------------------------------
   TTaskState = (tsNotDefined = -1 {одно из применений - при запуске, до момента полного создания всех объектов задачи},
                 tsActive = 0, tsTerminate = 1, tsPause = 2, tsReportPause = 3);
 
+//------------------------------------------------------------------------------
 //  TProcedure = reference to procedure;
 {$IFDEF MSWINDOWS}
 //    TTaskOSPriority = (tpIdle, tpLowest, tpLower, tpNormal, tpHigher, tpHighest,
 //    tpTimeCritical) platform;
+//------------------------------------------------------------------------------
   TTaskOSPriority = array of TThreadPriority;
 {$ENDIF MSWINDOWS}
+//------------------------------------------------------------------------------
   TPeriodReport = 1..5000; // указывается в мс
 
+//------------------------------------------------------------------------------
   TTaskItem = class;
 //  TTaskProcedure = reference to procedure (TaskItem: TTaskItem); // of object;
+//------------------------------------------------------------------------------
   TTaskProcedure = procedure (TaskLibraryIndex: word) of object;
+  TTaskCore = class;
 
+//------------------------------------------------------------------------------
   TTaskItem = class (TThread)
    private
     FTaskName: string;
     FTaskNumInList: word;
     FTaskSource: ITaskSource;
+    FTaskCore: TTaskCore;
     FTaskState: TTaskState;
     FPauseEvent: TEvent;
     FPeriodReport: TPeriodReport;
@@ -36,7 +45,6 @@ type
     FElapsedMillseconds: Int64;
 //    FTimerCycleCount: Int64;
     FCycleTimeValue: word; // продолжительность одного расчётного цикла в мс (по умолчанию 1000 мс)
-    FTaskStepCount: Int64;
     FCoreUtilization: byte;
 {$IFDEF MSWINDOWS}
     FTaskOSPriority: TTaskOSPriority;
@@ -47,7 +55,7 @@ type
     FInfoFromTask: String;
     FIsDeleted: boolean;
     FClientUDP: TIdUDPClient;
-    procedure thrSendInfoToView;
+    procedure thrSendInfoToView(inputString: string);
    protected
     FTaskLibraryId: word;
     FTaskTemplateId: word;
@@ -60,7 +68,7 @@ type
 //    ExecProcedure: TTaskProcedure;   //--- Фактический адрес подпрограммы будет назначен в конструкторе
     procedure Execute; override;
    public
-    constructor Create(TaskLibraryId, TaskTemplateId: word; BeginState: TTaskState); overload;
+    constructor Create(TaskLibraryId, TaskTemplateId: word; inputBeginState: TTaskState); overload;
     destructor Destroy(); overload;
     procedure OnTerminate(Sender: TObject); overload;
     procedure SetTaskNum(TaskNum: word);
@@ -77,7 +85,7 @@ type
     function GetTaskSource(): ITaskSource;
     function GetPeriodReport: TPeriodReport;
     function GetTaskState(): TTaskState;
-    function PrepareOutString(TaskNum: integer; sPersonThreadInfo: string): string;
+    function PrepareOutString(inTaskNumInList: word; inThreadInfo: string): string;
     function GetTaskStateName(inTaskState: TTaskState): string;
 //    function InitTaskSource(SelectedLibraryNum, SelectedTaskNum: byte; TaskItemNum: word): Pointer;
     function IsTerminated: boolean;
@@ -103,8 +111,8 @@ type
   published
     property Terminated;
   end;
-
 //------------------------------------------------------------------------------
+
   TTaskList = class (TObjectList)   //--- Применён из-за встроенного менеджера памяти
    private
     function GetItem(Index: integer): TTaskItem;
@@ -112,8 +120,38 @@ type
    public
     property Items[Index: integer]: TTaskItem read GetItem write SetItem; default;
   end;
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+//--- Вспомогательный объект для TaskItem - обёртка для TaskSource из библиотеки
+//--- его роль - это предоставление функционала управления потоком, который ----
+//--- будет содержать только вызов кода задачи из библиотеки -------------------
+//------------------------------------------------------------------------------
+  TTaskCore = class (TTaskItem)
+   private
+    FTaskNumInList: word;
+    FTaskSource: ITaskSource;
+    FTaskItemOwner: TTaskItem;
+    FLastOSTickCount: cardinal;
+    FStopWatch: TStopwatch;
+    FElapsedMillseconds: Int64;
+   protected
+//    FTaskProcedure: TTaskProcedure;
+    procedure Execute; override;
+   public
+    constructor Create(TaskItemOwner: TTaskItem); overload;
+    destructor Destroy(); overload;
+    procedure OnTerminate(Sender: TObject);
+    property TaskSource: ITaskSource read FTaskSource write SetTaskSource;
+  published
+  end;
+//------------------------------------------------------------------------------
 
 
+
+
+
+//------------------------------------------------------------------------------
  var
     TaskList: TTaskList;
 
@@ -137,9 +175,38 @@ implementation
 uses unMain, unUtilCommon, IdGlobal, unUtils;
 
 //------------------------------------------------------------------------------
+//---------- Данные для TTaskCore ----------------------------------------------
+//------------------------------------------------------------------------------
+constructor TTaskCore.Create(TaskItemOwner: TTaskItem);
+begin
+ inherited  Create(true); //false); //--- отложим запуск потока до AfterConstraction
+ self.FTaskItemOwner:= TaskItemOwner;
+ FreeOnTerminate:= false; //--- После "добывания из потока" результирующих данных удалим его вручную
+ Priority:= tpNormal;
+
+end;
+
+destructor TTaskCore.Destroy();
+begin
+
+end;
+
+procedure TTaskCore.Execute;
+begin
+  self.FTaskItemOwner.FTaskSource.TaskProcedure(self.FTaskItemOwner.FTaskLibraryId); // FTaskProcedure(self.TaskNum); // вызов алгоритма задачи, заложенного в шаблоне задачи
+end;
+
+procedure TTaskCore.OnTerminate(Sender: TObject);
+begin
+if Assigned(self) then
+// self.FTaskItemOwner.OnTerminate(Sender);
+end;
+
+
+//------------------------------------------------------------------------------
 //---------- Данные для TTaskItem ----------------------------------------------
 //------------------------------------------------------------------------------
-constructor TTaskItem.Create(TaskLibraryId, TaskTemplateId: word; BeginState: TTaskState);
+constructor TTaskItem.Create(TaskLibraryId, TaskTemplateId: word; inputBeginState: TTaskState);
 var
   tmpWord: word;
   tmpBool: boolean;
@@ -154,11 +221,11 @@ begin
  FTaskLibraryId:= TaskLibraryId; // Номер задачи-шаблона из массива aTaskNameArray
  FTaskTemplateId:= TaskTemplateId; // Номер задачи-шаблона из массива aTaskNameArray
  FTaskName:= LibraryList[TaskLibraryId].TaskTemplateName[TaskTemplateId];
- FreeOnTerminate:= true;
- Priority:= tpNormal;
+ FreeOnTerminate:= false; //true;
+ Priority:= tpLower; //tpNormal; этот поток только запускает и крутится в цикле
 // self.FDSiTimer.Interval:= TaskList[TaskItemNum].GetPeriodReport;
  FPeriodReport:= 2000; //--- миллисекунд
- FCycleTimeValue:= 1000;
+ FCycleTimeValue:= 1000; //--- миллисекунд Время делится на 1/4 выполнение Задачи + 3/4 на отчёт + простой
 //----- Для начала периода отчёта времени работы данной задачи -----------------
  FLastOSTickCount:= GetTickCount(); // "стаhым" способом
  FStopWatch := TStopwatch.StartNew; // новым способом (появился в 10-й версии
@@ -179,7 +246,7 @@ begin
 //--- в данном приложении реализован ещё метод через таймер основного потока
 //--- который опрашивает все работающие потоки в цикое опроса по таймеру
 
- case BeginState of
+ case inputBeginState of
   tsActive:
    tmpBool:= true;
   else
@@ -187,8 +254,13 @@ begin
  end;
  FPauseEvent:= TEvent.Create(nil, true, tmpBool, 'ThreadPauseEvent_Task_' + IntToStr(FTaskTemplateId));
 
+//--- Создаём новый объект "Ядро исходника Задачи" - для получения функционала управления потоком
+//--- Делаем это в главном модуле, так как этот объект "продолжение" TaskItem, который становится аналогом
+//--- "callback pump" для TaskSource, который создаётся в библиотеке
+ self.FTaskCore:= TTaskCore.Create(self);
+
 //--- присвоим состояние задачи, которое пришло на входе данной подпрограммы
-TaskState:= BeginState;
+TaskState:= inputBeginState;
 
 end;
 
@@ -203,7 +275,7 @@ end;
 procedure TTaskItem.OnTerminate(Sender: TObject);
 begin
 if Assigned(self) then
- FreeAndNil(self);
+// FreeAndNil(self);
 end;
 
 
@@ -217,20 +289,79 @@ procedure TTaskItem.Execute;
 var
   tmpProc: TTaskProcedure;
   tmpWord: word;
-//  tmpTaskItem: TTaskItem;
 begin
 
-// tmpTaskItem:= self;
-// tmpTaskItem.SetTaskState(tsActive);
  SetTaskState(tsActive);
- FTaskStepCount:= 0;  // обнулим счётчик условных циклов текущей задачи (потока)
  FStopWatch.StartNew; // Начинаем отсчёт времени текущей задачи (потока)
 
  // задержка необходима для исключения возможности "слишком раннего обращения"
  // к методам или полям обхекта, который ещй не создался полностью.
- sleep(100);
+// sleep(100);
 
-  self.FTaskSource.TaskProcedure(self.TaskNum); // FTaskProcedure(self.TaskNum); // вызов алгоритма задачи, заложенного в шаблоне задачи
+//--- Сначала задача из библиотеки запускалась здесь
+//  self.FTaskSource.TaskProcedure(self.TaskNum); // FTaskProcedure(self.TaskNum); // вызов алгоритма задачи, заложенного в шаблоне задачи
+self.FTaskCore.Start;
+
+repeat
+  if self.FTaskCore.Suspended then
+//    self.FTaskCore.Resume;
+    self.FTaskCore.SetTaskState(tsPause);
+
+  //--- выдаём квант времени на выполнение Задачи
+  sleep(round(FCycleTimeValue*0.5)); // 250мс - на выполнение Задачи в библиотеке
+                             // 750 - время выполнениея кода (ниже) и sleep
+                             // это эмуляция квантованного предоставления времени выполнения потока
+
+                             //--- Задача из библиотеки уже выполняется или уже завершилась...
+  //--- Проверяем не завершилась ли Задача во время последнего кванта времени, если не завершилась, то приоставнавливаем.
+  if self.FTaskCore.Terminated then
+    self.SetTaskState(tsTerminate)    //--- Если Задача завершилась, то переводим ItemState в завершённое состояние
+  else
+    if Assigned(self.FTaskCore) then
+//      self.FTaskCore.Suspended:= true
+    else
+     showmessage('self.FTaskCore.Suspend - не существует');
+
+//  self.SetTaskState(tsReportPause);   //--- Согласно первого алгоритма (синхроггаый запрос на отчёт)
+                                      //--- в этой точке должно быть состояние Пауза для отчёта.
+                                      //--- оэтому пока оставлено для совместимости. Будет удалено в последствие.
+//---
+//--- Теперь читаем промежуточные результаты от задачи и показываем в визуальных компонентах главного потока
+  try
+    CriticalSection.Enter;
+// curTaskItem:= self;
+
+    OutInfo_ForViewing.hWndViewObject:= self.FHandleWinForView;
+    OutInfo_ForViewing.IndexInViewComponent:= self.FLineIndex_ForView;
+    OutInfo_ForViewing.TextForViewComponent:= self.InfoFromTask;
+
+      case ModulsExchangeType of
+     etMessage_WMCopyData:
+      SendReportToMainProcess;  //Synchronize(SendReportToMainProcess);
+     etClientServerUDP:
+      SendReportToMainProcess;
+    end;
+  finally
+    CriticalSection.Leave;
+  end;
+
+  while (TaskState = tsPause) and (TaskState <> tsTerminate) do
+   begin
+    self.Suspended:= true; //--- Пережидаем паузу
+   end;
+
+(*
+  if self.TaskState = tsPause then
+   self.Suspend; //--- Для отработки (устарело) Пережидаем паузу
+*)
+  if self.TaskState = tsReportPause then
+  begin
+   self.SetTaskState(tsActive); //--- Если был отчёт, то выходим из состояния отчёта (для главного окна)
+  end; // if
+
+  sleep(round(FCycleTimeValue*0.75)); // 750 - время выполнениея кода (ниже) и sleep
+                                     // это эмуляция квантованного предоставления времени выполнения потока
+ until (self.TaskState = tsTerminate);
 
  //--- Прекращаеи выполнение задачи
  //--- Фиксируем общее время выполнения задачи
@@ -251,7 +382,7 @@ begin
    CriticalSection.Leave;
  end;
 *)
-end;
+end; //--- TTaskItem.Execute;
 
 procedure TTaskItem.SetTaskName(TaskItemName: string = '');
 begin
@@ -304,8 +435,7 @@ end;
 
 procedure TTaskItem.SetPeriodReport(PeriodReport: TPeriodReport);
 begin
-// self.SetPeriodReport(PeriodReport);
-SetPeriodReport(PeriodReport);
+  SetPeriodReport(PeriodReport);
 end;
 
 function TTaskItem.GetPeriodReport: TPeriodReport;
@@ -313,46 +443,83 @@ begin
  Result:= self.FPeriodReport;
 end;
 
-procedure TTaskItem.thrSendInfoToView;
+procedure TTaskItem.thrSendInfoToView(inputString: string);
+var
+  cdsData: TCopyDataStruct;
+//  tmpString: string;
 begin
-// SendMessage(OutInfo_ForViewing.hWndViewObject, wm_data_update, 20, dword(PChar(OutInfo_ForViewing.TextForViewObject)));
+  //Устанавливаем наш тип команды
+  cdsData.dwData := CMD_SetMemoLine;
+  cdsData.cbData := Length(PChar(inputString)) * sizeof(Char) + 1;
+  //Выделяем память буфера для структуры данных
+  GetMem(cdsData.lpData, cdsData.cbData);
+  try
+    StrPCopy(cdsData.lpData, PWChar(inputString));
+
+//    tmpString:= PChar(cdsData.lpData);
+    //Отсылаем сообщение в окно главного модуля
+    SendMessage(FindWindow(nil, PWChar(formMain.Caption)),
+                  WM_COPYDATA, Handle, Integer(@cdsData));
+  finally
+    //Высвобождаем буфер
+    FreeMem(cdsData.lpData, cdsData.cbData);
+  end;
 end;
 
-function TTaskItem.PrepareOutString(TaskNum: integer; sPersonThreadInfo: string): string;
+function TTaskItem.PrepareOutString(inTaskNumInList: word; inThreadInfo: string): string;
 var
-  fTmp: single;
-  iTmp: integer;
-  cTmp: cardinal;
-  sTmp: string;
+  tmpSingle: single;
+  tmpInt: integer;
+  tmpCardinal: cardinal;
+  tmpString: string;
 begin
+{
  TaskList[TaskNum].GetCPUUsage(stSystemTimes);
- fTmp:= (stSystemTimes.UserTime/stSystemTimes.KernelTime)*100;
- iTmp:= round(fTmp);
- sTmp:= GetTaskStateName(TaskList[TaskNum].TaskState);
- cTmp:= TaskList[TaskNum].ThreadID;
+ tmpSingle:= (stSystemTimes.UserTime/stSystemTimes.KernelTime)*100;
+ tmpInt:= round(tmpSingle);
+ tmpString:= GetTaskStateName(TaskList[TaskNum].TaskState);
+ tmpCardinal:= TaskList[TaskNum].ThreadID;
  Result:= sHeaderThreadInfo + IntToStr(TaskNum) +  ': ' + TaskList[TaskNum].TaskName
-          + ', ' + sPersonThreadInfo
-          + Format(' , TreadId: %6d | CPU usage(проц.): %f | сост. - %s', [cTmp, fTmp, sTmp]);
+          + ', ' + inThreadInfo
+          + Format(' , TreadId: %6d | CPU usage(проц.): %f | сост. - %s', [tmpCardinal, tmpSingle, tmpString]);
+
+  sThreadInfoForView = sHeaderThreadInfo + ' %4d : %s, %s TreadId: %4d | CPU usage(проц.): %f | сост. - %s';
+}
+ tmpInt:= TaskList[TaskNum].FTaskSource.Task1_Result.dwEqualsCount;
+
+ tmpString:= GetTaskStateName(TaskList[TaskNum].TaskState);
+ Result:= format(sThreadInfoForView,
+                                    [inTaskNumInList,
+                                     TaskList[TaskNum].TaskName,
+                                     inThreadInfo,
+                                     TaskList[TaskNum].ThreadID,
+                                     (stSystemTimes.UserTime/(stSystemTimes.KernelTime + 1))*100, //деление на 0...
+                                     tmpInt, //TaskList[TaskNum].FTaskSource.Task1_Result.dwEqualsCount,
+                                     tmpString]); //GetTaskStateName(TaskList[TaskNum].TaskState)]);
+
 end;
 
 
 procedure TTaskItem.SendReportToMainProcess;
 begin
     OutInfo_ForViewing.TextForViewComponent:= AnsiString(PrepareOutString(self.FTaskNumInList, OutInfo_ForViewing.TextForViewComponent));
+    OutInfo_ForViewing.TextForViewComponent:= format(sDelimiterNumTask + '%d' + sDelimiterNumTask,
+                                                      [OutInfo_ForViewing.IndexInViewComponent]) + OutInfo_ForViewing.TextForViewComponent;
 
-    case ExchangeType of
-     etSynchronize:
+    case ModulsExchangeType of
+     etMessage_WMCopyData:
      begin
-      //--- После каждого цикла запускаем передачу информации о текущем положении дел в окно главной формы
+      //--- После каждого цикла запускаем передачу информации в окно главной формы
       // OutInfo_ForViewing.TextForViewObject:= OutInfo_ForViewing.TextForViewObject +
       if formMain.memInfoTread <> nil then
-       formMain.memInfoTread.Lines[OutInfo_ForViewing.IndexInViewComponent]:= OutInfo_ForViewing.TextForViewComponent;
+       self.thrSendInfoToView(OutInfo_ForViewing.TextForViewComponent);
      end;
+
      etClientServerUDP:
      begin
        try
         FClientUDP.Connect;
-        OutInfo_ForViewing.TextForViewComponent:= format('#%d#', [OutInfo_ForViewing.IndexInViewComponent]) + OutInfo_ForViewing.TextForViewComponent;
+//        OutInfo_ForViewing.TextForViewComponent:= format('#%d#', [OutInfo_ForViewing.IndexInViewComponent]) + OutInfo_ForViewing.TextForViewComponent;
         FClientUDP.Send(OutInfo_ForViewing.TextForViewComponent, IndyTextEncoding_UTF8);
        finally
         FClientUDP.Disconnect;
@@ -376,7 +543,7 @@ begin
    TTaskState(0):  Result:= 'Активен';
    TTaskState(1):  Result:= 'Остановлен';
    TTaskState(2):  Result:= 'Пауза';
-   TTaskState(3):  Result:= 'Активен'; //--- В состоянии Паузы для отчёта - но это есть активное состояние!
+   TTaskState(3):  Result:= 'Активен/Отчёт'; //--- В состоянии Паузы для отчёта - но это есть активное состояние!
  end;
 end;
 
@@ -414,31 +581,6 @@ begin
  inherited SetItem(Index, Value);
 end;
 
-{
-function TTaskItem.InitTaskSource(SelectedLibraryNum, SelectedTaskNum: byte; TaskItemNum: word): Pointer;
-var
- tmpPointer: Pointer;
-begin
- case SelectedTaskNum of
-  0:
-  begin
-    self.SetTaskSource(LibraryList[SelectedLibraryNum].LibraryAPI.NewTaskSource(TaskItemNum));
-  end;
-  1:
-  begin
-  end;
-  2:
-  begin
-  end;
-  3:  // Задачи для тестового примера от hh.ru
-  begin
-  end;
-  else Result:= nil;
- end;
-// TTaskSource(Result).SetTaskItem(TaskList[TaskItemNum]);
-end;
-}
-
 //--- Подпрограммы вне классов
 //procedure SendReportToMainProcess(TaskItem: TTaskItem);
 
@@ -449,8 +591,8 @@ initialization
 
 finalization
 
-// if TaskList <> nil then TaskList.Destroy;
-// if FileList <> nil then FileList.Destroy;
-// if CriticalSection <> nil then CriticalSection.Free;
+// if Assigned(TaskList) then TaskList.Free;
+// if Assigned(FileList) then FileList.Free;
+// if Assigned(CriticalSection) then CriticalSection.Free;
 
 end.

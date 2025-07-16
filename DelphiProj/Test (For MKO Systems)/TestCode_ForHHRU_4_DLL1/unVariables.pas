@@ -15,11 +15,14 @@ type
 
 type
 
+//------------------------------------------------------------------------------
   TTaskState = (tsNotDefined = -1 {одно из применений - при запуске, до момента полного создания всех объектов задачи},
                 tsActive = 0, tsTerminate = 1, tsPause = 2, tsReportPause = 3);
+//------------------------------------------------------------------------------
 //--- FileFinderByMask
   TCallingDLL1Proc1 = function (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT; stdcall;
 
+//------------------------------------------------------------------------------
   IBSTRItems = interface (IInterface)
   ['{7988654F-59FB-401F-9E4C-972FF343C66B}']
     function GetCount: Integer; safecall;
@@ -29,6 +32,7 @@ type
     property Strings[const Index: Integer]: BSTR read GetString; default;
   end;
 
+//------------------------------------------------------------------------------
   TBSTRItems = class(TInterfacedObject, IBSTRItems)
   strict private
     FBSTRItems: array of WideString;
@@ -39,30 +43,38 @@ type
     constructor Create(const inputBSTRItems: array of WideString); reintroduce;
 //    constructor Create(const AStrings: array of BSTR); reintroduce;
   end;
+//------------------------------------------------------------------------------
 
-
-type
+//------------------------------------------------------------------------------
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
-   procedure TaskProcedure(TaskLibraryIndex: word); // virtual; abstract;
+   procedure TaskProcedure(TaskLibraryIndex: word);
+   function GetTask1_Result: TTask1_Result; safecall;
+   property Task1_Result: TTask1_Result read GetTask1_Result;
   end;
 
+//------------------------------------------------------------------------------
   TTaskSource = class (TInterfacedObject, ITaskSource)
    private
-      FTaskLibraryIndex: word;
-      FTaskSourceList: word;
-      FTaskState: TTaskState;
-      FStopWatch: TStopWatch;
+    FTaskLibraryIndex: word;
+    FTaskSourceList: word;
+    FTaskState: TTaskState;
+    FStopWatch: TStopWatch;
    protected
+    FTask1_Result: TTask1_Result;
     procedure TaskProcedure(TaskLibraryIndex: word);
    public
     constructor Create(TaskLibraryIndex: word);
-   property TaskState: TTaskState read FTaskState write FTaskState;
-   property StopWatch: TStopWatch read FStopWatch write FStopWatch;
+    function GetTask1_Result: TTask1_Result; safecall;
+    property TaskState: TTaskState read FTaskState write FTaskState;
+    property StopWatch: TStopWatch read FStopWatch write FStopWatch;
+    property Task1_Result: TTask1_Result read FTask1_Result write FTask1_Result;
+
   end;
 
 
 //  TTaskSourceList = TArray<TTaskSource>;
+//------------------------------------------------------------------------------
    TTaskSourceList = class (TObjectList)
    private
     function GetItem(Index: integer): TTaskSource;
@@ -71,6 +83,7 @@ type
     property Items[Index: integer]: TTaskSource read GetItem write SetItem; default;
   end;
 
+//------------------------------------------------------------------------------
 
 
 
@@ -131,6 +144,13 @@ begin
    FTaskSourceList:= TaskSourceList.Add(self);
 end;
 
+//------------------------------------------------------------------------------
+function TTaskSource.GetTask1_Result: TTask1_Result; safecall;
+begin
+  Result:= FTask1_Result;
+end;
+
+//------------------------------------------------------------------------------
 procedure TTaskSource.TaskProcedure(TaskLibraryIndex: word);
 var
   tmpInt, tmpInt1: Integer;
@@ -138,14 +158,10 @@ var
   tmpInputForm_Task1: TformEditParams_Task1;
  begin
 
-// Начинаем отсчёт времени работы очередного цикла текущей задачи задачи
-// зафиксируем текущее значение TaskItem.FStopWatch
-//  tmpInt1:= StopWatch.ElapsedMilliseconds;
-
 //  repeat
 
  case TaskLibraryIndex of
-   0:
+   0: //--- Task1_FileFinderByMask
    begin
 //--- Критическая секция для доступа к структуре - входные параметры для задачи
     CriticalSection.Enter; //--- Выход из критической секции будет в начале задачи
@@ -159,7 +175,11 @@ var
                 + #13#10 + 'inputParam2 = ' + WideString(Task1_Parameters.inputParam2)
                 + #13#10 + 'inputParam3 = ' + WideString(Task1_Parameters.inputParam3));
 }
-    Task1_FileFinderByMask(WideString(Task1_Parameters.inputParam1), WideString(Task1_Parameters.inputParam2), WideString(Task1_Parameters.inputParam3), Task1_Parameters.inputParam4, Task1_Parameters.inputParam5); //, nil, 0);
+// Начинаем отсчёт времени работы текущей задачи задачи
+// зафиксируем текущее значение TaskItem.FStopWatch
+    tmpInt1:= self.StopWatch.ElapsedMilliseconds;
+
+    Task1_FileFinderByMask(WideString(Task1_Parameters.inputParam1), WideString(Task1_Parameters.inputParam2), WideString(Task1_Parameters.inputParam3), Task1_Parameters.inputParam4, Task1_Parameters.inputParam5, self.FTask1_Result); //, nil, 0);
     CriticalSection.Leave;
    end;
  end;
@@ -173,7 +193,7 @@ var
  end;
 
 //------------------------------------------------------------------------------
-//---------- Данные для TTaskSourceList ----------------------------------------------
+//---------- Данные для TTaskSourceList ----------------------------------------
 //------------------------------------------------------------------------------
 
 function TTaskSourceList.GetItem(Index: integer): TTaskSource;

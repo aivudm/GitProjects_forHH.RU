@@ -12,6 +12,7 @@ object formEditParams_Task1: TformEditParams_Task1
   Font.Style = []
   OldCreateOrder = False
   Position = poScreenCenter
+  OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel

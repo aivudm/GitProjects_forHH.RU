@@ -1,0 +1,156 @@
+unit unMain;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
+  Vcl.Menus, unConst, unVariables, unTools;
+
+type
+
+  TformMain = class(TForm)
+    MainMenu1: TMainMenu;
+    N1: TMenuItem;
+    N2: TMenuItem;
+    N3: TMenuItem;
+    N4: TMenuItem;
+    N5: TMenuItem;
+    GroupBox1: TGroupBox;
+    memInfoTread: TMemo;
+    memInfo_2: TMemo;
+    lbThreadList: TListBox;
+    procedure N5Click(Sender: TObject);
+    procedure N2Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+  private
+    { Private declarations }
+//    message WM_WINDOWPOSCHANGING;
+    procedure WMWINDOWPOSCHANGING(var Msg: TWMWINDOWPOSCHANGING); message WM_WINDOWPOSCHANGING;
+    procedure HandleProc(var updMessage: TMessage); message wm_data_update;
+  public
+    { Public declarations }
+  end;
+
+function AddNewItemToThreadList(NextItem: string): integer;
+function AddNewItemToMemo(NextItem: string): integer;
+
+
+var
+  formMain: TformMain;
+
+implementation
+
+{$R *.dfm}
+
+procedure TformMain.WMWindowPosChanging(var Msg: TWMWindowPosChanging);
+begin
+(*
+ if bFormToolsIsActive then
+ begin
+  if Abs(Msg.WindowPos^.x - (formTools.Left + formTools.Width)) <= iMaxPixelCount_difference then
+   formTools.Left:= Msg.WindowPos^.x- formTools.Width;
+  if Abs(formTools.Left-(Msg.WindowPos^.x + Msg.WindowPos^.cx)) <= iMaxPixelCount_difference then
+   formTools.Left:= Msg.WindowPos^.x + Msg.WindowPos^.cx;
+ end;
+*)
+ inherited;
+ if Assigned(formTools) and not Application.Terminated  then
+ begin
+  formTools.Left:= formMain.Left + formMain.Width;
+  formTools.Top:= formMain.Top;
+ end;
+end;
+
+procedure TformMain.FormCreate(Sender: TObject);
+begin
+ InitializeVariables;
+end;
+
+procedure TformMain.HandleProc(var updMessage: TMessage);
+var
+  pBuffer: PWideChar;
+begin
+  pBuffer:= PWideChar(updMessage.LParam);
+  memInfoTread.Lines.Add(updMessage.WParam.ToString());
+  memInfo_2.Lines.Add(pBuffer);
+end;
+
+procedure TformMain.N2Click(Sender: TObject);
+begin
+ Application.Terminate;
+end;
+
+procedure TformMain.N5Click(Sender: TObject);
+begin
+// fmTools:= TfmTools.Create(Application);
+ Application.CreateForm(TformTools, formTools);
+ formTools.Show;
+ bFormToolsIsActive:= true;
+end;
+
+//--- Подпрограммы вне классов -------------------------------------------------
+
+function AddNewItemToThreadList(NextItem: string): integer;
+begin
+ Result:= formMain.lbThreadList.Items.Add(NextItem);
+end;
+
+function AddNewItemToMemo(NextItem: string): integer;
+begin
+ Result:= formMain.memInfoTread.Lines.Add(NextItem);
+end;
+
+(*
+procedure TMyThread.Execute;
+begin
+  ThreadStateInfo1 := 'Start';
+
+  while FCurrValue < FMaxValue do
+  begin
+    if Terminated then Break;
+    Inc(FCurrValue);
+    FResult := FResult + FCurrValue;
+    ThreadStateInfo := Format('Progress: %f%%',
+      [FCurrValue / FMaxValue * 100]);
+      sleep(100);
+  end;
+  ThreadStateInfo1 := 'Complete';
+end;
+
+function TMyThread.GetThreadStateInfo: string;
+begin
+  // Защищаем строку с помощью критической секции. Если её убрать,
+  // то в главном потоке периодически будет возникать ошибка
+  // "Invalid pointer operation" либо "Out of memory"
+//  StringProtectSection.Enter; // Входим в режим защиты
+  Result := FThreadStateInfo;
+//  StringProtectSection.Leave; // Выходим из режима защиты
+end;
+
+procedure TMyThread.SetThreadStateInfo(const Value: string);
+begin
+//  StringProtectSection.Enter; // Входим в режим защиты
+  FThreadStateInfo := Value;
+//  StringProtectSection.Leave; // Выходим из режима защиты
+end;
+
+function TMyThread.GetThreadStateInfo1: string;
+begin
+  // Защищаем строку с помощью критической секции. Если её убрать,
+  // то в главном потоке периодически будет возникать ошибка
+  // "Invalid pointer operation" либо "Out of memory"
+//  StringProtectSection.Enter; // Входим в режим защиты
+  Result := FThreadStateInfo1;
+//  StringProtectSection.Leave; // Выходим из режима защиты
+end;
+
+procedure TMyThread.SetThreadStateInfo1(const Value: string);
+begin
+//  StringProtectSection.Enter; // Входим в режим защиты
+  FThreadStateInfo1 := Value;
+//  StringProtectSection.Leave; // Выходим из режима защиты
+end;
+*)
+
+end.

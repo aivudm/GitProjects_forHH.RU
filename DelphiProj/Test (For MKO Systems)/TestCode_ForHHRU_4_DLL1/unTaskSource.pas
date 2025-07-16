@@ -7,6 +7,9 @@ const
   ItemDelemiter = ';';
   wsBeginMask: WideString = '*.';
 type
+//------------------------------------------------------------------------------
+//--- Входные параметры Задачи №1 (Индекс задачи в библиотеке - 0)
+
   TTask1_Parameters = packed record
     inputParam1: PWideChar; //--- Маска
     inputParam2: PWideChar; //--- Директория старта поиска
@@ -15,7 +18,17 @@ type
     inputParam5: WORD;      //--- TargetWorkTime - устарело, управление теперь по другому алгоритму - удалить!
   end;
 
+//------------------------------------------------------------------------------
+//--- Выходные параметры Задачи №1 (Индекс задачи в библиотеке - 0)
+
+  TTask1_Result = packed record
+    dwEqualsCount: DWORD;
+  end;
+
+//------------------------------------------------------------------------------
+
   TArray_WideString = array [0..High(Byte)] of WideString;
+//------------------------------------------------------------------------------
 
 var
   CriticalSection: TCriticalSection;
@@ -24,7 +37,7 @@ var
 
 //--- Основныеные функции (реализация функционала библиотеки)
 //--- Задача №1 - Поиск файлов по маске/маскам
-function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 
 //--- Вспомогательные функции
 //--- Извлечение элементов строки, разделённых символом-разделителем
@@ -37,7 +50,7 @@ function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): 
 
 implementation
 
-function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 const
   wsAllMask: WideString = '*';
 var
@@ -46,9 +59,9 @@ var
   tmpStreamWriter: TStreamWriter;
   tmpMaskItems: TArray_WideString;
   tmpMaskCount: word;
-  tmpEquealsCount: word;
   tmpInt, tmpInt1: word;
   tmpBool: Boolean;
+  tmpPAnsiChar: PAnsiChar;
 
 //  inputParam1, inputParam2, inputParam3: WideString;
 //  inputParam4: BOOL;
@@ -82,31 +95,33 @@ try
 //--- Извлечение элементов-масок из входящей строки (inputParam1)
    GetItemsFromString(inputParam1, tmpMaskItems, tmpMaskCount);
 //--- Цикл перебора и сравнения с масками всех файлов в целевой директории
-   tmpEquealsCount:= 0; //--- Счётчик совпадений
+   outTask1_Result.dwEqualsCount:= 0; //--- Счётчик совпадений
 
        for tmpTargetFile in TDirectory.GetFiles(inputParam2, wsAllMask,
             TSearchOption.soAllDirectories) do
         begin
          tmpBool:= false;
          for tmpInt:= 0 to tmpMaskCount do
-          if TPath.GetExtension(tmpTargetFile) = tmpMaskItems[tmpInt] then
+         begin
+          if (TPath.GetExtension(tmpTargetFile) = tmpMaskItems[tmpInt]) and (not tmpBool) then
           begin
-           inc(tmpEquealsCount);
+           inc(outTask1_Result.dwEqualsCount);
            tmpBool:= true;
-           break;
-          end;
-          if tmpBool then
-          begin
+           if tmpBool then
+           begin
             tmpStreamWriter.WriteLine(tmpTargetFile + ', ');
             if (GetTickCount() - iProcedureWorkTime) >=  inputParam5 then
              begin
               tmpStreamWriter.Flush;
               iProcedureWorkTime:= GetTickCount(); // запоминаем текущее значение тиков
              end;
+           end;
           end;
          end;
+        end;
 
-       tmpStreamWriter.WriteLine('Всего найдено совпадений: ' + IntToStr(tmpEquealsCount));
+       tmpPAnsiChar:= 'Всего найдено совпадений: ';
+       tmpStreamWriter.WriteLine(tmpPAnsiChar + IntToStr(outTask1_Result.dwEqualsCount));
        tmpStreamWriter.Close;
 
      end;
@@ -116,6 +131,7 @@ try
 
      end;
   end;
+
 
 finally
  if Win32Check(Assigned(tmpStreamWriter)) then

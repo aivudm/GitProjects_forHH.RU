@@ -7,6 +7,14 @@ uses Windows, SysUtils, Forms, System.Contnrs, StdCtrls, Classes, Winapi.Message
 type
   BSTR = WideString;
   ITaskSource = interface;
+//------------------------------------------------------------------------------
+//--- Выходные параметры Задачи №1 (Индекс задачи в библиотеке - 0)
+
+  TTask1_Result = packed record
+    dwEqualsCount: DWORD;
+  end;
+
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
   IBSTRItems = interface
@@ -38,7 +46,9 @@ type
 //------------------------------------------------------------------------------
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
-   procedure TaskProcedure(TaskLibraryIndex: word); // virtual; abstract;
+   procedure TaskProcedure(TaskLibraryIndex: word);
+   function GetTask1_Result: TTask1_Result; safecall;
+   property Task1_Result: TTask1_Result read GetTask1_Result;
   end;
 //------------------------------------------------------------------------------
 
@@ -55,9 +65,9 @@ type
   TArray_Cardinal = array [0..High(Byte)] of Cardinal;
 
 type
-  TExchangeType = (etSynchronize = 0, etClientServerUDP = 1);
-
-
+//------------------------------------------------------------------------------
+  TModulsExchangeType = (etMessage_WMCopyData = 0, etClientServerUDP = 1);
+//------------------------------------------------------------------------------
 
   TLibraryTask = class (TObject)
    private
@@ -83,9 +93,11 @@ type
 //    property TaskLibraryIndex[Index: integer]: Cardinal read GetItemIndex write SetItemIndex; default;
 
   end;
+//------------------------------------------------------------------------------
 
 //  TLibraryList = TArray<TLibraryTaskInfo>;   //--- Применён из-за встроенного менеджера памяти
 
+//------------------------------------------------------------------------------
   TLibraryList = class (TObjectList)   //--- Применён из-за встроенного менеджера памяти
    private
     function GetItem(Index: integer): TLibraryTask;
@@ -95,13 +107,14 @@ type
   end;
 
 
-  TOutInfo_ForViewing = record
+  TOutInfo_ForViewing = packed record
     hWndViewObject: hWnd;
     IndexInViewComponent: integer;
     TextForViewComponent: ansistring;
   end;
 
 
+//------------------------------------------------------------------------------
   TFileItem = class (TObject)
    private
     FFileName: string;
@@ -124,7 +137,7 @@ type
   end;
 
 
-  //------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
   TFileList = class (TObjectList)   //--- Применён из-за встроенного менеджера памяти
    private
     function GetItem(Index: integer): TFileItem;
@@ -132,7 +145,22 @@ type
    public
     property Items[Index: integer]: TFileItem read GetItem write SetItem; default;
   end;
+//------------------------------------------------------------------------------
 
+  PCopyDataStruct = ^TCopyDataStruct;
+  TCopyDataStruct = record
+    dwData: LongInt;
+    cbData: LongInt;
+    lpData: Pointer;
+  end;
+
+//------------------------------------------------------------------------------
+  PInfoToClient = ^TInfoToClient;
+  TInfoToClient = packed record
+    text_msg : TArray_WideString;
+    size_msg : integer;
+  end;
+//------------------------------------------------------------------------------
 
 
 
@@ -142,16 +170,11 @@ var
   iniFile: TIniFile;
 
 
-
-
-
 var
-//  bFormToolsIsActive: boolean = false;
-  ExchangeType: TExchangeType = etSynchronize; //--- Глобальная переменная - будет обращение из потоков
+  ModulsExchangeType: TModulsExchangeType = etMessage_WMCopyData;
   iTreadCount: byte= 0;
   aResultArraySimple: TArray<Int64>;
   FileList: TFileList; //StreamWriter: TStreamWriter;
-//  aTaskNameArray: array of string; // = ['Пустой цикл', 'Расчёт числа Пи', 'Определение простых чисел']; //--- При инициализации задачи нумерация будет с номера =
 
   CallingDLLProc: TCallingDLLProc;
   hDllTask: THandle;
@@ -160,7 +183,6 @@ var
   sFileExtensionDefault: string = '.txt';
   LibraryTask: TLibraryTask;
   LibraryList: TLibraryList; //TObjectList<TLibraryTaskInfo>;
-//  aInfoRecordData: array of WideString = ['Файловый функционал', 'FileFinderByMask', 'FileFinderByPattern'];
 
 procedure InitializeVariables;
 procedure DeinitializeVariables;
@@ -174,8 +196,8 @@ end;
 
 procedure DeinitializeVariables;
 begin
- if TaskList <> nil then TaskList.Free;
- if CriticalSection <> nil then CriticalSection.Free;
+ if Assigned(TaskList) then TaskList.Free;
+ if Assigned(CriticalSection) then CriticalSection.Free;
 
 end;
 

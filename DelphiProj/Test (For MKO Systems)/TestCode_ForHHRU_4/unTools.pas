@@ -11,13 +11,12 @@ type
     MainMenu1: TMainMenu;
     mFile: TMenuItem;
     miExit: TMenuItem;
-    tmCheckThreadReport: TTimer;
     gbThread: TGroupBox;
     btnNewThread: TButton;
     lbTemplateTaskList: TListBox;
     gbRxchangeType: TGroupBox;
-    rbSynchronize: TRadioButton;
-    rbClientServer_http: TRadioButton;
+    rbMessage_WMCoptData: TRadioButton;
+    rbClientServer_udp: TRadioButton;
     gbLibraryList: TGroupBox;
     Button1: TButton;
     lbLibraryList: TListBox;
@@ -28,7 +27,7 @@ type
     procedure btnNewThreadClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
-    procedure rbSynchronizeClick(Sender: TObject);
+    procedure rbMessage_WMCoptDataClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure lbLibraryListClick(Sender: TObject);
   private
@@ -87,12 +86,15 @@ begin
   //--- 3. Назначим рбъекты для отображения информации от задач (потоков)
   TaskList[iTaskListNum].HandleWinForView:= formMain.memInfoTread.Handle;
   TaskList[iTaskListNum].LineIndex_ForView:= formMain.memInfoTread.Lines.Add('Ожидание ответа от потока...');
-//  TaskList[iTaskNum].Resume; - Только для отработки, так как в реале запуск сразу после создания. Потом паузы и продолжение по событию FPauseEvent: TEvent;
+//------------------------------------------------------------------------------
+//  TaskList[iTaskListNum].Run; - Только для отработки, так как в реале запуск сразу после создания. Потом паузы и продолжение по событию FPauseEvent: TEvent;
+//------------------------------------------------------------------------------
 
   //--- 4. Добавляем "Новый Поток" в перечень потоков (комбобокс)
-  AddNewItemToThreadList(sHeaderThreadInfo + IntToStr(iTaskListNum));   // Для более привычного восприятия номера (с 1-цы)
+  AddNewItemToThreadList(format(sHeaderThreadInfo + '%3d: %s',
+                                                                    [iTaskListNum,
+                                                                    TaskList[iTaskListNum].TaskName]));   // Для более привычного восприятия номера (с 1-цы)
 
-  tmCheckThreadReport.Enabled:= true;
   //--- После подготовки всех объектов присваиваем задаче состояние - tsActive
   TaskList[iTaskListNum].TaskState:= tsActive;
 
@@ -128,29 +130,19 @@ begin
   if tmpLibraryTask.LibraryName <> '' then
    begin
  //--- Добавим библиотеку в список доступных библиотек в визуальном компоненте (ListBox)
-    lbLibraryList.Items.Add(AnsiString(tmpLibraryTask.LibraryName));
+    lbLibraryList.Items.Add(tmpLibraryTask.LibraryName);
 
    end;
  end;
 
-{
-//--- Заполним элементы ListBox (Перечень библиотек) согласно перечня библиотек
-//--- Первый элемент пропускаем, так как это функция получения наименование самой библиотеки
-  for tmpItem:= 1 to (High(LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName)) do
-  begin
-   lbLibraryList.Items.Add(LibraryTaskInfoList[tmpDllProcNum].TaskDllProcName[tmpItem]);
-  end;
-}
-//  lbLibraryList.ItemIndex:= 0;
-//  lbLibraryList.OnClick(Sender);
-
+ lbLibraryList.ItemIndex:= 0;
+ lbLibraryList.OnClick(Sender);
 end;
 
 procedure TformTools.FormClose(Sender: TObject; var Action: TCloseAction);
 var
   i: word;
 begin
- tmCheckThreadReport.Enabled:= false;
  if TaskList.Count <1 then exit;
  
  for i:=0 to (TaskList.Count - 1) do
@@ -179,7 +171,7 @@ end;
 
 procedure TformTools.lbLibraryListClick(Sender: TObject);
 var
-  tmpItem: byte;
+  tmpItem: integer;
   tmpTaskTemplateIndex: integer;
 begin
 //--- Выведем список доступных в библиотеке задач в визуальный компонент (ListBox)
@@ -188,7 +180,6 @@ begin
   tmpTaskTemplateIndex:= lbLibraryList.ItemIndex;
   if tmpTaskTemplateIndex < 0 then exit;
 
-//--- Считаем с 1, так как первый элемент пропускаем - это всегда имя библиотеки
   for tmpItem:= 0 to LibraryList[tmpTaskTemplateIndex].TaskCount do
   begin
    lbTemplateTaskList.AddItem(LibraryList[tmpTaskTemplateIndex].TaskTemplateName[tmpItem], Sender);
@@ -200,19 +191,23 @@ begin
  Close;
 end;
 
-procedure TformTools.rbSynchronizeClick(Sender: TObject);
+procedure TformTools.rbMessage_WMCoptDataClick(Sender: TObject);
 begin
-  if self.rbSynchronize.Checked then
+  if self.rbMessage_WMCoptData.Checked then
    begin
     DM.PrepareServerSetting(false);
-    ExchangeType:= etSynchronize;
-    formMain.sbMain.Panels[0].Text:= 'Режим: TThread.Synchronize';
-   end
-  else
-   begin
-    ExchangeType:= etClientServerUDP;
-    DM.PrepareServerSetting(true);
+    ModulsExchangeType:= etMessage_WMCopyData;
+    formMain.sbMain.Panels[0].Text:= 'Режим: Message WM_CopyData';
    end;
+
+  if self.rbClientServer_udp.Checked then
+   begin
+    ModulsExchangeType:= etClientServerUDP;
+    DM.PrepareServerSetting(true);
+    //--- информация на статус бар выводится в DM.PrepareServerSetting
+   end;
+
+
 end;
 
 procedure TformTools.tmCheckThreadReportTimer(Sender: TObject);
@@ -220,14 +215,12 @@ var
   i: Integer;
   tmpTaskItem: TTaskItem;
 begin
- tmCheckThreadReport.Enabled:= false;
-// for i := Low(TaskList) to High(TaskList) do
+ exit;
  for i:=0 to (TaskList.Count - 1) do
  begin
   if TaskList[i].GetTaskState = tsActive  then
    TaskList[i].CheckReportTime(TaskList[i]);
  end;
-  tmCheckThreadReport.Enabled:= true;
 end;
 
 

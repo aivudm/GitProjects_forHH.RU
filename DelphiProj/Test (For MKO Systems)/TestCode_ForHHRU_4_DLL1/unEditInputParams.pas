@@ -19,6 +19,7 @@ type
     edResultFile: TEdit;
     chkbTypeResultOutput: TCheckBox;
     procedure btbRunTaskClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
     { Private declarations }
   public
@@ -64,5 +65,10 @@ finally
 end;
 end;
 
+
+procedure TformEditParams_Task1.FormShow(Sender: TObject);
+begin
+ btbRunTaskClick(Sender);
+end;
 
 end.

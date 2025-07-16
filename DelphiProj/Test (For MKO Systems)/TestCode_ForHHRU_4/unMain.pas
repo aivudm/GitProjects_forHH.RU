@@ -5,8 +5,13 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
-  Vcl.Menus, unConst, unVariables, unTools, unUtils,
-  IOUtils, Types, DateUtils;
+  Vcl.Menus, IOUtils, Types, DateUtils,
+  unConst;
+
+const
+  wsAllMask: WideString = '*';
+  ItemDelemiter = ';';
+  wsBeginMask: WideString = '*.';
 
 type
 
@@ -28,11 +33,11 @@ type
     Button1: TButton;
     Button2: TButton;
     Button3: TButton;
+    Button4: TButton;
     procedure miToolsClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure lbThreadListMouseUp(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
-    procedure bStopClick(Sender: TObject);
     procedure bThreadPauseClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure lbThreadListClick(Sender: TObject);
@@ -40,11 +45,13 @@ type
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
   private
     { Private declarations }
 //    message WM_WINDOWPOSCHANGING;
+    procedure WMCopyData(var MessageData: TWMCopyData); message WM_COPYDATA;
     procedure WMWINDOWPOSCHANGING(var Msg: TWMWINDOWPOSCHANGING); message WM_WINDOWPOSCHANGING;
-    procedure HandleProc(var updMessage: TMessage); message wm_data_update;
+    procedure HandleProc(var updMessage: TMessage); message WM_Data_Update;
   public
     { Public declarations }
     procedure SetButtonState_ThreadList(ThreadNum: word);
@@ -58,9 +65,31 @@ function AddNewItemToThreadList(NextItem: string): integer;
 function AddNewItemToMemo(NextItem: string): integer;
 
 implementation
-uses unTasks, unInfoWindow;
+uses unVariables, unTools, unUtils, unUtilCommon, unTasks, unInfoWindow;
 
 {$R *.dfm}
+
+procedure TformMain.WMCopyData(var MessageData: TWMCopyData);
+var
+  tmpWord: word;
+  tmpString: string;
+begin
+  if MessageData.CopyDataStruct.dwData = CMD_SetMemoLine then
+  begin
+  tmpString:= PWChar(MessageData.CopyDataStruct.lpData);
+   tmpWord:= StrToInt(GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1, IndexInString(sDelimiterNumTask, tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1) - 1));
+   tmpString:= GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 2) + 2, - 1);
+   if tmpWord > formMain.memInfoTread.Lines.Count  then
+    formMain.memInfoTread.Lines.Add(tmpString)
+   else
+    formMain.memInfoTread.Lines[tmpWord]:= tmpString;
+
+    MessageData.Result := 1;
+  end
+  else
+    MessageData.Result := 0;
+
+end;
 
 procedure TformMain.WMWindowPosChanging(var Msg: TWMWindowPosChanging);
 begin
@@ -73,23 +102,13 @@ begin
 
 end;
 
-procedure TformMain.bStopClick(Sender: TObject);
-begin
- formTools.tmCheckThreadReport.Enabled:= false;
- TaskList[lbThreadList.ItemIndex].SetTaskState(tsTerminate);
- SetButtonState_ThreadList(lbThreadList.ItemIndex);
- formTools.tmCheckThreadReport.Enabled:= true;
-end;
-
 procedure TformMain.bThreadPauseClick(Sender: TObject);
 var
   iTaskNum: word;
 begin
- formTools.tmCheckThreadReport.Enabled:= false;
  iTaskNum:= lbThreadList.ItemIndex;
  if not ((iTaskNum > -1) and (iTaskNum <= lbThreadList.Count)) then
  begin
-  formTools.tmCheckThreadReport.Enabled:= true;
   exit;
  end;
 
@@ -103,8 +122,53 @@ begin
    TaskList[iTaskNum].Suspended:= false;;
   end;
  SetButtonState_ThreadList(TaskList[iTaskNum].TaskNum);
- formTools.tmCheckThreadReport.Enabled:= true;
 end;
+
+
+
+
+
+function GetSubStr(inSourceString: WideString; inIndex:Byte; inCount:Integer): WideString;
+begin
+if inCount<>-1 then
+   Result:=copy(inSourceString, inIndex, inCount)
+else
+   Result:=copy(inSourceString, inIndex, (length(inSourceString) - inIndex + 1));
+end;
+
+function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): word;
+var
+   MyStr: WideString;
+begin
+MyStr:= GetSubStr(inSourceString, inPosBegin, -1);
+Result:=pos(inSubStr, MyStr);
+
+end;
+
+
+procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
+begin
+ outputMaskCount:= 0;
+ if pos(wsBeginMask, inputSourceBSTR, 1) > 0 then
+ begin
+  while pos(wsBeginMask, inputSourceBSTR, 1) > 0 do
+   begin
+//--- Проверка на правильное начало маски, если нет, то отбросим всё что до начала маски расширения
+    if pos(wsBeginMask, inputSourceBSTR, 1) > 0 then
+      delete(inputSourceBSTR, 1, length(GetSubStr(inputSourceBSTR, 1, pos(wsBeginMask, inputSourceBSTR)))); //--- удалим всё, что до '*.' - ищем только расширения
+
+    if pos(ItemDelemiter, inputSourceBSTR, 1) > 0 then
+      outputStringItems[outputMaskCount]:= Copy(inputSourceBSTR, 1, pos(ItemDelemiter, inputSourceBSTR, 1) - 1)
+    else // осталась последняя маска и без завершающего разделителя (но мы её не бросим!)
+      outputStringItems[outputMaskCount]:= Copy(inputSourceBSTR, 1, length(inputSourceBSTR));
+
+    delete(inputSourceBSTR, 1, Length(outputStringItems[outputMaskCount]) + 1); //--- удалим прочтённую запись и разделитель
+    inc(outputMaskCount);
+   end;
+ end;
+end;
+
+
 
 procedure TformMain.Button1Click(Sender: TObject);
 var
@@ -112,12 +176,21 @@ var
   tmpStreamWriter: TStreamWriter;
   inputParam1, inputParam2, inputParam3: WideString;
   inputParam4: BOOL;
+var
+  inputParam5: DWORD;
+  tmpMaskItems: TArray_WideString;
+  tmpMaskCount: word;
+  tmpEquealsCount: word;
+  tmpInt, tmpInt1: word;
+  tmpBool: Boolean;
+
+
   tmpPeriodFlush: Cardinal;
   iProcedureWorkTime: DWORD;
   iTargetWorkTime: WORD;
 
 begin
-  inputParam1:= '*.txt'; //Маска
+  inputParam1:= 'edf*.txt;*.txt1'; //Маска
   inputParam2:= 'C:\Users\user\AppData\Roaming\Primer_MT_3'; // Директория старта поиска
   inputParam3:= 'D:\Install\ResultSearchByMask1.txt'; // Имя файла для записи результата, если inputParam4 - true
   inputParam4:= true;                                  // Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
@@ -145,19 +218,49 @@ begin
 
   tmpPeriodFlush:= 1;
 
-  for tmpTargetFile in TDirectory.GetFiles(inputParam2, inputParam1,
-                TSearchOption.soAllDirectories) do
-  begin
-    tmpStreamWriter.WriteLine(tmpTargetFile + ', ');
-    if (GetTickCount() - iProcedureWorkTime) >=  iTargetWorkTime then
-     begin
-      tmpStreamWriter.Flush;
-      iProcedureWorkTime:= GetTickCount(); // запоминаем текущее значение тиков
-     end;
-  end;
+//--- Извлечение элементов-масок из входящей строки (inputParam1)
+   GetItemsFromString(inputParam1, tmpMaskItems, tmpMaskCount);
+//--- Цикл перебора и сравнения с масками всех файлов в целевой директории
+   tmpEquealsCount:= 0; //--- Счётчик совпадений
+
+       for tmpTargetFile in TDirectory.GetFiles(inputParam2, wsAllMask,
+            TSearchOption.soAllDirectories) do
+        begin
+         tmpBool:= false;
+         for tmpInt:= 0 to tmpMaskCount - 1 do
+         begin
+          if (TPath.GetExtension(tmpTargetFile) = tmpMaskItems[tmpInt]) and (not tmpBool) then
+          begin
+           inc(tmpEquealsCount);
+           tmpBool:= true;
+           if tmpBool then
+           begin
+            tmpStreamWriter.WriteLine(tmpTargetFile + ', ');
+            if (GetTickCount() - iProcedureWorkTime) >=  inputParam5 then
+             begin
+              tmpStreamWriter.Flush;
+              iProcedureWorkTime:= GetTickCount(); // запоминаем текущее значение тиков
+             end;
+           end;
+          end;
+
+         end;
+        end;
+
+ tmpStreamWriter.WriteLine('Всего найдено совпадений: ' + IntToStr(tmpEquealsCount));
  tmpStreamWriter.Close;
 
 end;
+
+
+
+
+
+
+
+
+
+
 
 procedure TformMain.Button2Click(Sender: TObject);
 var
@@ -245,6 +348,30 @@ finally
 //  FreeLibrary(tmp_hTaskLibrary);
 end;
 
+end;
+
+procedure TformMain.Button4Click(Sender: TObject);
+var
+  CDS: TCopyDataStruct;
+  tmpString: string;
+begin
+  tmpString:= 'wsdlkjfhnowpqnfowenfowenfowenfowpenfwpoenfowpnfpoqnfponef';
+  //Устанавливаем тип команды
+  CDS.dwData := CMD_SetMemoLine;
+  //Устанавливаем длину передаваемых данных
+  CDS.cbData := Length(tmpString) + 1;
+  //Выделяем память буфера для передачи данных
+  GetMem(CDS.lpData, CDS.cbData);
+  try
+    //Копируем данные в буфер
+    StrPCopy(CDS.lpData, AnsiString(tmpString));
+    //Отсылаем сообщение в окно главного модуля
+    SendMessage(FindWindow(nil, PWChar(formMain.Caption)),
+                  WM_COPYDATA, Handle, Integer(@CDS));
+  finally
+    //Высвобождаем буфер
+    FreeMem(CDS.lpData, CDS.cbData);
+  end;
 end;
 
 procedure TformMain.FormClose(Sender: TObject; var Action: TCloseAction);

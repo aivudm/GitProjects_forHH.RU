@@ -19,7 +19,7 @@ type
     { Private declarations }
   public
     { Public declarations }
-    procedure PrepareServerSetting(const AServerActive: boolean);
+    procedure PrepareServerSetting(const inputServerActive: boolean);
   end;
 
 var
@@ -34,10 +34,10 @@ implementation
 {$R *.dfm}
 uses unConst, unVariables, unMain, unUtilCommon;
 
-procedure TDataModule1.PrepareServerSetting(const AServerActive: boolean);
+procedure TDataModule1.PrepareServerSetting(const inputServerActive: boolean);
 begin
  serverUDP.Active := false;
- if not AServerActive then exit;
+ if not inputServerActive then exit;
 
  serverUDP.DefaultPort:= ServerUDPPort;
  try
@@ -65,17 +65,17 @@ procedure TDataModule1.serverUDPUDPRead(AThread: TIdUDPListenerThread;
   const AData: TIdBytes; ABinding: TIdSocketHandle);
 var
   streamTmp: TStream;
-  sTmp, sTmp1: string;
-  iTmp: word;
+  tmpString, sTmp1: string;
+  tmpWord: word;
 begin
 // sTmp:= StreamToString(TStream(AData));
- sTmp:= BytesToString(AData, IndyTextEncoding_UTF8);
- iTmp:= StrToInt(GetSubStr(sTmp, IndexInString(sDelimiterNumTask, sTmp, 1) + 1, IndexInString(sDelimiterNumTask, sTmp, IndexInString(sDelimiterNumTask, sTmp, 1) + 1) - 1));
- sTmp:= GetSubStr(sTmp, IndexInString(sDelimiterNumTask, sTmp, 2) + 2, - 1);
- if iTmp > formMain.memInfoTread.Lines.Count  then
-  formMain.memInfoTread.Lines.Add(sTmp)
+ tmpString:= BytesToString(AData, IndyTextEncoding_UTF8);
+ tmpWord:= StrToInt(GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1, IndexInString(sDelimiterNumTask, tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1) - 1));
+ tmpString:= GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 2) + 2, - 1);
+ if tmpWord > formMain.memInfoTread.Lines.Count  then
+  formMain.memInfoTread.Lines.Add(tmpString)
  else
-  formMain.memInfoTread.Lines[iTmp]:= sTmp;
+  formMain.memInfoTread.Lines[tmpWord]:= tmpString;
 end;
 
 end.

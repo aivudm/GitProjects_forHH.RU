@@ -74,7 +74,6 @@ object formMain: TformMain
       Height = 25
       Caption = #1054#1089#1090#1072#1085#1086#1074#1080#1090#1100
       TabOrder = 4
-      OnClick = bStopClick
     end
   end
   object sbMain: TStatusBar
@@ -94,31 +93,40 @@ object formMain: TformMain
       end>
   end
   object Button1: TButton
-    Left = 408
-    Top = 346
-    Width = 75
+    Left = 312
+    Top = 350
+    Width = 113
     Height = 25
-    Caption = 'Button1'
+    Caption = #1058#1077#1089#1090' ('#1086#1090#1088#1072#1073#1086#1090#1082#1072') 1'
     TabOrder = 2
     OnClick = Button1Click
   end
   object Button2: TButton
-    Left = 536
+    Left = 448
     Top = 346
-    Width = 75
+    Width = 131
     Height = 25
-    Caption = 'Button2'
+    Caption = #1058#1077#1089#1090' '#1087#1086#1076#1082#1083'. '#1073#1080#1073#1083#1080#1086#1090#1077#1082
     TabOrder = 3
     OnClick = Button2Click
   end
   object Button3: TButton
-    Left = 640
+    Left = 592
     Top = 346
-    Width = 75
+    Width = 156
     Height = 25
-    Caption = 'Button3'
+    Caption = #1058#1077#1089#1090' '#1079#1072#1087#1091#1089#1082#1072' '#1079#1072#1076#1072#1095' '#1074' '#1073#1080#1073#1083'.'
     TabOrder = 4
     OnClick = Button3Click
+  end
+  object Button4: TButton
+    Left = 231
+    Top = 350
+    Width = 75
+    Height = 25
+    Caption = 'Button4'
+    TabOrder = 5
+    OnClick = Button4Click
   end
   object MainMenu1: TMainMenu
     Left = 400
