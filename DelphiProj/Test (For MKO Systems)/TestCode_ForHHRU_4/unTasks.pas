@@ -39,7 +39,7 @@ type
     FPauseEvent: TEvent;
     FPeriodReport: TPeriodReport;
 //    FIsReportNeed: boolean;
-    FLastOSTickCount: cardinal;
+    FBeginTickCount: cardinal;
     FStopWatch: TStopwatch;
     FElapsedMillseconds: Int64;
 //    FTimerCycleCount: Int64;
@@ -199,11 +199,11 @@ procedure TTaskCore.Execute;
 var
   tmpTaskState: TTaskState;
 begin
- repeat
   tmpTaskState:= self.FTaskItemOwner.TaskState; //--- При первом (относительно создания TaskUtem) входе всегда - tsActive
-                                                //--- после прохода первого цикла станет tsDone и заходить на выполнение
+ repeat                                         //--- после прохода первого цикла станет tsDone и заходить на выполнение
                                                 //--- внуть If не будет, пока владелец TaskItem не станет tsActive или tsTerminate
-  if (not (self.FTaskItemOwner.TaskState = tsDone)) and (not (self.TaskItemOwner.TaskState = tsPause)) then
+
+  if (not (self.FTaskItemOwner.TaskState = tsDone)) and (not (self.TaskItemOwner.TaskState = tsPause)) and (not (self.TaskItemOwner.TaskState = tsTerminate)) then
    begin
     FTaskItemOwner.FTaskSource.TaskProcedure(self.FTaskItemOwner.FTaskLibraryId);
     self.FTaskItemOwner.TaskState:= tsDone;
@@ -242,18 +242,20 @@ begin
  TaskState:= tsNotDefined;
    inherited  Create(false);  //--- false = TaskItem запускаем всегда сразу! (это управляющая оболочка ядра Задачи)
 
+//----- Для начала периода отчёта времени работы данной задачи -----------------
+ FBeginTickCount:= GetTickCount(); // "старым" способом
+ FStopWatch := TStopwatch.StartNew; // новым способом (появился в 10-й версии
+
  //--- В этом конструкторе всё выдаём по умолчанию
  FTaskLibraryId:= TaskLibraryId; // Номер задачи-шаблона из массива aTaskNameArray
  FTaskTemplateId:= TaskTemplateId; // Номер задачи-шаблона из массива aTaskNameArray
  FTaskName:= LibraryList[TaskLibraryId].TaskTemplateName[TaskTemplateId];
  FreeOnTerminate:= true;
+
  Priority:= tpLower; //tpNormal; этот поток только запускает и крутится в цикле
 // self.FDSiTimer.Interval:= TaskList[TaskItemNum].GetPeriodReport;
  FPeriodReport:= 1000; //--- миллисекунд
  FCycleTimeValue:= 20; //--- миллисекунд Время делится на 1/4 выполнение Задачи + 3/4 на отчёт + простой
-//----- Для начала периода отчёта времени работы данной задачи -----------------
- FLastOSTickCount:= GetTickCount(); // "стаhым" способом
- FStopWatch := TStopwatch.StartNew; // новым способом (появился в 10-й версии
 
 //--- Назначаем в визуальном компоненте номер строки для вывода информации о процессе
 //--- выполнения задачи равной номеру самой задачи в списке задач
@@ -325,20 +327,19 @@ begin
 //--- "callback pump" для TaskSource, который создаётся в библиотеке
  self.FTaskCore:= TTaskCore.Create(self); //--- создаётся с отложенным запуском
  self.FTaskCore.Start;
-// tmpInt64:= 0;
-// FStopWatch.StartNew; // Начинаем отсчёт времени текущей задачи (потока)
-  tmpInt64:= FLastOSTickCount; //--- Это значение TickCount на момент создания TaskItem
+ tmpInt64:= 0;
+// FStopWatch.StartNew; // Начинаем отсчёт времени работы ядра текущей задачи (потока)
 repeat
   case self.TaskState of
-    tsPause:
+    tsPause, tsDone:
       begin
-       self.FTaskCore.Priority:= tpIdle;
-       self.FTaskCore.Suspended:= true;
+       if self.FTaskCore.Priority <> tpIdle then self.FTaskCore.Priority:= tpIdle;
+       if not self.FTaskCore.Suspended then self.FTaskCore.Suspended:= true;
       end;
     tsActive:
       begin
-       self.FTaskCore.Priority:= tpNormal;
-       self.FTaskCore.Suspended:= false;
+       if self.FTaskCore.Priority <> tpNormal then self.FTaskCore.Priority:= tpNormal;
+       if self.FTaskCore.Suspended then self.FTaskCore.Suspended:= false;
       //--- выдаём квант времени на выполнение Задачи
        sleep(round(FCycleTimeValue*0.05)); // 5мс - на выполнение Задачи в библиотеке
                              // 95 - время выполнениея кода (ниже) и sleep
@@ -347,23 +348,18 @@ repeat
     tsTerminate:
       begin
        self.FTaskCore.TaskState:= tsTerminate; //--- чтобы покинуть цикл в TaskCore.Execute;
-       self.FTaskCore.Terminate;
       end;
-    tsDone:
+{    tsDone:
       begin
        self.FTaskCore.Priority:= tpIdle;
       end;
-
+}
   end;
 
 //--- Отчёт о сотоянии и результатах в главный модуль через self.PeriodReport (мс)
    if (GetTickCount - tmpInt64) > self.PeriodReport then
    begin
-//  self.SetTaskState(tsReportPause);   //--- Согласно первого алгоритма (синхроггаый запрос на отчёт)
-                                      //--- в этой точке должно быть состояние Пауза для отчёта.
-                                      //--- оэтому пока оставлено для совместимости. Будет удалено в последствие.
-//---
-//--- Теперь читаем промежуточные результаты от задачи и показываем в визуальных компонентах главного потока
+//--- При выводе отчёта, также читаем промежуточные результаты от задачи и показываем в визуальных компонентах главного потока
 //--- все потоки выводят информацию через одну переменную (запись) OutInfo_ForViewing
     try
       CriticalSection.Enter;
@@ -383,7 +379,7 @@ repeat
       CriticalSection.Leave;
     end;
 
-    tmpInt64:= GetTickCount;;
+    tmpInt64:= GetTickCount;
    end;
 
 
@@ -454,6 +450,8 @@ end;
 
 procedure TTaskItem.SetTaskState(inTaskState: TTaskState);
 begin
+ FTaskState:= inTaskState;
+{
  if ((FTaskState = tsPause) or (FTaskState = tsTerminate)) then exit;
 
  if FTaskState = inTaskState then exit;
@@ -465,7 +463,7 @@ begin
 
  if FTaskState = tsPause then
   FPauseEvent.ResetEvent; //--- Включаем событие "Пауза для данного потока"
-
+}
 end;
 
 procedure TTaskItem.SetHandleWinForView(WinForView: hWnd);

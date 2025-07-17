@@ -57,7 +57,7 @@ try
   edResultFile.GetTextBuf(Task1_Parameters.inputParam3, tmpWord);
 
   Task1_Parameters.inputParam4:= true; //(chkbTypeResultOutput.Checked);
-  Task1_Parameters.inputParam5:= 1000;
+  Task1_Parameters.inputParam5:= 0; //--- это номер задачи в списке согласно очерёдности запуска в главном модуле
 
   Close;
 finally

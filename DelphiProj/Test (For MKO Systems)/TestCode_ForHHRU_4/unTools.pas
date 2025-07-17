@@ -81,19 +81,23 @@ begin
   tmpIntrfDllAPI:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI;
   tmpIntrfTaskSource:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex);
   TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex));
+  TaskList[iTaskListNum].TaskSource.TaskMainModuleIndex:= iTaskListNum;
+//  tmpIntrfTaskSource.TaskMainModuleIndex:= iTaskListNum;
   tmpIntrfDllAPI:= nil;
   tmpIntrfTaskSource:= nil;
   //--- 3. Назначим рбъекты для отображения информации от задач (потоков)
   TaskList[iTaskListNum].HandleWinForView:= formMain.memInfoTread.Handle;
-  TaskList[iTaskListNum].LineIndex_ForView:= formMain.memInfoTread.Lines.Add('Ожидание ответа от потока...');
+  formMain.memInfoTread.Lines[iTaskListNum]:= ('Ожидание ответа от потока...');
+//formMain.memInfoTread.Lines.Add('Ожидание ответа от потока...');
+  TaskList[iTaskListNum].LineIndex_ForView:= iTaskListNum; //formMain.memInfoTread.Lines.Add('Ожидание ответа от потока...');
 //------------------------------------------------------------------------------
 //  TaskList[iTaskListNum].Resume; //- Только для отработки, так как в реале запуск сразу после создания. Потом паузы и продолжение по событию FPauseEvent: TEvent;
 //------------------------------------------------------------------------------
 
   //--- 4. Добавляем "Новый Поток" в перечень потоков (комбобокс)
   AddNewItemToThreadList(format(sHeaderThreadInfo + '%3d: %s',
-                                                                    [iTaskListNum,
-                                                                    TaskList[iTaskListNum].TaskName]));   // Для более привычного восприятия номера (с 1-цы)
+                                                              [iTaskListNum,
+                                                              TaskList[iTaskListNum].TaskName]));
 
   //--- После подготовки всех объектов присваиваем задаче состояние - tsActive
   TaskList[iTaskListNum].TaskState:= tsActive;

@@ -6,6 +6,9 @@ uses   Windows, ActiveX, Classes, IOUtils, SysUtils, System.SyncObjs;
 const
   ItemDelemiter = ';';
   wsBeginMask: WideString = '*.';
+  wsAllMask: WideString = '*';
+  wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
+
 type
 //------------------------------------------------------------------------------
 //--- Входные параметры Задачи №1 (Индекс задачи в библиотеке - 0)
@@ -15,7 +18,7 @@ type
     inputParam2: PWideChar; //--- Директория старта поиска
     inputParam3: PWideChar; //--- Имя файла для записи результата, если inputParam4 - true (т.е. запись результата в файл)
     inputParam4: BOOL;       //--- Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
-    inputParam5: WORD;      //--- TargetWorkTime - устарело, управление теперь по другому алгоритму - удалить!
+    inputParam5: WORD;      //--- Номер (индекс) задачи в перечне в главном модуле (индекс в элементе отображения)
   end;
 
 //------------------------------------------------------------------------------
@@ -37,7 +40,7 @@ var
 
 //--- Основныеные функции (реализация функционала библиотеки)
 //--- Задача №1 - Поиск файлов по маске/маскам
-function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+//function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT;
 
 //--- Вспомогательные функции
 //--- Извлечение элементов строки, разделённых символом-разделителем
@@ -50,21 +53,18 @@ function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): 
 
 implementation
 
-function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
-const
-  wsAllMask: WideString = '*';
+function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 var
   inputParam5, iProcedureWorkTime: DWORD;
   tmpTargetFile: WideString;
   tmpStreamWriter: TStreamWriter;
   tmpMaskItems: TArray_WideString;
   tmpMaskCount: word;
-  tmpInt, tmpInt1: word;
+  tmpInt, tmpInt1, tmpWord3: word;
   tmpBool: Boolean;
   tmpPAnsiChar: PAnsiChar;
-
-//  inputParam1, inputParam2, inputParam3: WideString;
-//  inputParam4: BOOL;
+  tmpPWideChar: PWideChar;
+  tmpWideString: WideString;
 
 begin
 try
@@ -77,20 +77,22 @@ try
 //  inputParam5:= 1000; //Период отчёта о работе
 
 // iProcedureWorkTime:= GetTickCount(); // запоминаем значение тиков в начале подпрограммы
-//--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
   case inputParam4 of
     true:  //--- Вариант: запись результата в файл
      begin
-//--- Сформируем путь и текстовый стримрайтер для записи результата
+//--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
+//--- Добавим к имени выходного файла информацию о номере задачи по порядку запуска потоков в главном модуле, иначе имена файлов в потоках совпадут
        if TPath.GetFileName(inputParam3) <> '' then
-        begin
-         if TPath.GetDirectoryName(inputParam3) <> '' then
-           tmpStreamWriter:= TFile.CreateText(inputParam3)
-         else
-           tmpStreamWriter:= TFile.CreateText(TDirectory.GetCurrentDirectory());
-        end
+        tmpWideString:= TPath.GetFileNameWithoutExtension(inputParam3) + format('_%d', [inputParam5]) + TPath.GetExtension(inputParam3)
        else
-         tmpStreamWriter:= TFile.CreateText(TDirectory.GetCurrentDirectory());
+        tmpWideString:= TPath.GetFileNameWithoutExtension(wsTask1_ResultFileNameByDefault) + format('_%d', [inputParam5]) + TPath.GetExtension(wsTask1_ResultFileNameByDefault);
+//--- ...правильность имени выходной директории
+       if TPath.GetDirectoryName(inputParam3) <> '' then
+        tmpWideString:= TPath.GetDirectoryName(inputParam3) + '\' + tmpWideString
+       else
+        tmpWideString:= TDirectory.GetCurrentDirectory() + '\' + tmpWideString;
+
+        tmpStreamWriter:= TFile.CreateText(tmpWideString);
 
 //--- Извлечение элементов-масок из входящей строки (inputParam1)
    GetItemsFromString(inputParam1, tmpMaskItems, tmpMaskCount);
@@ -100,6 +102,7 @@ try
        for tmpTargetFile in TDirectory.GetFiles(inputParam2, wsAllMask,
             TSearchOption.soAllDirectories) do
         begin
+          sleep(500); //--- Для отработки (для замедления процесса)
          tmpBool:= false;
          for tmpInt:= 0 to tmpMaskCount do
          begin
@@ -130,8 +133,7 @@ try
      begin
 
      end;
-  end;
-
+   end;
 
 finally
  if Win32Check(Assigned(tmpStreamWriter)) then

@@ -48,7 +48,9 @@ type
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
    procedure TaskProcedure(TaskLibraryIndex: word);
    function GetTask1_Result: TTask1_Result; safecall;
+   procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
    property Task1_Result: TTask1_Result read GetTask1_Result;
+   property TaskMainModuleIndex: WORD write SetTaskMainModuleIndex;
   end;
 //------------------------------------------------------------------------------
 

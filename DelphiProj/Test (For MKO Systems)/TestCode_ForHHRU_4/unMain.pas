@@ -63,7 +63,7 @@ var
   formMain: TformMain;
 
 
-function AddNewItemToThreadList(NextItem: string): integer;
+function AddNewItemToThreadList(inputString: string): integer;
 function AddNewItemToMemo(NextItem: string): integer;
 
 implementation
@@ -114,16 +114,16 @@ begin
   exit;
  end;
 
- if (TaskList[iTaskNum].TaskCore.TaskState = tsActive) then
+ if (TaskList[iTaskNum].TaskState = tsActive) then
   begin
-   TaskList[iTaskNum].TaskCore.SetTaskState(tsPause);
-   TaskList[iTaskNum].TaskCore.Suspended:= true;
+   TaskList[iTaskNum].TaskState:= tsPause;
+//   TaskList[iTaskNum].TaskCore.Suspended:= true;
   end
  else
   begin
-   TaskList[iTaskNum].TaskCore.SetTaskState(tsActive);
-//   TaskList[iTaskNum].Suspended:= false;;
-   TaskList[iTaskNum].TaskCore.Suspended:= false;;
+   TaskList[iTaskNum].TaskState:= tsActive;
+ //  TaskList[iTaskNum].TaskCore.Suspended:= false;;
+ //  TaskList[iTaskNum].TaskCore.Priority:= tpNormal;
 
   end;
  SetButtonState_ThreadList(TaskList[iTaskNum].TaskNum);
@@ -176,6 +176,8 @@ end;
 
 
 procedure TformMain.Button1Click(Sender: TObject);
+const
+  wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
 var
   tmpTargetFile: WideString;
   tmpStreamWriter: TStreamWriter;
@@ -193,11 +195,12 @@ var
   tmpPeriodFlush: Cardinal;
   iProcedureWorkTime: DWORD;
   iTargetWorkTime: WORD;
+  tmpWideString: WideString;
 
 begin
   inputParam1:= 'edf*.txt;*.txt1'; //Маска
   inputParam2:= 'C:\Users\user\AppData\Roaming\Primer_MT_3'; // Директория старта поиска
-  inputParam3:= 'D:\Install\ResultSearchByMask1.txt'; // Имя файла для записи результата, если inputParam4 - true
+  inputParam3:= 'Primer_MT_3'; //'D:\Install\ResultSearchByMask1.txt'; // Имя файла для записи результата, если inputParam4 - true
   inputParam4:= true;                                  // Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
 
   tmpPeriodFlush:= 1;
@@ -206,12 +209,21 @@ begin
 
 //--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
   case inputParam4 of
-    true:
+    true:  //--- Вариант: запись результата в файл
      begin
+//--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
+//--- Добавим к имени выходного файла информацию о номере задачи по порядку запуска потоков в главном модуле, иначе имена файлов в потоках совпадут
        if TPath.GetFileName(inputParam3) <> '' then
-        if TPath.GetDirectoryName(inputParam3) <> '' then
-          tmpStreamWriter:= TFile.CreateText(inputParam3)
-        else
+        tmpWideString:= TPath.GetFileNameWithoutExtension(inputParam3) + format('_%d', [inputParam5]) + TPath.GetExtension(inputParam3)
+       else
+        tmpWideString:= TPath.GetFileNameWithoutExtension(wsTask1_ResultFileNameByDefault) + format('_%d', [inputParam5]) + TPath.GetExtension(wsTask1_ResultFileNameByDefault);
+//--- ...правильность имени выходной директории
+       if TPath.GetDirectoryName(inputParam3) <> '' then
+        tmpWideString:= TPath.GetDirectoryName(inputParam3) + '\' + tmpWideString
+       else
+        tmpWideString:= TDirectory.GetCurrentDirectory() + '\' + tmpWideString;
+
+        tmpStreamWriter:= TFile.CreateText(tmpWideString);
      end;
 
     false:   //--- Настройка памяти для выгрузки результата
@@ -219,8 +231,7 @@ begin
 
       end;
     else
-  end;
-
+    end;
   tmpPeriodFlush:= 1;
 
 //--- Извлечение элементов-масок из входящей строки (inputParam1)
@@ -418,6 +429,11 @@ end;
 
 procedure TformMain.lbThreadListClick(Sender: TObject);
 begin
+ if not (((Sender as TListBox).ItemIndex > -1) and ((Sender as TListBox).ItemIndex <= (Sender as TListBox).Items.Count)) then
+ begin
+  exit;
+ end;
+
  SetButtonState_ThreadList(lbThreadList.ItemIndex);
 end;
 
@@ -494,9 +510,9 @@ end;
 
 //--- Подпрограммы вне классов -------------------------------------------------
 
-function AddNewItemToThreadList(NextItem: string): integer;
+function AddNewItemToThreadList(inputString: string): integer;
 begin
- Result:= formMain.lbThreadList.Items.Add(NextItem);
+ Result:= formMain.lbThreadList.Items.Add(inputString);
 end;
 
 function AddNewItemToMemo(NextItem: string): integer;
