@@ -34,6 +34,7 @@ type
     Button2: TButton;
     Button3: TButton;
     Button4: TButton;
+    N1: TMenuItem;
     procedure miToolsClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure lbThreadListMouseUp(Sender: TObject; Button: TMouseButton;
@@ -46,6 +47,7 @@ type
     procedure Button2Click(Sender: TObject);
     procedure Button3Click(Sender: TObject);
     procedure Button4Click(Sender: TObject);
+    procedure N1Click(Sender: TObject);
   private
     { Private declarations }
 //    message WM_WINDOWPOSCHANGING;
@@ -112,14 +114,17 @@ begin
   exit;
  end;
 
- if (TaskList[iTaskNum].TaskState = tsActive) or (TaskList[iTaskNum].TaskState = tsReportPause) then
+ if (TaskList[iTaskNum].TaskCore.TaskState = tsActive) then
   begin
-   TaskList[iTaskNum].SetTaskState(tsPause);
+   TaskList[iTaskNum].TaskCore.SetTaskState(tsPause);
+   TaskList[iTaskNum].TaskCore.Suspended:= true;
   end
  else
   begin
-   TaskList[iTaskNum].SetTaskState(tsActive);
-   TaskList[iTaskNum].Suspended:= false;;
+   TaskList[iTaskNum].TaskCore.SetTaskState(tsActive);
+//   TaskList[iTaskNum].Suspended:= false;;
+   TaskList[iTaskNum].TaskCore.Suspended:= false;;
+
   end;
  SetButtonState_ThreadList(TaskList[iTaskNum].TaskNum);
 end;
@@ -366,6 +371,8 @@ begin
     //Копируем данные в буфер
     StrPCopy(CDS.lpData, AnsiString(tmpString));
     //Отсылаем сообщение в окно главного модуля
+    PostThreadMessage(FindWindow(nil, PWChar(formMain.Caption)),
+                  WM_COPYDATA, Handle, Integer(@CDS));
     SendMessage(FindWindow(nil, PWChar(formMain.Caption)),
                   WM_COPYDATA, Handle, Integer(@CDS));
   finally
@@ -445,10 +452,18 @@ end;
 // bFormToolsIsActive:= true;
 end;
 
+procedure TformMain.N1Click(Sender: TObject);
+var
+  tmpStringList: TStrings; //List;
+begin
+  memInfo_2.Lines.Clear;
+  ListDLLsForProcess(GetPIDByName(PWChar(formMain.Caption)), memInfo_2.Lines);
+end;
+
 procedure TformMain.SetButtonState_ThreadList(ThreadNum: word);
 begin
  case TaskList[ThreadNum].GetTaskState of
-  tsActive, tsReportPause:
+  tsActive:
    begin
     bThreadPause.Enabled:= true;
     bThreadPause.Caption:= 'Пауза';
@@ -465,6 +480,12 @@ begin
     bStop.Enabled:= false;
     bThreadPause.Enabled:= false;
     bThreadPause.Caption:= 'Завершён';
+   end;
+  tsDone:
+   begin
+    bStop.Enabled:= false;
+    bThreadPause.Enabled:= true;
+    bThreadPause.Caption:= 'Запуск (повтор)';
    end;
 
  end;

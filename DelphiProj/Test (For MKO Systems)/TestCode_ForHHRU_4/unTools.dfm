@@ -42,7 +42,7 @@ object formTools: TformTools
       TabOrder = 1
     end
   end
-  object gbRxchangeType: TGroupBox
+  object gbExchangeType: TGroupBox
     Left = 8
     Top = 0
     Width = 270
@@ -51,7 +51,7 @@ object formTools: TformTools
     TabOrder = 1
     object rbMessage_WMCoptData: TRadioButton
       Left = 3
-      Top = 16
+      Top = 18
       Width = 246
       Height = 17
       Caption = #1057#1086#1086#1073#1097#1077#1085#1080#1077' WM_Copy_Data'
@@ -77,14 +77,14 @@ object formTools: TformTools
     Height = 138
     Caption = #1055#1077#1088#1077#1095#1077#1085#1100' '#1073#1080#1073#1083#1080#1086#1090#1077#1082
     TabOrder = 2
-    object Button1: TButton
+    object btnLoadLibrary: TButton
       Left = 147
       Top = 103
       Width = 123
       Height = 25
       Caption = #1044#1086#1073#1072#1074#1080#1090#1100' '#1073#1080#1073#1083#1080#1086#1090#1077#1082#1091
       TabOrder = 0
-      OnClick = Button1Click
+      OnClick = btnLoadLibraryClick
     end
     object lbLibraryList: TListBox
       Left = 3

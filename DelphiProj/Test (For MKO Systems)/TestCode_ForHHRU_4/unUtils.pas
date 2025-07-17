@@ -7,12 +7,13 @@ uses Vcl.Forms, System.Classes, System.SysUtils, Winapi.Windows, Winapi.Messages
 
 function GetWorkingDirectoryName(): String;
 //function IsTaskDllAttached(DllFileName: String): Integer;
-procedure GetLibraryInfo(DllFileName: WideString; var inoutLibraryTask: TLibraryTask);
+procedure GetLibraryInfo(inputDllFileName: WideString; var inoutLibraryTask: TLibraryTask);
 //procedure GetDLLExportList(const DllFileName: string; var outputList: TArray<string>);
 //--- Получение элементов из строки, разделённых ';'
 procedure GetItemsFromString(SourceBSTR: WideString; var outputStringItems: TArray_WideString);
 procedure FinalizeLibraryes;
 function LoadLibrary(const LibraryFileName: WideString): HMODULE;
+function GetPIDByName(const name: PWideChar): Cardinal;
 
 implementation
 uses unConst, unUtilCommon;
@@ -117,30 +118,38 @@ begin
 end;
 
 
-procedure GetLibraryInfo(DllFileName: WideString; var inoutLibraryTask: TLibraryTask);
+procedure GetLibraryInfo(inputDllFileName: WideString; var inoutLibraryTask: TLibraryTask);
 var
   tmp_hTaskLibrary: THandle;  //--- он же HMODULE
   tmpDLLAPIProc: TDLLAPIProc;
   tmpBSTR, tmpWString: WideString; //--- Для обмена строками с Dll только BSTR (или в Делфи WideString)
-  i, tmpInfoRecordSize, tmpInfoRecordCount: Byte;
+  tmpByte, i, tmpInfoRecordSize, tmpInfoRecordCount: Byte;
   tmpIntrfDllAPI: ILibraryAPI;
 begin
  inoutLibraryTask.LibraryName:= '';
 try
+ for tmpByte:= 0 to LibraryList.Count - 1 do
+  if LibraryList.Items[tmpByte].LibraryFileName = inputDllFileName then
+    exit;
 
-
- tmp_hTaskLibrary:= LoadLibrary(DllFileName); //, 0, LOAD_LIBRARY_AS_DATAFILE{DONT_RESOLVE_DLL_REFERENCES});
+ tmp_hTaskLibrary:= LoadLibrary(inputDllFileName); //, 0, LOAD_LIBRARY_AS_DATAFILE{DONT_RESOLVE_DLL_REFERENCES});
 
  @tmpDLLAPIProc:= GetProcAddress(tmp_hTaskLibrary, DllProcName_LibraryInfo);
  Win32Check(Assigned(tmpDLLAPIProc));
 
 //--- Вызов интерфейса библиотеки с задачами
  tmpDLLAPIProc(ILibraryAPI, tmpIntrfDllAPI);
+ if not Assigned(tmpIntrfDllAPI) then
+ begin
+  FreeLibrary(tmp_hTaskLibrary);
+  exit;
+ end;
+
 
 //--- Получим имя библиотеки
  inoutLibraryTask.LibraryName:= tmpIntrfDllAPI.Name;
 
- //--- Очистим переменную с именами шаблонов задач
+  //--- Очистим переменную с именами шаблонов задач
  inoutLibraryTask.Clear;
 
  //--- Получим количество реализованных в библиотеке задач
@@ -168,8 +177,12 @@ GetItemsFromString(tmpBSTR, TaskDllProcName);
 //  intrfDllAPI:= tmpIntrfDllAPI;
 
  //--- Один раз запустим LibraryAPI.InitDLL
+
   inoutLibraryTask.LibraryAPI.InitDLL;
   tmpIntrfDllAPI:= nil;
+
+  inoutLibraryTask.SetLibraryFileName(inputDllFileName);
+
 finally
  if tmpintrfDllAPI <> nil then
  begin

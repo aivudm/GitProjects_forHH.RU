@@ -75,6 +75,7 @@ type
     FTaskCount: Byte;
     FTaskTemplateName: TArray_WideString; //--- заполняется после подключения Dll
     FLibraryAPI: ILibraryAPI; //--- заполняется после подключения Dll
+    FLibraryFileName: WideString;
 
     function GetItemName(Index: integer): WideString;
     procedure SetItemName(Index: integer; const Value: WideString);
@@ -85,9 +86,11 @@ type
 
    public
     procedure Clear;
+    procedure SetLibraryFileName(inputLibraryFileName: WideString);
 
     property LibraryAPI: ILibraryAPI read FLibraryAPI write FLibraryAPI;
     property LibraryName: WideString read FLibraryName write FLibraryName;
+    property LibraryFileName: WideString read FLibraryFileName write SetLibraryFileName;
     property TaskCount: Byte read FTaskCount write FTaskCount;
     property TaskTemplateName[Index: integer]: WideString read GetItemName write SetItemName;
 //    property TaskLibraryIndex[Index: integer]: Cardinal read GetItemIndex write SetItemIndex; default;
@@ -227,6 +230,11 @@ end;
 procedure TLibraryTask.Clear;
 begin
  FillChar(self.FTaskTemplateName, 0, SiZeOf(FTaskTemplateName));
+end;
+
+procedure TLibraryTask.SetLibraryFileName(inputLibraryFileName: WideString);
+begin
+  FLibraryFileName:= inputLibraryFileName;
 end;
 
 //------------------------------------------------------------------------------

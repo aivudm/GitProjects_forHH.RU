@@ -61,7 +61,7 @@ object formMain: TformMain
     object bThreadPause: TButton
       Left = 424
       Top = 23
-      Width = 75
+      Width = 105
       Height = 25
       Caption = #1055#1072#1091#1079#1072
       TabOrder = 3
@@ -70,7 +70,7 @@ object formMain: TformMain
     object bStop: TButton
       Left = 424
       Top = 54
-      Width = 75
+      Width = 105
       Height = 25
       Caption = #1054#1089#1090#1072#1085#1086#1074#1080#1090#1100
       TabOrder = 4
@@ -143,6 +143,10 @@ object formMain: TformMain
       object miTools: TMenuItem
         Caption = #1048#1085#1089#1090#1088#1091#1084#1077#1085#1090#1099
         OnClick = miToolsClick
+      end
+      object N1: TMenuItem
+        Caption = #1057#1087#1080#1089#1086#1082' '#1084#1086#1076#1091#1083#1077#1081' '#1087#1088#1086#1094#1077#1089#1089#1072
+        OnClick = N1Click
       end
     end
     object miAbout: TMenuItem

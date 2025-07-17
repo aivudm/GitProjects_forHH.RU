@@ -1,13 +1,15 @@
 unit unUtilCommon;
 
 interface
-uses Classes;
+uses
+  Windows, TlHelp32, ImageHlp, PsAPI, SysUtils, Classes, Forms, Controls, StdCtrls;
 
 
 function GetSubStr(FullString:String;Index:Byte;Count:Integer):String;
 function IndexInString(SubStr,FullString:String; MyPosBegin: Word): Word;
 function StreamToString(Stream: TStream): String;
 function translate_utf8_ansi(const Source: string):string;
+procedure ListDLLsForProcess(inputProcessID: DWORD; outputStringList: TStrings);
 
 implementation
 
@@ -77,7 +79,40 @@ function translate_utf8_ansi(const Source: string):string;
        end;
     end;
 
+procedure ListDLLsForProcess(inputProcessID: DWORD; outputStringList: TStrings);
+var
+  Snapshot: THandle;
+  ModuleEntry: MODULEENTRY32;
+  hModule: THandle; //HMODULE;
+  ModuleFileName: array[0..MAX_PATH] of Char;
+  ModuleLoadedInThisProcess: Boolean;
+begin
+  // Создаем снимок модулей процесса
+  Snapshot := CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, inputProcessID);
+  if Snapshot = INVALID_HANDLE_VALUE then Exit;
+  try
+    ModuleEntry.dwSize := SizeOf(ModuleEntry);
+    if Module32First(Snapshot, ModuleEntry) then
+    begin
+      repeat
+        // Проверяем, загружен ли модуль в текущее приложение
+        hModule := GetModuleHandle(ModuleEntry.szModule);
+        ModuleLoadedInThisProcess := hModule <> 0;
 
+        // Получаем полное имя файла библиотеки
+        GetModuleFileNameEx(GetCurrentProcess, hModule, ModuleFileName, MAX_PATH);
+
+        // Формируем строку с именем модуля и комментарием
+        if ModuleLoadedInThisProcess then
+          outputStringList.Add(Format('%s - %s [+]', [ModuleEntry.szModule, ModuleFileName]))
+        else
+          outputStringList.Add(Format('%s - %s', [ModuleEntry.szModule, ModuleFileName]));
+      until not Module32Next(Snapshot, ModuleEntry);
+    end;
+  finally
+    CloseHandle(Snapshot);
+  end;
+end;
 //==========================================================================================================================================
 //==========================================================================================================================================
 //==========================================================================================================================================
@@ -221,6 +256,29 @@ begin
 
 end;
 
+
+
+function TTaskItem.CheckReportTime(TaskItem: TTaskItem): boolean;
+var
+  tmpTickCount: cardinal;
+begin
+  if self.FTaskState = tsTerminate then exit;
+  tmpTickCount:= GetTickCount();
+  Result:= ((tmpTickCount - TaskItem.FLastOSTickCount) > TaskItem.FPeriodReport);
+end;
+
+procedure TformTools.tmCheckThreadReportTimer(Sender: TObject);
+var
+  i: Integer;
+  tmpTaskItem: TTaskItem;
+begin
+ exit;
+ for i:=0 to (TaskList.Count - 1) do
+ begin
+  if TaskList[i].GetTaskState = tsActive  then
+   TaskList[i].CheckReportTime(TaskList[i]);
+ end;
+end;
 
 
 }

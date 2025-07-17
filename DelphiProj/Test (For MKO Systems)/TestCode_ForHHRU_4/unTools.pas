@@ -14,22 +14,22 @@ type
     gbThread: TGroupBox;
     btnNewThread: TButton;
     lbTemplateTaskList: TListBox;
-    gbRxchangeType: TGroupBox;
+    gbExchangeType: TGroupBox;
     rbMessage_WMCoptData: TRadioButton;
     rbClientServer_udp: TRadioButton;
     gbLibraryList: TGroupBox;
-    Button1: TButton;
+    btnLoadLibrary: TButton;
     lbLibraryList: TListBox;
     odGetLibrary: TOpenDialog;
     procedure miExitClick(Sender: TObject);
-    procedure tmCheckThreadReportTimer(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure btnNewThreadClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure rbMessage_WMCoptDataClick(Sender: TObject);
-    procedure Button1Click(Sender: TObject);
+    procedure btnLoadLibraryClick(Sender: TObject);
     procedure lbLibraryListClick(Sender: TObject);
+    procedure SaveSettingsformTools(Sender: TObject);
   private
     { Private declarations }
     procedure WMWINDOWPOSCHANGING(var Msg: TWMWINDOWPOSCHANGING); message WM_WINDOWPOSCHANGING;
@@ -87,7 +87,7 @@ begin
   TaskList[iTaskListNum].HandleWinForView:= formMain.memInfoTread.Handle;
   TaskList[iTaskListNum].LineIndex_ForView:= formMain.memInfoTread.Lines.Add('Ожидание ответа от потока...');
 //------------------------------------------------------------------------------
-//  TaskList[iTaskListNum].Run; - Только для отработки, так как в реале запуск сразу после создания. Потом паузы и продолжение по событию FPauseEvent: TEvent;
+//  TaskList[iTaskListNum].Resume; //- Только для отработки, так как в реале запуск сразу после создания. Потом паузы и продолжение по событию FPauseEvent: TEvent;
 //------------------------------------------------------------------------------
 
   //--- 4. Добавляем "Новый Поток" в перечень потоков (комбобокс)
@@ -103,20 +103,19 @@ begin
  end;
 end;
 
-procedure TformTools.Button1Click(Sender: TObject);
+procedure TformTools.btnLoadLibraryClick(Sender: TObject);
 var
  tmpItem, tmpItem1, tmpLibraryNum: word;
  tmpLibraryTask: TLibraryTask;
 
 begin
- if TFile.Exists(sWorkDirectory) then
-  odGetLibrary.InitialDir:= sWorkDirectory;
- if Not odGetLibrary.Execute(formTools.Handle) then Exit;
-
- lbLibraryList.Clear;
-
- for tmpItem:= 0 to odGetLibrary.Files.Count-1 do
- begin
+  if (Sender as TObject).ClassType.ClassName = 'TButton' then
+  begin
+   odGetLibrary.Files.Clear;
+   if TFile.Exists(sWorkDirectory) then
+    odGetLibrary.InitialDir:= sWorkDirectory;
+   if Not odGetLibrary.Execute(formTools.Handle) then Exit;
+  end;
 
 //--- Создание объекта библиотек
 //--- состоит из: имени шаблона задачи и индекса задачи в библиотеке
@@ -124,6 +123,9 @@ begin
 //--- полученных через интерфейс DllAPI
   tmpLibraryNum:= LibraryList.Add(TLibraryTask.Create);
   tmpLibraryTask:= LibraryList[tmpLibraryNum];
+
+ for tmpItem:= 0 to odGetLibrary.Files.Count-1 do
+ begin
  //--- По номеру библиотеки с списке библиотек получим её наименование и список реализованных в ней функций
   GetLibraryInfo(odGetLibrary.Files.Strings[tmpItem], tmpLibraryTask);
  //--- Если наименование не получено от Dll, значит Dll "не наша", просто пропускаем её
@@ -131,37 +133,56 @@ begin
    begin
  //--- Добавим библиотеку в список доступных библиотек в визуальном компоненте (ListBox)
     lbLibraryList.Items.Add(tmpLibraryTask.LibraryName);
-
-   end;
+//--- Сохраним полный путь библиотеки в .ini файле
+    if Assigned(iniFile) then
+      iniFile.WriteString('formTools Settings', format('lbLibraryList_Item%d  ', [tmpItem]), odGetLibrary.Files.Strings[tmpItem]);
+   end
+   else
+    LibraryList[tmpLibraryNum].Free;
  end;
-
  lbLibraryList.ItemIndex:= 0;
  lbLibraryList.OnClick(Sender);
 end;
 
 procedure TformTools.FormClose(Sender: TObject; var Action: TCloseAction);
 var
-  i: word;
+  tmpWord: word;
 begin
  if TaskList.Count <1 then exit;
- 
- for i:=0 to (TaskList.Count - 1) do
- begin
-  if TaskList[i].GetTaskState = tsPause then
-   TaskList[i].Suspended:= false;
 
-  TaskList[i].SetTaskState(tsTerminate);
+ for tmpWord:=0 to (TaskList.Count - 1) do
+ begin
+  if TaskList[tmpWord].GetTaskState = tsPause then
+   TaskList[tmpWord].Suspended:= false;
+
+  TaskList[tmpWord].SetTaskState(tsTerminate);
 //  while not TaskList[i].IsTerminated do
 //   sleep(300); //--- ждём завершения текущей щадачи
  end;
 
  formMain.miTools.Enabled:= true;
+ SaveSettingsformTools(Sender);
 
 end;
 
 procedure TformTools.FormCreate(Sender: TObject);
+var
+  tmpWord: word;
+  tmpString: string;
 begin
 // TaskInitialize;
+  odGetLibrary.Files.Clear;
+  for tmpWord:= 0 to 100 {заведомо большое количество библиотек} do
+  begin
+   tmpString:= iniFile.ReadString('formTools Settings', format('lbLibraryList_Item%d  ', [tmpWord]), '');
+   if tmpString <> '' then
+    odGetLibrary.Files.Add(tmpString)
+   else
+   break;
+  end;
+
+  if odGetLibrary.Files.Count > 0 then
+    formTools.btnLoadLibraryClick(Sender);
 end;
 
 procedure TformTools.FormShow(Sender: TObject);
@@ -210,19 +231,15 @@ begin
 
 end;
 
-procedure TformTools.tmCheckThreadReportTimer(Sender: TObject);
-var
-  i: Integer;
-  tmpTaskItem: TTaskItem;
+procedure TformTools.SaveSettingsformTools(Sender: TObject);
 begin
- exit;
- for i:=0 to (TaskList.Count - 1) do
- begin
-  if TaskList[i].GetTaskState = tsActive  then
-   TaskList[i].CheckReportTime(TaskList[i]);
- end;
-end;
+try
 
+ iniFile.WriteBool('formTools Settings', 'rbMessage_WMCoptData', true);
+
+finally
+end;
+end;
 
 //--- Подпрограммы вне классов -------------------------------------------------
 
