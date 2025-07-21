@@ -4,7 +4,7 @@ unit unLibrary1API;
 interface
 uses
   Windows, SysUtils, ActiveX, Classes, Diagnostics, IOUtils, System.SyncObjs,
-  unVariables, unEditInputParams, unTaskSource;
+  unVariables, unEditInputParams_Task1, unTaskSource;
 {
 //function _GetLibraryInfo (out outputParam1: WideString; out InfoRecordSize, InfoRecordCount: Byte): HRESULT; stdcall;
 procedure _GetLibraryInfo (out outputParam1: WideString); stdcall;
@@ -54,12 +54,6 @@ type
     function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
-//--- Тестирование (удалить!)
-//    procedure GetFormParams; safecall;
-
-    // Функционал библиотеки:
-
-//    function Task2_FileFinderByPattern (var inputParam1, inputParam2: WideString; var iResult: DWORD; iTargetWorkTime: WORD): HRESULT; safecall;
   public
     constructor Create;
   end;
@@ -109,10 +103,9 @@ end;
 procedure TLibraryAPI.FinalizeDLL;
 begin
  if Win32Check(Assigned(TaskSourceList)) then
-//    TaskSourceList.Free;
+  freeandnil(TaskSourceList);//    TaskSourceList.Free;
  if Win32Check(not Assigned(CriticalSection)) then
-//   CriticalSection.Free;
-
+  freeandnil(CriticalSection); //   CriticalSection.Free;
 //--- Память выделялась через SysReAllocStringLen
 //--- для получения строк из визуальных компонентов
  SysFreeString(Task1_Parameters.inputParam1);

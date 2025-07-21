@@ -2,7 +2,7 @@ unit unVariables;
 
 interface
 uses Windows, SysUtils, Classes, IOUtils, ActiveX, ComObj, System.Diagnostics, System.Contnrs, Dialogs,
-    unEditInputParams, unTaskSource;
+     unTaskSource, unEditInputParams_Task1, unEditInputParams_Task2;
 
 type
   BSTR = WideString;
@@ -20,7 +20,7 @@ type
                 tsActive = 0, tsTerminate = 1, tsPause = 2, tsReportPause = 3);
 //------------------------------------------------------------------------------
 //--- FileFinderByMask
-  TCallingDLL1Proc1 = function (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT; stdcall;
+//  TCallingDLL1Proc1 = function (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT; stdcall;
 
 //------------------------------------------------------------------------------
   IBSTRItems = interface (IInterface)
@@ -65,8 +65,11 @@ type
     FStopWatch: TStopWatch;
    protected
     FTask1_Result: TTask1_Result;
+    FTask2_Result: TTask2_Result;
     procedure TaskProcedure(TaskLibraryIndex: word);
     function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+    function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask2_Result: TTask2_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+
    public
     constructor Create(TaskLibraryIndex: word);
     function GetTask1_Result: TTask1_Result; safecall;
@@ -74,6 +77,7 @@ type
     property TaskState: TTaskState read FTaskState write FTaskState;
     property StopWatch: TStopWatch read FStopWatch write FStopWatch;
     property Task1_Result: TTask1_Result read FTask1_Result write FTask1_Result;
+    property Task2_Result: TTask2_Result read FTask2_Result write FTask2_Result;
     property TaskMainModuleIndex: WORD write FTaskMainModuleIndex;
   end;
 
@@ -159,17 +163,17 @@ end;
 procedure TTaskSource.TaskProcedure(TaskLibraryIndex: word);
 var
   tmpInt, tmpInt1: Integer;
-  tmpStr: string;
+  tmpStr: WideString;
   tmpInputForm_Task1: TformEditParams_Task1;
+  tmpInputForm_Task2: TformEditParams_Task2;
  begin
 
-//  repeat
-
- case TaskLibraryIndex of
+ case self.FTaskLibraryIndex {TaskLibraryIndex} of
    0: //--- Task1_FileFinderByMask
    begin
 //--- Критическая секция для доступа к структуре - входные параметры для задачи
     CriticalSection.Enter; //--- Выход из критической секции будет в начале задачи
+
     tmpInputForm_Task1:= TformEditParams_Task1.Create(nil);
     tmpInputForm_Task1.ShowModal;
     tmpInputForm_Task1.Free;
@@ -190,11 +194,39 @@ var
     self.Task1_FileFinderByMask(WideString(Task1_Parameters.inputParam1), WideString(Task1_Parameters.inputParam2), WideString(Task1_Parameters.inputParam3), Task1_Parameters.inputParam4, FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask1_Result); //, nil, 0);
     CriticalSection.Leave;
    end;
- end;
+//-------------------------------------------------------------------------------------------------------------------------------------
+   1: //--- Task2_FindInFilesByPattern
+   begin
+//--- Критическая секция для доступа к структуре - входные параметры для задачи
+    CriticalSection.Enter; //--- Выход из критической секции будет в начале задачи
+
+    tmpInputForm_Task2:= TformEditParams_Task2.Create(nil);
+    tmpInputForm_Task2.ShowModal;
+    tmpInputForm_Task2.Free;
+
+    //--- Заполним inputParam5 (TaskMainModuleIndex), переданный через API
+//    Task2_Parameters.inputParam5:= self.FTaskMainModuleIndex;
+//--- После заполения входных параметров запуск задачи на выполнение
+{    ShowMessage('Перед входом в Task2_FindInFilesByPattern'
+                + #13#10 + 'inputParam1 = ' + WideString(Task2_Parameters.inputParam1)
+                + #13#10 + 'inputParam2 = ' + WideString(Task2_Parameters.inputParam2)
+                + #13#10 + 'inputParam3 = ' + WideString(Task2_Parameters.inputParam3)
+                + #13#10 + 'inputParam5 = ' + IntToStr(FTaskMainModuleIndex)); // Task1_Parameters.inputParam5
+}
+// Начинаем отсчёт времени работы текущей задачи задачи
+// зафиксируем текущее значение TaskItem.FStopWatch
+    tmpInt1:= self.StopWatch.ElapsedMilliseconds;
+
+    self.Task2_FindInFilesByPattern(WideString(Task2_Parameters.inputParam1), WideString(Task2_Parameters.inputParam2), WideString(Task2_Parameters.inputParam3), Task2_Parameters.inputParam4, FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask2_Result); //, nil, 0);
+    CriticalSection.Leave;
+
+   end;
 
  end;
 
+ end;
 
+//------------------------------------------------------------------------------
 function TTaskSource.Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 var
   inputParam5, iProcedureWorkTime: DWORD;
@@ -209,7 +241,7 @@ var
 
 begin
 try
-    CriticalSection.Leave; //--- Вход в критическую секцию был до вызова окна с входными параметрами
+ CriticalSection.Leave; //--- Вход в критическую секцию был до вызова окна с входными параметрами
 
  iProcedureWorkTime:= GetTickCount(); // запоминаем значение тиков в начале подпрограммы
   case inputParam4 of
@@ -220,7 +252,7 @@ try
        if TPath.GetFileName(inputParam3) <> '' then
         tmpWideString:= TPath.GetFileNameWithoutExtension(inputParam3) + format('_%d', [self.FTaskMainModuleIndex]) + TPath.GetExtension(inputParam3)
        else
-        tmpWideString:= TPath.GetFileNameWithoutExtension(wsTask1_ResultFileNameByDefault) + format('_%d', [inputParam5]) + TPath.GetExtension(wsTask1_ResultFileNameByDefault);
+        tmpWideString:= TPath.GetFileNameWithoutExtension(wsTask1_ResultFileNameByDefault) + format('_%d', [self.FTaskMainModuleIndex]) + TPath.GetExtension(wsTask1_ResultFileNameByDefault);
 //--- ...правильность имени выходной директории
        if TPath.GetDirectoryName(inputParam3) <> '' then
         tmpWideString:= TPath.GetDirectoryName(inputParam3) + '\' + tmpWideString
@@ -272,10 +304,93 @@ try
 
 finally
  if Win32Check(Assigned(tmpStreamWriter)) then
-    tmpStreamWriter.Free;
+    freeandnil(tmpStreamWriter); //    tmpStreamWriter.Free;
 
 end;
 end;
+
+//------------------------------------------------------------------------------
+//------------------------- Задача №2 ------------------------------------------
+//------------------------------------------------------------------------------
+function TTaskSource.Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask2_Result: TTask2_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+var
+  tmpWideString: WideString;
+  tmpStreamWriter: TStreamWriter;
+  tmpPatternList: array of TSearchPattern;
+  tmpPatternItemsStr: TArray_WideString;
+  tmpPatternItems: RawByteString;
+  tmpPatternCount, tmpWord, tmpWord1, tmpWord2: word;
+  tmpSearchPatternSet: array of TSearchPatternSet;begin
+
+try
+//  inputParam1:= 'resource;ozX'; //'resource'; //Шаблон
+//  inputParam2:= 'D:\Install\FFscriptCache.bin'; // Целевой файл (в котором поиск)
+//  inputParam3:= 'D:\Install\Result_Library1_Task2.txt'; //'D:\Install\ResultSearchByMask1.txt'; // Имя файла для записи результата, если inputParam4 - true
+//  inputParam4:= true;                                  // Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
+
+
+  case inputParam4 of
+    true:  //--- Вариант: запись результата в файл
+     begin
+//--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
+//--- Добавим к имени выходного файла информацию о номере задачи по порядку запуска потоков в главном модуле, иначе имена файлов в потоках совпадут
+       if TPath.GetFileName(inputParam3) <> '' then
+        tmpWideString:= TPath.GetFileNameWithoutExtension(inputParam3) + format('_%d', [self.FTaskMainModuleIndex]) + TPath.GetExtension(inputParam3)
+       else
+        tmpWideString:= TPath.GetFileNameWithoutExtension(wsTask2_ResultFileNameByDefault)
+                                                         + format('_%d', [self.FTaskMainModuleIndex])
+                                                         + TPath.GetExtension(wsTask2_ResultFileNameByDefault);
+//--- ...правильность имени выходной директории
+       if TPath.GetDirectoryName(inputParam3) <> '' then
+        tmpWideString:= TPath.GetDirectoryName(inputParam3) + '\' + tmpWideString
+       else
+        tmpWideString:= TDirectory.GetCurrentDirectory() + '\' + tmpWideString;
+//--- Создание файла результата поиска
+        tmpStreamWriter:= TFile.CreateText(tmpWideString);
+
+//--- Извлечение элементов-шаблонов из входящей строки (inputParam1)
+       GetPatternsFromString(inputParam1, tmpPatternItemsStr, tmpPatternCount);
+//--- Заполнение структур шаблонов поиска согласно входных параметров
+
+//--- Преобразование шаблонов из WideString (формат отображения) в array of byte
+       setlength(tmpSearchPatternSet, tmpPatternCount);
+       setlength(outTask2_Results, tmpPatternCount);
+
+       for tmpWord:= 0 to tmpPatternCount - 1 do
+       begin
+        setlength(tmpSearchPatternSet[tmpWord].Pattern, length(tmpPatternItemsStr[tmpWord]));
+        tmpSearchPatternSet[tmpWord].Pattern:= WSToByte(tmpPatternItemsStr[tmpWord]);
+        tmpSearchPatternSet[tmpWord].PatternSize:= length(tmpSearchPatternSet[tmpWord].Pattern);
+       end;
+
+//--- подпрограмма поиска шаблонов в целевом файле
+       CountPatternIncluding(inputParam2, tmpSearchPatternSet, tmpPatternCount, outTask2_Results, tmpStreamWriter);
+       outTask2_Result.dwEqualsCount:= 0; //--- Счётчик совпадений
+
+       tmpStreamWriter.WriteLine('Всего найдено совпадений: ');
+       for tmpWord:= 0 to tmpPatternCount - 1 do
+       begin
+        tmpSearchPatternSet[tmpWord].Pattern:= WSToByte(tmpPatternItemsStr[tmpWord]);
+        tmpStreamWriter.WriteLine(format('Шаблон: %s, Всего совпадений: %d', [ByteToWS(outTask2_Results[tmpWord].SearchPattern, tmpSearchPatternSet[tmpWord].PatternSize),
+                                                                              outTask2_Results[tmpWord].dwEqualsCount]));
+       end;
+
+       tmpStreamWriter.Close;
+
+     end;
+
+    false:   //--- Настройка памяти для выгрузки результата
+     begin
+
+     end;
+   end;
+
+finally
+ FreeAndNil(tmpStreamWriter);
+end;
+
+end;
+
 
 
 //------------------------------------------------------------------------------

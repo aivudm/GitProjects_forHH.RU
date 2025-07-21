@@ -17,9 +17,10 @@ uses
   ActiveX,
   unLibrary1API in 'unLibrary1API.pas',
   unVariables in 'unVariables.pas',
-  unEditInputParams in 'unEditInputParams.pas' {formEditParams_Task1},
+  unEditInputParams_Task1 in 'unEditInputParams_Task1.pas' {formEditParams_Task1},
   unErrorException in 'unErrorException.pas',
-  unTaskSource in 'unTaskSource.pas';
+  unTaskSource in 'unTaskSource.pas',
+  unEditInputParams_Task2 in 'unEditInputParams_Task2.pas' {formEditParams_Task2};
 
 function GetLibraryAPI(const inputIID: TGUID; var Intf): HRESULT; stdcall;
 var
