@@ -94,23 +94,34 @@ end;
 procedure TLibraryAPI.InitDLL;
 begin
  if Win32Check(not Assigned(TaskSourceList)) then
-   TaskSourceList:= TTaskSourceList.Create;
+   TaskSourceList:= TTaskSourceList.Create();
  if Win32Check(not Assigned(CriticalSection)) then
    CriticalSection:= TCriticalSection.Create();
-
 end;
 
 procedure TLibraryAPI.FinalizeDLL;
+var
+  tmpWord: word;
 begin
  if Win32Check(Assigned(TaskSourceList)) then
   freeandnil(TaskSourceList);//    TaskSourceList.Free;
- if Win32Check(not Assigned(CriticalSection)) then
+ if Win32Check(Assigned(CriticalSection)) then
   freeandnil(CriticalSection); //   CriticalSection.Free;
+{ if Win32Check(Assigned(TaskSourceList)) then
+ begin
+  TaskSourceList.Clear;
+  freeandnil(TaskSourceList);
+ end;
+}
+
 //--- Память выделялась через SysReAllocStringLen
 //--- для получения строк из визуальных компонентов
  SysFreeString(Task1_Parameters.inputParam1);
  SysFreeString(Task1_Parameters.inputParam2);
  SysFreeString(Task1_Parameters.inputParam3);
+
+ for tmpWord:= 0 to (TaskSourceList.Count - 1) do
+  SysFreeString(TaskSourceList[tmpWord].GetTask2_ResultBuffer);
 
 //  FNotify := nil;
   LibraryAPI := nil;
@@ -137,16 +148,6 @@ begin
 end;
 
 
-{
-//--- Для отраьотки - удалить
-procedure TLibraryAPI.GetFormParams;
-var
-  tmpformEditInputParams: TformEditParams_Task1;
-begin
- tmpformEditInputParams:= TformEditParams_Task1.Create(nil);
- tmpformEditInputParams.ShowModal;
-end;
-}
 
 initialization
 //  LoadWinAPIFunctions;

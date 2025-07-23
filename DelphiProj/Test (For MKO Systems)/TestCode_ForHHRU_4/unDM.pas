@@ -54,7 +54,7 @@ end;
 
 procedure TDataModule1.serverTCPExecute(AContext: TIdContext);
 var
-  sTmo: string;
+  sTmo: WideString;
 begin
  with AContext.Connection do
 
@@ -65,7 +65,7 @@ procedure TDataModule1.serverUDPUDPRead(AThread: TIdUDPListenerThread;
   const AData: TIdBytes; ABinding: TIdSocketHandle);
 var
   streamTmp: TStream;
-  tmpString, sTmp1: string;
+  tmpString, sTmp1: WideString;
   tmpWord: word;
 begin
 // sTmp:= StreamToString(TStream(AData));

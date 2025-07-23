@@ -7,6 +7,7 @@ uses Windows, SysUtils, Forms, System.Contnrs, StdCtrls, Classes, Winapi.Message
 type
   BSTR = WideString;
   ITaskSource = interface;
+
 //------------------------------------------------------------------------------
 //--- Выходные параметры Задачи №1 (Индекс задачи в библиотеке - 0)
 
@@ -15,7 +16,16 @@ type
   end;
 
 //------------------------------------------------------------------------------
+//--- Выходные параметры Задачи №2 (Индекс задачи в библиотеке - 0)
 
+  TSearchPattern = array of byte;
+
+  TTask2_Result = packed record
+    SearchPattern: TSearchPattern;
+    dwEqualsCount: DWORD;
+  end;
+
+  TTask2_Results = array of TTask2_Result;
 //------------------------------------------------------------------------------
   IBSTRItems = interface
   ['{7988654F-59FB-401F-9E4C-972FF343C66B}']
@@ -46,10 +56,17 @@ type
 //------------------------------------------------------------------------------
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
-   procedure TaskProcedure(TaskLibraryIndex: word);
+   procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+   function GetTaskLibraryIndex: word;
    function GetTask1_Result: TTask1_Result; safecall;
+   function GetTask2_Result(ResultIndex: integer): TTask2_Result; safecall;
+   function GetTask2_TotalResult: WORD; safecall;
+   function GetTask2_ResultBuffer: Pointer; safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+   property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task1_Result: TTask1_Result read GetTask1_Result;
+   property Task2_Results[ResultIndex: integer]: TTask2_Result read GetTask2_Result; // write SetTask2_Result;
+   property Task2_TotalResult: WORD read GetTask2_TotalResult;
    property TaskMainModuleIndex: WORD write SetTaskMainModuleIndex;
   end;
 //------------------------------------------------------------------------------
@@ -122,7 +139,7 @@ type
 //------------------------------------------------------------------------------
   TFileItem = class (TObject)
    private
-    FFileName: string;
+    FFileName: WideString;
     FTaskNum: word;
 
    protected
@@ -131,11 +148,11 @@ type
    public
     FStreamWriter: TStreamWriter;
     constructor Create(TaskItemNum: word); overload;
-    procedure SetFileName(FileItemName: string = '');
+    procedure SetFileName(FileItemName: WideString = '');
     procedure SetTaskNum(TaskNum: word);
 
   published
-    property FileName: string read FFileName;
+    property FileName: WideString read FFileName;
     property TaskNum: word read FTaskNum;
     property StreamWriter: TStreamWriter read FStreamWriter;
 
@@ -173,6 +190,7 @@ var
   intrfDllAPI: ILibraryAPI;
   hTaskLibrary: THandle;  //--- он же HMODULE
   iniFile: TIniFile;
+  logFile: TextFile;
 
 
 var
@@ -183,11 +201,14 @@ var
 
   CallingDLLProc: TCallingDLLProc;
   hDllTask: THandle;
-  sWorkDirectory: string = '';
-  sFileNameDefault: string = '';
-  sFileExtensionDefault: string = '.txt';
+  sWorkDirectory: WideString = '';
+  sFileNameDefault: WideString = '';
+  sFileExtensionDefault: WideString = '.txt';
   LibraryTask: TLibraryTask;
   LibraryList: TLibraryList; //TObjectList<TLibraryTaskInfo>;
+
+
+
 
 procedure InitializeVariables;
 procedure DeinitializeVariables;
@@ -201,8 +222,18 @@ end;
 
 procedure DeinitializeVariables;
 begin
- if Assigned(TaskList) then TaskList.Free;
- if Assigned(CriticalSection) then CriticalSection.Free;
+ if Win32Check(Assigned(TaskList)) then
+ begin
+  freeandnil(TaskList);
+ end;
+
+ if Assigned(LibraryList) then
+ begin
+  freeandnil(LibraryList);
+ end;
+
+ if Assigned(iniFile) then
+  freeandnil(iniFile)
 
 end;
 
@@ -265,7 +296,7 @@ begin
 // TaskList[TaskItemNum].SetStreamWriter(self);
 end;
 
-procedure TFileItem.SetFileName(FileItemName: string = '');
+procedure TFileItem.SetFileName(FileItemName: WideString = '');
 begin
  if FileItemName = '' then
   FFileName:= sFileNameDefault
@@ -308,15 +339,12 @@ LibraryList:= TLibraryList.Create;; //TObjectList<TLibraryTaskInfo>.Create;
 FileList:= TFileList.Create();
 
 iniFile:= TIniFile.Create(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.ini' )));
+AssignFile(logFile, sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log' )));
+if FileExists(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log' ))) then Append(logFile) else Rewrite(logFile);
 
 //StreamWriter:= TFile.CreateText('d:\Task_3_SimpleNumbers.txt');
 
 finalization
-if Assigned(LibraryList) then
- LibraryList.Free;
-
-if Assigned(iniFile) then
- iniFile.Free;
 //StreamWriter.Free;
 
 end.

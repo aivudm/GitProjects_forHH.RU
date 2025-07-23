@@ -42,10 +42,6 @@ begin
 try
 //  GetMem(tmpPWideChar, tmpWord + 1);
   tmpWord:= edPattern.GetTextLen + 1;
-
-{  ShowMessage('Внутри formEditParams_Task2.btbRunTaskClick'
-                + #13#10 + 'edPattern.GetTextLen + 1 = ' + IntToStr(tmpWord));
-}
   SysReAllocStringLen(Task2_Parameters.inputParam1, Task2_Parameters.inputParam1, tmpWord);
   edPattern.GetTextBuf(Task2_Parameters.inputParam1, tmpWord);
   tmpWord:= edTargetFile.GetTextLen + 1;

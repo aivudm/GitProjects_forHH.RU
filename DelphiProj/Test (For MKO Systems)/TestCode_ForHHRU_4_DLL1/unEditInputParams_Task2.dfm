@@ -60,7 +60,7 @@ object formEditParams_Task2: TformEditParams_Task2
     Height = 21
     Hint = #1056#1072#1079#1076#1077#1083#1080#1090#1077#1083#1100' '#1084#1072#1089#1086#1082': ";"'
     TabOrder = 0
-    Text = 'resource'
+    Text = 'resource;observe;modul;.sys'
   end
   object edTargetFile: TEdit
     Left = 8

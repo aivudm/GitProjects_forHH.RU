@@ -1,7 +1,7 @@
 unit unVariables;
 
 interface
-uses Windows, SysUtils, Classes, IOUtils, ActiveX, ComObj, System.Diagnostics, System.Contnrs, Dialogs,
+uses Windows, SysUtils, Classes, IOUtils, ActiveX, ComObj, Vcl.AxCtrls, System.Diagnostics, System.Contnrs, Dialogs,
      unTaskSource, unEditInputParams_Task1, unEditInputParams_Task2;
 
 type
@@ -48,10 +48,17 @@ type
 //------------------------------------------------------------------------------
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
-   procedure TaskProcedure(TaskLibraryIndex: word);
+   procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+   function GetTaskLibraryIndex: word;
    function GetTask1_Result: TTask1_Result; safecall;
+   function GetTask2_Result(ResultIndex: integer): TTask2_Result; safecall;
+   function GetTask2_TotalResult: DWORD; safecall;
+   function GetTask2_ResultBuffer: Pointer; safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+   property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task1_Result: TTask1_Result read GetTask1_Result;
+   property Task2_Results[ResultIndex: integer]: TTask2_Result read GetTask2_Result; // write SetTask2_Result;
+   property Task2_TotalResult: DWORD read GetTask2_TotalResult;
    property TaskMainModuleIndex: WORD write SetTaskMainModuleIndex;
   end;
 
@@ -62,23 +69,32 @@ type
     FTaskMainModuleIndex: word;
     FTaskSourceList: word;
     FTaskState: TTaskState;
+    FResultBuffer: Pointer;
     FStopWatch: TStopWatch;
    protected
     FTask1_Result: TTask1_Result;
-    FTask2_Result: TTask2_Result;
-    procedure TaskProcedure(TaskLibraryIndex: word);
+    procedure TaskProcedure(TaskLibraryIndex: word); safecall;
     function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
-    function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask2_Result: TTask2_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+//    function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask2_Result: TTask2_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+    function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask2_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 
    public
+    FTask2_TotalResult: DWORD;
+    FTask2_Results: TTask2_Results;
     constructor Create(TaskLibraryIndex: word);
+    function GetTaskLibraryIndex: word;
     function GetTask1_Result: TTask1_Result; safecall;
+    function GetTask2_Result(ResultIndex: integer): TTask2_Result; safecall;
+    function GetTask2_TotalResult: DWORD; safecall;
+    function GetTask2_ResultBuffer: Pointer; safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+    property TaskLibraryIndex: WORD read FTaskLibraryIndex;
+    property TaskMainModuleIndex: WORD write FTaskMainModuleIndex;
     property TaskState: TTaskState read FTaskState write FTaskState;
     property StopWatch: TStopWatch read FStopWatch write FStopWatch;
     property Task1_Result: TTask1_Result read FTask1_Result write FTask1_Result;
-    property Task2_Result: TTask2_Result read FTask2_Result write FTask2_Result;
-    property TaskMainModuleIndex: WORD write FTaskMainModuleIndex;
+    property Task2_Results[ResultIndex: integer]: TTask2_Result read GetTask2_Result; // write SetTask2_Result;
+    property Task2_TotalResult: DWORD read GetTask2_TotalResult;
   end;
 
 
@@ -135,6 +151,20 @@ function TBSTRItems.GetString(const Index: Integer): BSTR;
 begin
   Result := FBSTRItems[Index];
 end;
+//------------------------------------------------------------------------------
+//---------- Данные для TTaskSourceList ----------------------------------------
+//------------------------------------------------------------------------------
+
+function TTaskSourceList.GetItem(Index: integer): TTaskSource;
+begin
+ Result:= TTaskSource(inherited GetItem(Index));
+end;
+
+procedure TTaskSourceList.SetItem(Index: integer; const Value: TTaskSource);
+begin
+ inherited SetItem(Index, Value);
+end;
+
 
 //------------------------------------------------------------------------------
 //---------- Данные для TTaskSource... -----------------------------------------
@@ -145,6 +175,12 @@ begin
  inherited Create();
    FTaskLibraryIndex:= TaskLibraryIndex;
    FTaskSourceList:= TaskSourceList.Add(self);
+end;
+
+//------------------------------------------------------------------------------
+function TTaskSource.GetTaskLibraryIndex: WORD;
+begin
+  Result:= self.FTaskLibraryIndex;
 end;
 
 //------------------------------------------------------------------------------
@@ -160,14 +196,52 @@ begin
 end;
 
 //------------------------------------------------------------------------------
+
+function TTaskSource.GetTask2_Result(ResultIndex: integer): TTask2_Result; safecall;
+begin
+//  if sizeof(FTask2_Results) > ResultIndex then
+  Result:= FTask2_Results[ResultIndex];
+end;
+
+//------------------------------------------------------------------------------
+
+function TTaskSource.GetTask2_TotalResult: DWORD; safecall;
+var
+  tmpWord: word;
+begin
+  Result:= 0;
+//--- Суммируем результаты по всем шаблонам в общий результат
+  if length(FTask2_Results) > 0 then
+  begin
+   FTask2_TotalResult:= 0;
+   for tmpWord:= 0 to (length(FTask2_Results) - 1) do
+     FTask2_TotalResult:= FTask2_TotalResult + FTask2_Results[tmpWord].dwEqualsCount;
+   Result:= FTask2_TotalResult;
+  end;
+end;
+
+//------------------------------------------------------------------------------
+
+function TTaskSource.GetTask2_ResultBuffer: Pointer; safecall;
+begin
+try
+finally
+  Result:= FResultBuffer;
+end;
+end;
+
+//------------------------------------------------------------------------------
 procedure TTaskSource.TaskProcedure(TaskLibraryIndex: word);
 var
-  tmpInt, tmpInt1: Integer;
+  tmpWord: word;
   tmpStr: WideString;
   tmpInputForm_Task1: TformEditParams_Task1;
   tmpInputForm_Task2: TformEditParams_Task2;
+  tmpArray_WideString: TArray_WideString;
+  tmpTask1_Parameters: TTask1_Parameters;
+  tmpTask2_Parameters: TTask2_Parameters;
  begin
-
+try
  case self.FTaskLibraryIndex {TaskLibraryIndex} of
    0: //--- Task1_FileFinderByMask
    begin
@@ -176,6 +250,7 @@ var
 
     tmpInputForm_Task1:= TformEditParams_Task1.Create(nil);
     tmpInputForm_Task1.ShowModal;
+//    FreeAndNil(tmpInputForm_Task1);
     tmpInputForm_Task1.Free;
 
     //--- Заполним inputParam5 (TaskMainModuleIndex), переданный через API
@@ -187,14 +262,25 @@ var
                 + #13#10 + 'inputParam3 = ' + WideString(Task1_Parameters.inputParam3)
                 + #13#10 + 'inputParam5 = ' + IntToStr(FTaskMainModuleIndex)); // Task1_Parameters.inputParam5
 }
-// Начинаем отсчёт времени работы текущей задачи задачи
-// зафиксируем текущее значение TaskItem.FStopWatch
-    tmpInt1:= self.StopWatch.ElapsedMilliseconds;
-
-    self.Task1_FileFinderByMask(WideString(Task1_Parameters.inputParam1), WideString(Task1_Parameters.inputParam2), WideString(Task1_Parameters.inputParam3), Task1_Parameters.inputParam4, FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask1_Result); //, nil, 0);
+    tmpTask1_Parameters.inputParam1:= Task1_Parameters.inputParam1;
+    tmpTask1_Parameters.inputParam2:= Task1_Parameters.inputParam2;
+    tmpTask1_Parameters.inputParam3:= Task1_Parameters.inputParam3;
+    tmpTask1_Parameters.inputParam4:= Task1_Parameters.inputParam4;
+    tmpTask1_Parameters.inputParam5:= Task1_Parameters.inputParam5;
     CriticalSection.Leave;
+
+    self.Task1_FileFinderByMask(WideString(tmpTask1_Parameters.inputParam1), WideString(tmpTask1_Parameters.inputParam2),
+                                WideString(tmpTask1_Parameters.inputParam3), tmpTask1_Parameters.inputParam4,
+                                FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask1_Result); //, nil, 0);
    end;
+
+
+
 //-------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------------ Задача №2 --------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------------
+
+
    1: //--- Task2_FindInFilesByPattern
    begin
 //--- Критическая секция для доступа к структуре - входные параметры для задачи
@@ -202,7 +288,8 @@ var
 
     tmpInputForm_Task2:= TformEditParams_Task2.Create(nil);
     tmpInputForm_Task2.ShowModal;
-    tmpInputForm_Task2.Free;
+    FreeAndNil(tmpInputForm_Task2);
+//    tmpInputForm_Task2.Free;
 
     //--- Заполним inputParam5 (TaskMainModuleIndex), переданный через API
 //    Task2_Parameters.inputParam5:= self.FTaskMainModuleIndex;
@@ -213,17 +300,32 @@ var
                 + #13#10 + 'inputParam3 = ' + WideString(Task2_Parameters.inputParam3)
                 + #13#10 + 'inputParam5 = ' + IntToStr(FTaskMainModuleIndex)); // Task1_Parameters.inputParam5
 }
-// Начинаем отсчёт времени работы текущей задачи задачи
-// зафиксируем текущее значение TaskItem.FStopWatch
-    tmpInt1:= self.StopWatch.ElapsedMilliseconds;
+ //--- Установка размера выходного параметра согласно количеству шаблонов
+//    GetPatternsFromString(WideString(Task2_Parameters.inputParam1), tmpArray_WideString, tmpWord);
+//    setlength(self.FTask2_Results, tmpWord);
 
-    self.Task2_FindInFilesByPattern(WideString(Task2_Parameters.inputParam1), WideString(Task2_Parameters.inputParam2), WideString(Task2_Parameters.inputParam3), Task2_Parameters.inputParam4, FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask2_Result); //, nil, 0);
+    self.FTask2_TotalResult:= 0;
+    tmpTask2_Parameters.inputParam1:= Task2_Parameters.inputParam1;
+    tmpTask2_Parameters.inputParam2:= Task2_Parameters.inputParam2;
+    tmpTask2_Parameters.inputParam3:= Task2_Parameters.inputParam3;
+    tmpTask2_Parameters.inputParam4:= Task2_Parameters.inputParam4;
+    tmpTask2_Parameters.inputParam5:= Task2_Parameters.inputParam5;
     CriticalSection.Leave;
+
+//--- Если выбран режим передачи результата через память, то выделим память (сначала мин. объём = 4096 (Б)
+//--- по мере увеличения объёма требующейся памяти, по ходу выполнения, будет выполнено увеличение размера буфера
+    SysAllocStringLen(self.FResultBuffer, Task2_DefaultBufferSize);
+
+    self.Task2_FindInFilesByPattern(WideString(tmpTask2_Parameters.inputParam1), WideString(tmpTask2_Parameters.inputParam2),
+                                    WideString(tmpTask2_Parameters.inputParam3), tmpTask2_Parameters.inputParam4,
+                                    FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask2_Results); //, nil, 0);
 
    end;
 
  end;
+finally
 
+end;
  end;
 
 //------------------------------------------------------------------------------
@@ -232,6 +334,7 @@ var
   inputParam5, iProcedureWorkTime: DWORD;
   tmpTargetFile: WideString;
   tmpStreamWriter: TStreamWriter;
+  tmpMemoryStream: TOLEStream;
   tmpMaskItems: TArray_WideString;
   tmpMaskCount: word;
   tmpWord: word;
@@ -243,10 +346,8 @@ begin
 try
  CriticalSection.Leave; //--- Вход в критическую секцию был до вызова окна с входными параметрами
 
- iProcedureWorkTime:= GetTickCount(); // запоминаем значение тиков в начале подпрограммы
-  case inputParam4 of
-    true:  //--- Вариант: запись результата в файл
-     begin
+// iProcedureWorkTime:= GetTickCount(); // запоминаем значение тиков в начале подпрограммы
+
 //--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
 //--- Добавим к имени выходного файла информацию о номере задачи по порядку запуска потоков в главном модуле, иначе имена файлов в потоках совпадут
        if TPath.GetFileName(inputParam3) <> '' then
@@ -259,7 +360,14 @@ try
        else
         tmpWideString:= TDirectory.GetCurrentDirectory() + '\' + tmpWideString;
 
-        tmpStreamWriter:= TFile.CreateText(tmpWideString);
+        if inputParam4 then //--- Запись результата в файл
+         tmpStreamWriter:= TFile.CreateText(tmpWideString)
+        else //--- Запись результата в память
+        begin
+//         tmpMemoryStream:= TOLEStream.Create();
+//         tmpMemoryStream.set:= self.FResultBuffer;
+//         tmpMemoryStream.SetSize(sizeof(self.FResultBuffer));
+        end;
 
 //--- Извлечение элементов-масок из входящей строки (inputParam1)
    GetItemsFromString(inputParam1, tmpMaskItems, tmpMaskCount);
@@ -279,12 +387,19 @@ try
            tmpBool:= true;
            if tmpBool then
            begin
-            tmpStreamWriter.WriteLine(tmpTargetFile + ', ');
-            if (GetTickCount() - iProcedureWorkTime) >=  inputParam5 then
+            if inputParam4 then
+              tmpStreamWriter.WriteLine(tmpTargetFile + ', ')
+            else //--- Результат через память
+            //--- Настройка памяти для выгрузки результата
+//             tmpMemoryStream.Memory;
+            begin
+
+            end;
+           { if (GetTickCount() - iProcedureWorkTime) >=  inputParam5 then
              begin
               tmpStreamWriter.Flush;
               iProcedureWorkTime:= GetTickCount(); // запоминаем текущее значение тиков
-             end;
+             end;}
            end;
           end;
          end;
@@ -294,13 +409,12 @@ try
        tmpStreamWriter.WriteLine(tmpPAnsiChar + IntToStr(outTask1_Result.dwEqualsCount));
        tmpStreamWriter.Close;
 
-     end;
 
-    false:   //--- Настройка памяти для выгрузки результата
-     begin
 
-     end;
-   end;
+
+
+
+
 
 finally
  if Win32Check(Assigned(tmpStreamWriter)) then
@@ -312,7 +426,7 @@ end;
 //------------------------------------------------------------------------------
 //------------------------- Задача №2 ------------------------------------------
 //------------------------------------------------------------------------------
-function TTaskSource.Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask2_Result: TTask2_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+function TTaskSource.Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask2_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 var
   tmpWideString: WideString;
   tmpStreamWriter: TStreamWriter;
@@ -320,8 +434,10 @@ var
   tmpPatternItemsStr: TArray_WideString;
   tmpPatternItems: RawByteString;
   tmpPatternCount, tmpWord, tmpWord1, tmpWord2: word;
-  tmpSearchPatternSet: array of TSearchPatternSet;begin
+  tmpSearchPatternSet: array of TSearchPatternSet;
 
+//--- Начало Задачи №2 - TaskSource.Task2_FindInFilesByPattern ------------------------------------
+begin
 try
 //  inputParam1:= 'resource;ozX'; //'resource'; //Шаблон
 //  inputParam2:= 'D:\Install\FFscriptCache.bin'; // Целевой файл (в котором поиск)
@@ -354,7 +470,8 @@ try
 
 //--- Преобразование шаблонов из WideString (формат отображения) в array of byte
        setlength(tmpSearchPatternSet, tmpPatternCount);
-       setlength(outTask2_Results, tmpPatternCount);
+       setlength(inoutTask2_Results, tmpPatternCount);
+//       setlength(inoutTaskSource.FTask2_Results, tmpPatternCount);
 
        for tmpWord:= 0 to tmpPatternCount - 1 do
        begin
@@ -364,15 +481,14 @@ try
        end;
 
 //--- подпрограмма поиска шаблонов в целевом файле
-       CountPatternIncluding(inputParam2, tmpSearchPatternSet, tmpPatternCount, outTask2_Results, tmpStreamWriter);
-       outTask2_Result.dwEqualsCount:= 0; //--- Счётчик совпадений
+       CountPatternIncluding(inputParam2, tmpSearchPatternSet, tmpPatternCount, inoutTask2_Results, tmpStreamWriter);
 
        tmpStreamWriter.WriteLine('Всего найдено совпадений: ');
        for tmpWord:= 0 to tmpPatternCount - 1 do
        begin
         tmpSearchPatternSet[tmpWord].Pattern:= WSToByte(tmpPatternItemsStr[tmpWord]);
-        tmpStreamWriter.WriteLine(format('Шаблон: %s, Всего совпадений: %d', [ByteToWS(outTask2_Results[tmpWord].SearchPattern, tmpSearchPatternSet[tmpWord].PatternSize),
-                                                                              outTask2_Results[tmpWord].dwEqualsCount]));
+        tmpStreamWriter.WriteLine(format(wsTask2_TotalResult_TemplateView, [ByteToWS(inoutTask2_Results[tmpWord].SearchPattern, tmpSearchPatternSet[tmpWord].PatternSize),
+                                                                              inoutTask2_Results[tmpWord].dwEqualsCount]));
        end;
 
        tmpStreamWriter.Close;
@@ -391,21 +507,10 @@ end;
 
 end;
 
+//---------------- Подпрограммы вне классов ------------------------------------
 
 
-//------------------------------------------------------------------------------
-//---------- Данные для TTaskSourceList ----------------------------------------
-//------------------------------------------------------------------------------
 
-function TTaskSourceList.GetItem(Index: integer): TTaskSource;
-begin
- Result:= TTaskSource(inherited GetItem(Index));
-end;
-
-procedure TTaskSourceList.SetItem(Index: integer; const Value: TTaskSource);
-begin
- inherited SetItem(Index, Value);
-end;
 
 
 end.

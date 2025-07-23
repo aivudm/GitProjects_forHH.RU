@@ -1,7 +1,7 @@
 unit unTaskSource;
 
 interface
-uses   Windows, ActiveX, Classes, IOUtils, SysUtils, System.SyncObjs;
+uses   Windows, ActiveX, Classes, IOUtils, SysUtils, System.SyncObjs, Dialogs;
 
 //--- Для Задачи №1 ------------------------------------------------------------
 const
@@ -10,11 +10,14 @@ const
   wsAllMask: WideString = '*';
   wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
+  wsTask2_Result_TemplateView: WideString = 'Шаблон: %12s, Позиция в файле: %d';
+  wsTask2_TotalResult_TemplateView: WideString = 'Шаблон: %12s, Всего совпадений: %d';
+
 
 //--- Для Задачи №2 ------------------------------------------------------------
 const
   iPatternNotFound = $FFFFFFFF;
-
+  Task2_DefaultBufferSize = 4096;
 type
 //------------------- Для Задачи №2 --------------------------------------------
 
@@ -67,7 +70,7 @@ type
   end;
 
 //------------------------------------------------------------------------------
-
+  TTask2_Results = array of TTask2_Result;
   TArray_WideString = array [0..High(Byte)] of WideString;
 //------------------------------------------------------------------------------
 
@@ -76,8 +79,6 @@ var
   CriticalSection: TCriticalSection;
   Task1_Parameters: TTask1_Parameters;
   Task2_Parameters: TTask2_Parameters;
-  outTask2_Result: TTask2_Result;
-  outTask2_Results: array of TTask2_Result;
 
 
 //--- Основныеные функции (реализация функционала библиотеки)
@@ -92,14 +93,15 @@ function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): 
 //--- Для Задачи №2 ------------
 procedure GetPatternsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputPatternCount: word);
 function GetPosForPattern(inputBuffer: Pointer; inputFileSize: DWORD; inputSearchPatternSet: TSearchPatternSet; inputPosBeginSearch: DWORD): DWORD;
-procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; out outTask2_Results: array of TTask2_Result; inputStreamWriter: TStreamWriter);
+procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask2_Results; inputStreamWriter: TStreamWriter);
+//procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; out outTask2_Result: TTask2_Results; inputStreamWriter: TStreamWriter);
 function WSToByte(inputWideString: WideString): TSearchPattern;
 function ByteToWS(inputBytes: TSearchPattern; inputBytesSize: dword): WideString;
 
 
 
 implementation
-
+{
 function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 var
   inputParam5, iProcedureWorkTime: DWORD;
@@ -188,7 +190,7 @@ finally
 
 end;
 end;
-
+}
 procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
 begin
  outputMaskCount:= 0;
@@ -236,7 +238,7 @@ function GetPosForPattern(inputBuffer: Pointer; inputFileSize: DWORD; inputSearc
 var
    LastStartComparePos, Test, MaxLastComparePosOffset, tmpPatternSize: DWORD;
 begin
- Result:= $0FFFFFFFF;
+ Result:= $0FFFFFFFF; //iPatternNotFound;
  tmpPatternSize:= inputSearchPatternSet.PatternSize;
  if tmpPatternSize < 1 then
   exit;
@@ -313,7 +315,10 @@ begin
    exit;
   end;
 
-  setlength(Result, inputBytesSize + 1);
+//  setlength(Result, inputBytesSize*sizeof(WideChar) + 1);
+ setlength(Result, inputBytesSize*sizeof(WideChar) + 1);
+ Result:='';
+
  for tmpWord:= 0 to inputBytesSize - 1 do
  begin
    tmpStr:= AnsiChar(inputBytes[tmpWord]);
@@ -322,7 +327,7 @@ begin
  Result:= Result + #0;
 end;
 
-procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; out outTask2_Results: array of TTask2_Result; inputStreamWriter: TStreamWriter);
+procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask2_Results; inputStreamWriter: TStreamWriter);
 var
   tmpFileStream: TFileStream;
   tmpTargetFileBuffer: TTargetFile;
@@ -342,16 +347,19 @@ try
 
 //--- Начальные условия - поиск с начала файла
 //--- заполнение поля "шаблон" в переменной результата задачи
-       for tmpWord:= 0 to inputPattenCount - 1 do //sizeof(inputSearchPatternSet) do
-       begin
-        inputSearchPatternSet[tmpWord].LastPosBeginSearch:= 0;
-        outTask2_Results[tmpWord].SearchPattern:= inputSearchPatternSet[tmpWord].Pattern;
-       end;
+   for tmpWord:= 0 to inputPattenCount - 1 do //sizeof(inputSearchPatternSet) do
+   begin
+    inputSearchPatternSet[tmpWord].LastPosBeginSearch:= 0;
+    inoutTask2_Results[tmpWord].SearchPattern:= inputSearchPatternSet[tmpWord].Pattern;
+   end;
 
 //--- Поиск в файле
        while (tmpFileStream.Position < tmpFileStream.Size) do
         begin
-          sleep(500); //--- Для отработки (для замедления процесса)
+//------------------------------------------------------------------------------
+//          sleep(500); //--- Для отработки (для замедления процесса)
+//------------------------------------------------------------------------------
+
          tmpBool:= false;
          tmpDword:= 0;
 
@@ -375,9 +383,9 @@ try
 //--- именно по этой переменной и определим конец поиска в цикле while
            if tmpFileStream.Position > inputSearchPatternSet[tmpWord].LastPosBeginSearch then
             tmpFileStream.Position:= inputSearchPatternSet[tmpWord].LastPosBeginSearch;
-            inc(outTask2_Results[tmpWord].dwEqualsCount);
-            CriticalSection.Create;
-              inputStreamWriter.WriteLine(format('Шаблон: %s, Позиция в файле: %d', [ByteToWS(inputSearchPatternSet[tmpWord].Pattern, inputSearchPatternSet[tmpWord].PatternSize),
+            inc(inoutTask2_Results[tmpWord].dwEqualsCount);
+            CriticalSection.Enter;
+            inputStreamWriter.WriteLine(format(wsTask2_Result_TemplateView, [ByteToWS(inputSearchPatternSet[tmpWord].Pattern, inputSearchPatternSet[tmpWord].PatternSize),
                                                                              inputSearchPatternSet[tmpWord].LastPosBeginSearch]));
             CriticalSection.Leave;
            end

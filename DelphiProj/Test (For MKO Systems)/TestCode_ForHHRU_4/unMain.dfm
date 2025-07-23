@@ -3,7 +3,7 @@ object formMain: TformMain
   Top = 0
   Caption = #1043#1083#1072#1074#1085#1086#1077' '#1086#1082#1085#1086' ('#1086#1089#1085#1086#1074#1085#1086#1081' '#1087#1086#1090#1086#1082')'
   ClientHeight = 396
-  ClientWidth = 756
+  ClientWidth = 998
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -14,6 +14,7 @@ object formMain: TformMain
   OldCreateOrder = False
   Position = poDesktopCenter
   OnClose = FormClose
+  OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
@@ -26,19 +27,21 @@ object formMain: TformMain
   object GroupBox1: TGroupBox
     Left = 3
     Top = 8
-    Width = 745
+    Width = 992
     Height = 345
     Caption = #1048#1085#1092#1086#1088#1084#1072#1094#1080#1103' '#1086' '#1079#1072#1076#1072#1095#1072#1093' ('#1087#1086#1090#1086#1082#1072#1093')'
     TabOrder = 0
-    object memInfoTread: TMemo
-      Left = 3
-      Top = 85
-      Width = 739
-      Height = 156
-      Lines.Strings = (
-        '')
+    object memInfoTread1: TMemo
+      Left = 399
+      Top = 247
+      Width = 590
+      Height = 89
+      HideSelection = False
       ScrollBars = ssBoth
       TabOrder = 0
+      WantReturns = False
+      WordWrap = False
+      OnClick = memInfoTread1Click
     end
     object memInfo_2: TMemo
       Left = 0
@@ -74,12 +77,29 @@ object formMain: TformMain
       Height = 25
       Caption = #1054#1089#1090#1072#1085#1086#1074#1080#1090#1100
       TabOrder = 4
+      OnClick = bStopClick
+    end
+    object memInfoTread: TRichEdit
+      Left = 0
+      Top = 85
+      Width = 989
+      Height = 156
+      Font.Charset = RUSSIAN_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = []
+      Lines.Strings = (
+        '')
+      ParentFont = False
+      TabOrder = 5
+      Zoom = 100
     end
   end
   object sbMain: TStatusBar
     Left = 0
     Top = 377
-    Width = 756
+    Width = 998
     Height = 19
     Panels = <
       item
@@ -91,42 +111,6 @@ object formMain: TformMain
       item
         Width = 50
       end>
-  end
-  object Button1: TButton
-    Left = 312
-    Top = 350
-    Width = 113
-    Height = 25
-    Caption = #1058#1077#1089#1090' ('#1086#1090#1088#1072#1073#1086#1090#1082#1072') 1'
-    TabOrder = 2
-    OnClick = Button1Click
-  end
-  object Button2: TButton
-    Left = 448
-    Top = 346
-    Width = 131
-    Height = 25
-    Caption = #1058#1077#1089#1090' '#1087#1086#1076#1082#1083'. '#1073#1080#1073#1083#1080#1086#1090#1077#1082
-    TabOrder = 3
-    OnClick = Button2Click
-  end
-  object Button3: TButton
-    Left = 592
-    Top = 346
-    Width = 156
-    Height = 25
-    Caption = #1058#1077#1089#1090' '#1079#1072#1087#1091#1089#1082#1072' '#1079#1072#1076#1072#1095' '#1074' '#1073#1080#1073#1083'.'
-    TabOrder = 4
-    OnClick = Button3Click
-  end
-  object Button4: TButton
-    Left = 231
-    Top = 350
-    Width = 75
-    Height = 25
-    Caption = 'Button4'
-    TabOrder = 5
-    OnClick = Button4Click
   end
   object MainMenu1: TMainMenu
     Left = 400

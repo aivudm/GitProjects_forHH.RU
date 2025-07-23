@@ -64,6 +64,7 @@ procedure TformTools.btnNewThreadClick(Sender: TObject);
     pTaskSource: Pointer;
     tmpIntrfDllAPI: ILibraryAPI;
     tmpIntrfTaskSource: ITaskSource;
+    tmpDWord: DWORD;
 begin
  try
 //--- Настроим передачу информации от потоков в главное окно согласно выбранному типу
@@ -81,23 +82,26 @@ begin
   tmpIntrfDllAPI:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI;
   tmpIntrfTaskSource:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex);
   TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex));
+//  TaskList[iTaskListNum].SetTaskSource(tmpIntrfTaskSource);
+
   TaskList[iTaskListNum].TaskSource.TaskMainModuleIndex:= iTaskListNum;
 //  tmpIntrfTaskSource.TaskMainModuleIndex:= iTaskListNum;
   tmpIntrfDllAPI:= nil;
   tmpIntrfTaskSource:= nil;
-  //--- 3. Назначим рбъекты для отображения информации от задач (потоков)
-  TaskList[iTaskListNum].HandleWinForView:= formMain.memInfoTread.Handle;
-  formMain.memInfoTread.Lines[iTaskListNum]:= ('Ожидание ответа от потока...');
-//formMain.memInfoTread.Lines.Add('Ожидание ответа от потока...');
-  TaskList[iTaskListNum].LineIndex_ForView:= iTaskListNum; //formMain.memInfoTread.Lines.Add('Ожидание ответа от потока...');
-//------------------------------------------------------------------------------
-//  TaskList[iTaskListNum].Resume; //- Только для отработки, так как в реале запуск сразу после создания. Потом паузы и продолжение по событию FPauseEvent: TEvent;
-//------------------------------------------------------------------------------
 
-  //--- 4. Добавляем "Новый Поток" в перечень потоков (комбобокс)
-  AddNewItemToThreadList(format(sHeaderThreadInfo + '%3d: %s',
+//--- 3. Добавляем "Новый Поток" в перечень потоков (комбобокс)
+  formMain.lbThreadList.Items.Add(format(sHeaderThreadInfo + '%3d: %s',
                                                               [iTaskListNum,
                                                               TaskList[iTaskListNum].TaskName]));
+
+//--- 4. Назначим объекты для отображения информации от задач (потоков)
+//  formMain.memInfoTread.Lines.Add(sWaitForThreadAnswer);
+//  formMain.memInfoTread.Lines[iTaskListNum]:= (sWaitForThreadAnswer);
+  TaskList[iTaskListNum].LineIndex_ForView:= formMain.memInfoTread.Lines.Add(sWaitForThreadAnswer);
+
+  TaskList[iTaskListNum].HandleWinForView:= formMain.memInfoTread.Handle;
+  GetWindowThreadProcessId(formMain.memInfoTread.Handle, @tmpDWord);
+  TaskList[iTaskListNum].ThreadIDWinForView:= tmpDWord;
 
   //--- После подготовки всех объектов присваиваем задаче состояние - tsActive
   TaskList[iTaskListNum].TaskState:= tsActive;
@@ -172,7 +176,7 @@ end;
 procedure TformTools.FormCreate(Sender: TObject);
 var
   tmpWord: word;
-  tmpString: string;
+  tmpString: WideString;
 begin
 // TaskInitialize;
   odGetLibrary.Files.Clear;
@@ -205,7 +209,7 @@ begin
   tmpTaskTemplateIndex:= lbLibraryList.ItemIndex;
   if tmpTaskTemplateIndex < 0 then exit;
 
-  for tmpItem:= 0 to LibraryList[tmpTaskTemplateIndex].TaskCount do
+  for tmpItem:= 0 to (LibraryList[tmpTaskTemplateIndex].TaskCount - 1) do
   begin
    lbTemplateTaskList.AddItem(LibraryList[tmpTaskTemplateIndex].TaskTemplateName[tmpItem], Sender);
   end;
