@@ -12,7 +12,7 @@ procedure GetLibraryInfo(inputDllFileName: WideString; var inoutLibraryTask: TLi
 //--- Получение элементов из строки, разделённых ';'
 procedure GetItemsFromString(SourceBSTR: WideString; var outputStringItems: TArray_WideString);
 procedure FinalizeLibraryes;
-function LoadLibrary(const LibraryFileName: WideString): HMODULE;
+function LoadAnyLibrary(const LibraryFileName: WideString): HMODULE;
 function GetPIDByName(const name: PWideChar): Cardinal;
 
 implementation
@@ -30,7 +30,7 @@ try
  Result:= tmpStr;
 except
  on E: Exception do
-       Writeln(E.ClassName, ': ', E.Message);
+    Writeln(E.ClassName, ': ', E.Message);
 end;
 {
 ----- Вариант работы с директориями и именами файлов до появления классов TDirectory, TFile
@@ -50,54 +50,23 @@ end;
 end;
 
 
-function LoadLibrary(const LibraryFileName: WideString): HMODULE;
+function LoadAnyLibrary(const LibraryFileName: WideString): HMODULE;
 var
   DLLPath: String;
-  OldDir: String;
-  OldPath: UnicodeString;
-  {$IFDEF WIN32}
-  FPUControlWord: Word;
-  {$ENDIF}
-  {$IFDEF WIN64}
-  FPUControlWord: Word;
-  {$ENDIF}
 begin
-  OldDir := GetCurrentDir;
-  OldPath := GetEnvironmentVariable('PATH');
-  try
-    DLLPath := ExtractFilePath(LibraryFileName);
-    SetEnvironmentVariableW('PATH', PWideChar(DLLPath + ';' + OldPATH));
-    SetCurrentDir(DLLPath);
-
-    {$IFDEF WIN32}
-    asm
-      FNSTCW  FPUControlWord
-    end;
-    {$ENDIF}
-    {$IFDEF WIN64}
-    FPUControlWord := Get8087CW();
-    {$ENDIF}
-    try
-
-    Result := LoadLibraryW(PWideChar(LibraryFileName));
-    Win32Check(Result <> 0);
-
-    finally
-      {$IFDEF WIN32}
-      asm
-        FNCLEX
-        FLDCW FPUControlWord
-      end;
-      {$ENDIF}
-      {$IFDEF WIN64}
-      TestAndClearFPUExceptions(0);
-      Set8087CW(FPUControlWord);
-      {$ENDIF}
-    end;
-  finally
-    SetEnvironmentVariableW('PATH', PWideChar(OldPATH));
-    SetCurrentDir(OldPath);
+ try
+  if FileExists(LibraryFileName) then
+  begin
+   Result := LoadLibrary(PWideChar(LibraryFileName)); //LoadLibraryEx(PWideChar(LibraryFileName), 0, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR or LOAD_LIBRARY_SEARCH_DEFAULT_DIR);
+   Win32Check(Result <> 0);
+  end
+  else
+  begin
+   Result:= 0;
+   exit;
   end;
+ finally
+ end;
   SetLastError(0);
 end;
 
@@ -129,23 +98,47 @@ begin
  inoutLibraryTask.LibraryName:= '';
 try
  for tmpByte:= 0 to LibraryList.Count - 1 do
+//--- Проверяем на повтор загружаемой библиотеки, если такая уже есть, то выходим
   if LibraryList.Items[tmpByte].LibraryFileName = inputDllFileName then
-    exit;
+  begin
+   LibraryList.Items[tmpByte].Free;
+  end;
 
- tmp_hTaskLibrary:= LoadLibrary(inputDllFileName); //, 0, LOAD_LIBRARY_AS_DATAFILE{DONT_RESOLVE_DLL_REFERENCES});
-
- @tmpDLLAPIProc:= GetProcAddress(tmp_hTaskLibrary, DllProcName_LibraryInfo);
- Win32Check(Assigned(tmpDLLAPIProc));
-
-//--- Вызов интерфейса библиотеки с задачами
- tmpDLLAPIProc(ILibraryAPI, tmpIntrfDllAPI);
- if not Assigned(tmpIntrfDllAPI) then
+ tmp_hTaskLibrary:= LoadAnyLibrary(inputDllFileName);
+ if tmp_hTaskLibrary <= 0 then
  begin
-  FreeLibrary(tmp_hTaskLibrary);
+  WriteDataToLog(wsError_LoadLibrary + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
   exit;
  end;
 
 
+//--- Получение интерфейса данной библиотеки с задачами
+ try
+  @tmpDLLAPIProc:= GetProcAddress(tmp_hTaskLibrary, DllProcName_LibraryInfo);
+  if not Win32Check(Assigned(tmpDLLAPIProc)) then
+  begin
+   FreeLibrary(tmp_hTaskLibrary);
+   WriteDataToLog(wsError_LoadLibraryWithTargetAPI + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
+  end;
+ except
+  FreeLibrary(tmp_hTaskLibrary);
+  WriteDataToLog(wsError_LoadLibraryWithTargetAPI + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
+  exit;
+ end;
+
+
+//--- Вызов интерфейса библиотеки
+ tmpDLLAPIProc(ILibraryAPI, tmpIntrfDllAPI);
+ if not Assigned(tmpIntrfDllAPI) then
+ begin
+  FreeLibrary(tmp_hTaskLibrary);
+  WriteDataToLog(wsError_LoadLibraryWithTargetAPI + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
+  exit;
+ end;
+
+//--- Сохраним интерфейс в объекте LibraryTask
+ if inoutLibraryTask.LibraryAPI = nil then
+    inoutLibraryTask.LibraryAPI:= tmpIntrfDllAPI;
 //--- Получим имя библиотеки
  inoutLibraryTask.LibraryName:= tmpIntrfDllAPI.Name;
 
@@ -154,12 +147,11 @@ try
 
  //--- Получим количество реализованных в библиотеке задач
  inoutLibraryTask.TaskCount:= tmpIntrfDllAPI.GetTaskList.Count;
-
+ inoutLibraryTask.SetTaskTemplateCount(tmpIntrfDllAPI.GetTaskList.Count);
  //--- Получим имена реализованных задач
- for i:= 0 to tmpIntrfDllAPI.GetTaskList.Count do
+ for i:= 0 to (tmpIntrfDllAPI.GetTaskList.Count - 1) do
  begin
   inoutLibraryTask.TaskTemplateName[i]:= tmpIntrfDllAPI.GetTaskList.Strings[i];
-//  inoutLibraryTaskInfo.TaskLibraryIndex:= i;
  end;
 
 // tmpIntrfDllAPI.GetFormParams;
@@ -172,12 +164,13 @@ try
 //--- Выделим наименования всех реализуемых задач
 GetItemsFromString(tmpBSTR, TaskDllProcName);
 }
+
+//------------>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
  if intrfDllAPI = nil then
     inoutLibraryTask.LibraryAPI:= tmpIntrfDllAPI;
-//  intrfDllAPI:= tmpIntrfDllAPI;
 
  //--- Один раз запустим LibraryAPI.InitDLL
-
+//--- проверка на
   inoutLibraryTask.LibraryAPI.InitDLL;
   tmpIntrfDllAPI:= nil;
 

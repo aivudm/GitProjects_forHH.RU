@@ -2,30 +2,23 @@ unit unVariables;
 
 interface
 uses Windows, SysUtils, Forms, System.Contnrs, StdCtrls, Classes, Winapi.Messages, IOUtils, Dialogs,
-    System.Generics.Collections, IniFiles;
+    System.Generics.Collections, IniFiles, ActiveX, SyncObjs;
 
 type
   BSTR = WideString;
   ITaskSource = interface;
 
 //------------------------------------------------------------------------------
-//--- Выходные параметры Задачи №1 (Индекс задачи в библиотеке - 0)
-
-  TTask1_Result = packed record
-    dwEqualsCount: DWORD;
-  end;
-
-//------------------------------------------------------------------------------
-//--- Выходные параметры Задачи №2 (Индекс задачи в библиотеке - 0)
-
+//--- Выходные параметры Задач: №0,№1 (Библиотека №0), №0 (Библиотека №1)
   TSearchPattern = array of byte;
 
-  TTask2_Result = packed record
-    SearchPattern: TSearchPattern;
+  TTask_Result = packed record
     dwEqualsCount: DWORD;
+    SearchPattern: TSearchPattern;
   end;
 
-  TTask2_Results = array of TTask2_Result;
+  TTask_Results = array of TTask_Result;
+
 //------------------------------------------------------------------------------
   IBSTRItems = interface
   ['{7988654F-59FB-401F-9E4C-972FF343C66B}']
@@ -40,6 +33,7 @@ type
   ILibraryAPI = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
     // Методы реализуемые DLL API
+    function GetId: DWORD; safecall;
     function GetName: BSTR; safecall;
     function GetVersion: BSTR; safecall;
     function GetTaskList: IBSTRItems; safecall;
@@ -47,6 +41,7 @@ type
     function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
+
     property Name: BSTR read GetName;
     property Version: BSTR read GetVersion;
     property TaskCount: byte read GetTaskCount;
@@ -58,17 +53,19 @@ type
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
    procedure TaskProcedure(TaskLibraryIndex: word); safecall;
    function GetTaskLibraryIndex: word;
-   function GetTask1_Result: TTask1_Result; safecall;
-   function GetTask2_Result(ResultIndex: integer): TTask2_Result; safecall;
-   function GetTask2_TotalResult: WORD; safecall;
-   function GetTask2_ResultBuffer: Pointer; safecall;
+   function GetTask_Result: TTask_Result; safecall;
+   function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
+   function GetTask_TotalResult: DWORD; safecall;
+   function GetTask_ResultStream: IStream; safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
-   property Task1_Result: TTask1_Result read GetTask1_Result;
-   property Task2_Results[ResultIndex: integer]: TTask2_Result read GetTask2_Result; // write SetTask2_Result;
-   property Task2_TotalResult: WORD read GetTask2_TotalResult;
+   property Task_Result: TTask_Result read GetTask_Result;
+   property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex;
+   property Task_TotalResult: DWORD read GetTask_TotalResult;
+   property Task_ResultStream: IStream read GetTask_ResultStream;
    property TaskMainModuleIndex: WORD write SetTaskMainModuleIndex;
   end;
+
 //------------------------------------------------------------------------------
 
   TDLLAPIProc = function (const inputIID: TGUID; var Intf): HRESULT; stdcall;
@@ -80,8 +77,11 @@ type
   TCallingDLL1Proc = function (): HRESULT; stdcall;
 //--- FileFinderByPattern
 
-  TArray_WideString = array [0..High(Byte)] of WideString;
+  TArray_WideString = TArray<WideString>;
   TArray_Cardinal = array [0..High(Byte)] of Cardinal;
+
+//  TArray_WideString = array [0..High(Byte)] of WideString;
+//  TArray_Cardinal = array [0..High(Byte)] of Cardinal;
 
 type
 //------------------------------------------------------------------------------
@@ -90,6 +90,7 @@ type
 
   TLibraryTask = class (TObject)
    private
+    FLibraryId: DWORD;
     FLibraryName: WideString;
     FTaskCount: Byte;
     FTaskTemplateName: TArray_WideString; //--- заполняется после подключения Dll
@@ -106,8 +107,9 @@ type
    public
     procedure Clear;
     procedure SetLibraryFileName(inputLibraryFileName: WideString);
-
+    procedure SetTaskTemplateCount(inputTaskTemplateCount: word);
     property LibraryAPI: ILibraryAPI read FLibraryAPI write FLibraryAPI;
+    property LibraryId: DWORD read FLibraryId write FLibraryId;
     property LibraryName: WideString read FLibraryName write FLibraryName;
     property LibraryFileName: WideString read FLibraryFileName write SetLibraryFileName;
     property TaskCount: Byte read FTaskCount write FTaskCount;
@@ -190,6 +192,8 @@ var
   intrfDllAPI: ILibraryAPI;
   hTaskLibrary: THandle;  //--- он же HMODULE
   iniFile: TIniFile;
+  logFileName: WideString;
+  logFileStream: TStringList;
   logFile: TextFile;
 
 
@@ -206,6 +210,7 @@ var
   sFileExtensionDefault: WideString = '.txt';
   LibraryTask: TLibraryTask;
   LibraryList: TLibraryList; //TObjectList<TLibraryTaskInfo>;
+  CriticalSection: TCriticalSection;
 
 
 
@@ -269,6 +274,13 @@ procedure TLibraryTask.SetLibraryFileName(inputLibraryFileName: WideString);
 begin
   FLibraryFileName:= inputLibraryFileName;
 end;
+
+procedure TLibraryTask.SetTaskTemplateCount(inputTaskTemplateCount: word);
+begin
+
+ setlength(FTaskTemplateName, inputTaskTemplateCount);
+end;
+
 
 //------------------------------------------------------------------------------
 //---------- Данные для TLibraryList ---------------------------------------
@@ -339,12 +351,26 @@ LibraryList:= TLibraryList.Create;; //TObjectList<TLibraryTaskInfo>.Create;
 FileList:= TFileList.Create();
 
 iniFile:= TIniFile.Create(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.ini' )));
-AssignFile(logFile, sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log' )));
-if FileExists(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log' ))) then Append(logFile) else Rewrite(logFile);
+logFileName:= sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log'));
+
+{
+FileMode:= fmOpenReadWrite or fmShareDenyWrite;
+AssignFile(logFile, logFileName);
+if FileExists(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log' ))) then
+ Append(logFile)
+else
+ Rewrite(logFile);
+}
+logFileStream:= TStringList.Create;
+
 
 //StreamWriter:= TFile.CreateText('d:\Task_3_SimpleNumbers.txt');
 
 finalization
+
+FreeAndNil(LibraryList);
+FreeAndNil(iniFile);
+FreeAndNil(logFileStream);
 //StreamWriter.Free;
 
 end.

@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, Vcl.ExtCtrls,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, ActiveX, Vcl.AxCtrls, Vcl.ExtCtrls,
   Vcl.Menus, IOUtils, Types, DateUtils,
   unConst;
 
@@ -44,6 +44,7 @@ type
     procedure FormShow(Sender: TObject);
     procedure bStopClick(Sender: TObject);
     procedure memInfoTread1Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
 //    message WM_WINDOWPOSCHANGING;
@@ -70,7 +71,7 @@ var
   tmpWord: word;
   tmpString: WideString;
 begin
-//tmpWord:= 47653;
+//  if MessageData.CopyDataStruct.dwData = CMD_SetMemoLine then
   if MessageData.CopyDataStruct.dwData = CMD_SetMemoLine then
   begin
   tmpString:= PWChar(MessageData.CopyDataStruct.lpData);
@@ -191,11 +192,21 @@ finally
 end;
 end;
 
+procedure TformMain.FormCreate(Sender: TObject);
+begin
+//--- Проверка минимальной версии ОС, необходимой для работы данного ПО
+  if not (Assigned(GetProcAddress(GetModuleHandle(kernel32), 'AddDllDirectory'))) then
+  begin
+    showmessage(wsUncknownVersionOS);
+    Application.Terminate;
+  end;
+end;
+
 procedure TformMain.FormShow(Sender: TObject);
 begin
 //--- Что бы сразу открывалось окно с настройками
-  formMain.miToolsClick(Sender);
   formMain.memInfoTread.Clear;
+  formMain.miToolsClick(Sender);
 end;
 
 procedure TformMain.HandleProc(var updMessage: TMessage);
@@ -210,13 +221,56 @@ end;
 procedure TformMain.lbThreadListClick(Sender: TObject);
 var
   tmpInt: integer;
+  tmpResultBuffer: Pointer;
+  tmpHandle: THandle;
+  tmpBytes: TArray<Byte>;
+  tmpIStream: IStream;
+
 begin
+try
  if not ((lbThreadList.ItemIndex > -1) and ((Sender as TListBox).ItemIndex <= (Sender as TListBox).Items.Count)) then
  begin
   exit;
  end;
 
+ tmpInt:= lbThreadList.ItemIndex;
+
  SetButtonState_ThreadList(lbThreadList.ItemIndex);
+
+//--- Выведем информацию о результате выполнения задачи в TMemo
+try
+// TaskList[tmpInt].Stream.ReadBuffer(tmpResultBuffer, TaskList[tmpInt].Stream.Size);
+
+// tmpIStream:= TaskList[tmpInt].TaskSource.Task2_ResultStream;
+// TaskList[tmpInt].Stream:= TOleStream.Create(tmpIStream);
+// setlength(tmpBytes, TaskList[tmpInt].Stream.Size*2 + 1);
+ tmpHandle:= HeapCreate(0, TaskList[tmpInt].Stream.Size, 0);
+ tmpResultBuffer:= HeapAlloc(tmpHandle, HEAP_ZERO_MEMORY, TaskList[tmpInt].Stream.Size);
+
+ TaskList[tmpInt].Stream.Position:= 0;
+// TaskList[tmpInt].Stream.ReadBuffer(tmpBytes[0], TaskList[tmpInt].Stream.Size);
+// TaskList[tmpInt].Stream.ReadBuffer(tmpResultBuffer, TaskList[tmpInt].Stream.Size);
+
+//--- ???????????????????????????????????????????????????????????????????????????
+// TaskList[tmpInt].MemoryStream. LoadFromStream(TaskList[tmpInt].Stream);
+// memInfoTread1.Lines.LoadFromStream(TaskList[tmpInt].Stream.ReadBuffer(tmpResultBuffer, TaskList[tmpInt].Stream.Size));
+
+
+
+except
+ on E: Exception {EStreamError} do
+ begin
+  WriteDataToLog(E.ClassName + ', E.Message = ' + E.Message, 'TformMain.lbThreadListClick', 'unMain');
+ end;
+end;
+
+//--- Выведем лог ошибок текущей задачи в TMemo
+ memInfo_2.Lines.LoadFromFile(logFileName);
+
+finally
+ HeapFree(tmpHandle, 0, tmpResultBuffer);
+end;
+
 
 // memInfoTread.SelStart := Perform(EM_LINEINDEX, lbThreadList.ItemIndex, 0) + 2; // start two chars beyond the linestart
 // memInfoTread.SelLength:= Perform(EM_LINELENGTH, memInfoTread.SelStart,0) - 2; // decrease the whole length by these two chars
@@ -318,11 +372,5 @@ end;
 initialization
 
 finalization
- if Assigned(iniFile) then
-  FreeAndNil(iniFile);
- try
-  CloseFile(logFile);
- finally
- end;
 
 end.

@@ -2,7 +2,8 @@ unit unUtilCommon;
 
 interface
 uses
-  Windows, TlHelp32, ImageHlp, PsAPI, SysUtils, Classes, Forms, Controls, StdCtrls;
+  Windows, TlHelp32, ImageHlp, PsAPI, SysUtils, Classes, Forms, Controls, StdCtrls,
+  DateUtils;
 
 
 function GetSubStr(FullString:String;Index:Byte;Count:Integer):String;
@@ -10,8 +11,12 @@ function IndexInString(SubStr,FullString:String; MyPosBegin: Word): Word;
 function StreamToString(Stream: TStream): String;
 function translate_utf8_ansi(const Source: string):string;
 procedure ListDLLsForProcess(inputProcessID: DWORD; outputStringList: TStrings);
+procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
+function ByteToWS(inputBytes: TArray<Byte>; inputBytesSize: dword): WideString;
+
 
 implementation
+uses unVariables;
 
 function GetSubStr(FullString:String;Index:Byte;Count:Integer):String;
 begin
@@ -111,6 +116,49 @@ begin
     end;
   finally
     CloseHandle(Snapshot);
+  end;
+end;
+
+procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
+var
+  tmpWideString: WideString;
+begin
+ CriticalSection.Enter;
+ tmpWideString:= '-------------------------------------------------------------'
+                + #13#10
+                + DatetimeToStr(today())
+                + #13#10
+                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
+                + #13#10
+                + E_source1
+                + #13#10
+                + '-------------------------------------------------------------';
+ logFileStream.Add(tmpWideString);
+ logFileStream.SaveToFile(logFileName);
+
+{
+ WriteLn(logFile, '-------------------------------------------------------------');
+ WriteLn(logFile, FormatDateTime('yyyy.mm.dd', Today()) + '  ' + FormatDateTime('hh:mm:ss', Time()));
+ WriteLn(logFile, #13#10);
+ WriteLn(logFile, 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName);
+ tmpString:= E_source1;
+ WriteLn(logFile, 'Msg: ' + tmpString);
+ WriteLn(logFile, '-------------------------------------------------------------');
+}
+ CriticalSection.Leave;
+end;
+
+function ByteToWS(inputBytes: TArray<Byte>; inputBytesSize: dword): WideString;
+var
+  tmpPChar: PChar;
+  tmpWord: word;
+  tmpStr: AnsiString;
+begin
+  Result:= '';
+  if inputBytesSize < 1 then
+  begin
+   Result:= '';
+   exit;
   end;
 end;
 //==========================================================================================================================================

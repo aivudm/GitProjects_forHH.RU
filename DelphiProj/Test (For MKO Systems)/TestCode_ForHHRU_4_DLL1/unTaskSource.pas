@@ -8,11 +8,13 @@ const
   ItemDelemiter = ';';
   wsBeginMask: WideString = '*.';
   wsAllMask: WideString = '*';
+  wsTask1_Name: WideString = 'Поиск файлов по маске';
+  wsTask2_Name: WideString = 'Поиск в файлах по шаблонам';
   wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
   wsTask2_Result_TemplateView: WideString = 'Шаблон: %12s, Позиция в файле: %d';
   wsTask2_TotalResult_TemplateView: WideString = 'Шаблон: %12s, Всего совпадений: %d';
-
+  wsResultStreamTitle: WideString = 'Задача в библиотеке №';
 
 //--- Для Задачи №2 ------------------------------------------------------------
 const
@@ -55,22 +57,15 @@ type
   end;
 
 //------------------------------------------------------------------------------
-//--- Выходные параметры Задачи №1 (Индекс задачи в библиотеке - 0)
+//--- Выходные параметры Задач: №1,№2 (Индексы задач в библиотеке: 0, 1)
 
-  TTask1_Result = packed record
+  TTask_Result = packed record
     dwEqualsCount: DWORD;
-  end;
-
-//------------------------------------------------------------------------------
-//--- Выходные параметры Задачи №2 (Индекс задачи в библиотеке - 1)
-
-  TTask2_Result = packed record
     SearchPattern: TSearchPattern;
-    dwEqualsCount: DWORD;
   end;
 
 //------------------------------------------------------------------------------
-  TTask2_Results = array of TTask2_Result;
+  TTask_Results = array of TTask_Result;
   TArray_WideString = array [0..High(Byte)] of WideString;
 //------------------------------------------------------------------------------
 
@@ -93,8 +88,7 @@ function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): 
 //--- Для Задачи №2 ------------
 procedure GetPatternsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputPatternCount: word);
 function GetPosForPattern(inputBuffer: Pointer; inputFileSize: DWORD; inputSearchPatternSet: TSearchPatternSet; inputPosBeginSearch: DWORD): DWORD;
-procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask2_Results; inputStreamWriter: TStreamWriter);
-//procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; out outTask2_Result: TTask2_Results; inputStreamWriter: TStreamWriter);
+procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask_Results; inputStreamWriter: TStreamWriter);
 function WSToByte(inputWideString: WideString): TSearchPattern;
 function ByteToWS(inputBytes: TSearchPattern; inputBytesSize: dword): WideString;
 
@@ -327,7 +321,7 @@ begin
  Result:= Result + #0;
 end;
 
-procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask2_Results; inputStreamWriter: TStreamWriter);
+procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask_Results; inputStreamWriter: TStreamWriter);
 var
   tmpFileStream: TFileStream;
   tmpTargetFileBuffer: TTargetFile;

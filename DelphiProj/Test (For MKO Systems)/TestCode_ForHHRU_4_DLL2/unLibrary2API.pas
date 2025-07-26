@@ -1,4 +1,4 @@
-unit unLibrary1API;
+unit unLibrary2API;
 {$A8}
 {$MINENUMSIZE 4}
 interface
@@ -7,8 +7,8 @@ uses
   unVariables, unEditInputParams_Task1, unTaskSource;
 
 const
-  dllLibraryId: DWORD = 0;
-  dllFuncName: BSTR = 'Файловый функционал (Библиотека №1)';
+  dllLibraryId: DWORD = 1;
+  dllFuncName: BSTR = 'Запуск внешних приложений (Библиотека №2)';
   dllVersion: BSTR = '1.0';
 
 type
@@ -137,9 +137,8 @@ function TLibraryAPI.GetTaskList: IBSTRItems;
 var
   tmpInfoRecordData: array of WideString;
 begin
-  SetLength(tmpInfoRecordData, 2);
+  SetLength(tmpInfoRecordData, 1);
   tmpInfoRecordData[0] := wsTask1_Name;
-  tmpInfoRecordData[1] := wsTask2_Name;
 
   Result := TBSTRItems.Create(tmpInfoRecordData);
 end;
@@ -150,7 +149,6 @@ var
 begin
   tmpTaskSource:= TTaskSource.Create(TaskLibraryIndex);
   Result:= tmpTaskSource;
-
 end;
 
 

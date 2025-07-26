@@ -2,7 +2,7 @@ object formTools: TformTools
   Left = 0
   Top = 0
   Caption = #1053#1072#1089#1090#1088#1086#1081#1082#1072
-  ClientHeight = 399
+  ClientHeight = 456
   ClientWidth = 286
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -78,7 +78,7 @@ object formTools: TformTools
     Caption = #1055#1077#1088#1077#1095#1077#1085#1100' '#1073#1080#1073#1083#1080#1086#1090#1077#1082
     TabOrder = 2
     object btnLoadLibrary: TButton
-      Left = 147
+      Left = 149
       Top = 103
       Width = 123
       Height = 25
@@ -94,6 +94,15 @@ object formTools: TformTools
       ItemHeight = 13
       TabOrder = 1
       OnClick = lbLibraryListClick
+    end
+    object Button1: TButton
+      Left = 5
+      Top = 103
+      Width = 123
+      Height = 25
+      Caption = #1059#1076#1072#1083#1080#1090#1100' '#1073#1080#1073#1083#1080#1086#1090#1077#1082#1091
+      TabOrder = 2
+      OnClick = Button1Click
     end
   end
   object MainMenu1: TMainMenu

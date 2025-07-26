@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Menus, Vcl.ExtCtrls, Vcl.StdCtrls, IOUtils;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Menus, Vcl.ExtCtrls, Vcl.StdCtrls, IOUtils, ActiveX, Vcl.AxCtrls;
 
 type
   TformTools = class(TForm)
@@ -21,6 +21,7 @@ type
     btnLoadLibrary: TButton;
     lbLibraryList: TListBox;
     odGetLibrary: TOpenDialog;
+    Button1: TButton;
     procedure miExitClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure btnNewThreadClick(Sender: TObject);
@@ -30,6 +31,7 @@ type
     procedure btnLoadLibraryClick(Sender: TObject);
     procedure lbLibraryListClick(Sender: TObject);
     procedure SaveSettingsformTools(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
     procedure WMWINDOWPOSCHANGING(var Msg: TWMWINDOWPOSCHANGING); message WM_WINDOWPOSCHANGING;
@@ -44,7 +46,7 @@ var
 implementation
 
 {$R *.dfm}
-uses unMain, unConst, unVariables, unTasks, unDM, unUtils;
+uses unMain, unConst, unVariables, unTasks, unDM, unUtils, unUtilCommon;
 
 procedure TformTools.WMWindowPosChanging(var Msg: TWMWindowPosChanging);
 begin
@@ -69,28 +71,48 @@ begin
  try
 //--- Настроим передачу информации от потоков в главное окно согласно выбранному типу
 
-
   //--- Назначение задачи (из списка доступных задач) новому потоку
   //--- 1. Создаём новый объект "Задача", затем помещаем его в массив объектов типа "Список Задач"
   //--- Порядковый номер библиотеки в Перечне библиотек и порядковый номер шаблона задачи точно соответствуют
   //--- их порядковым номерам в визуальных компонентах lbLibraryList и lbTemplateTaskList
-  iTaskListNum:= TaskList.Add(TTaskItem.Create(lbLibraryList.ItemIndex, lbTemplateTaskList.ItemIndex, tsNotDefined));
-  //--- Запись номера задачи в текущем списке активных задач в объект TaskItem
+  iTaskListNum:= TaskList.Add(TTaskItem.Create(LibraryList[lbLibraryList.ItemIndex].LibraryId, lbTemplateTaskList.ItemIndex, tsNotDefined));
+  //--- Запись Id библиотеки (так как индексы задач в библиотеках нумеруются с 0 (не уникальны))
+  //--- и текущего номера задачи (в текущем списке активных задач) в объект TaskItem
   TaskList[iTaskListNum].SetTaskNum(iTaskListNum);
 
-  //--- 2. Создаём новый объект "Исходник Задачи", затем помещаем его в массив объектов типа "Список Исходников Задач" - нужна реализация каждого объекта, так как они будут выполняться в потоках
-  tmpIntrfDllAPI:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI;
-  tmpIntrfTaskSource:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex);
-  TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex));
-//  TaskList[iTaskListNum].SetTaskSource(tmpIntrfTaskSource);
 
-  TaskList[iTaskListNum].TaskSource.TaskMainModuleIndex:= iTaskListNum;
-//  tmpIntrfTaskSource.TaskMainModuleIndex:= iTaskListNum;
-  tmpIntrfDllAPI:= nil;
-  tmpIntrfTaskSource:= nil;
+  //--- 2. Создаём новый объект "Исходник Задачи", затем помещаем его в массив объектов типа "Список Исходников Задач" - нужна реализация каждого объекта, так как они будут выполняться в потоках
+  try
+   TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex));
+
+//   tmpIntrfDllAPI:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI;
+//   tmpIntrfTaskSource:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex);
+//   tmpIntrfTaskSource:= tmpIntrfDllAPI.NewTaskSource(lbTemplateTaskList.ItemIndex);
+//   TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex));
+ //  TaskList[iTaskListNum].SetTaskSource(tmpIntrfTaskSource);
+
+   TaskList[iTaskListNum].TaskSource.TaskMainModuleIndex:= iTaskListNum;
+//   tmpIntrfTaskSource.TaskMainModuleIndex:= iTaskListNum;
+
+//--- 2.1 Настройка потока передачи результатов из библиотек в главный модуль
+   TaskList[iTaskListNum].Stream:= TOleStream.Create(TaskList[iTaskListNum].TaskSource.Task_ResultStream);
+
+//--- Запускаем получение потока из задачи в библиотеке
+   TaskList[iTaskListNum].Stream.Position:= 0;
+//   TaskList[iTaskListNum].MemoryStream.LoadFromStream(TaskList[iTaskListNum].Stream);
+
+
+  finally
+   tmpIntrfDllAPI:= nil;
+   tmpIntrfTaskSource:= nil;
+  end;
+
+//--- Запишем в лог событие - создание нового потока - Задачи
+  WriteDataToLog(format(wsEvent_ThreadCreated, [iTaskListNum]), 'formTools.btnNewThreadClick()', 'unTools');
+
 
 //--- 3. Добавляем "Новый Поток" в перечень потоков (комбобокс)
-  formMain.lbThreadList.Items.Add(format(sHeaderThreadInfo + '%3d: %s',
+  formMain.lbThreadList.Items.Add(format(wsHeaderThreadInfo + '%3d: %s',
                                                               [iTaskListNum,
                                                               TaskList[iTaskListNum].TaskName]));
 
@@ -103,12 +125,24 @@ begin
   GetWindowThreadProcessId(formMain.memInfoTread.Handle, @tmpDWord);
   TaskList[iTaskListNum].ThreadIDWinForView:= tmpDWord;
 
-  //--- После подготовки всех объектов присваиваем задаче состояние - tsActive
-  TaskList[iTaskListNum].TaskState:= tsActive;
+//--- Запускаем Задачу на выполнение
+   TaskList[iTaskListNum].TaskState:= tsActive;
+   TaskList[iTaskListNum].Suspended:= false;
 
  finally
-
+   FreeAndNil(tmpIntrfDllAPI);
+   FreeAndNil(tmpIntrfTaskSource);
  end;
+end;
+
+procedure TformTools.Button1Click(Sender: TObject);
+begin
+ if lbLibraryList.ItemIndex < 1 then
+  exit;
+
+ LibraryList[lbLibraryList.ItemIndex].Free;
+
+ lbLibraryList.DeleteSelected;
 end;
 
 procedure TformTools.btnLoadLibraryClick(Sender: TObject);
@@ -123,7 +157,9 @@ begin
    if TFile.Exists(sWorkDirectory) then
     odGetLibrary.InitialDir:= sWorkDirectory;
    if Not odGetLibrary.Execute(formTools.Handle) then Exit;
-  end;
+  end
+  else
+   LibraryList.Clear;
 
 //--- Создание объекта библиотек
 //--- состоит из: имени шаблона задачи и индекса задачи в библиотеке
@@ -139,11 +175,9 @@ begin
  //--- Если наименование не получено от Dll, значит Dll "не наша", просто пропускаем её
   if tmpLibraryTask.LibraryName <> '' then
    begin
+    LibraryList[tmpLibraryNum]:= tmpLibraryTask;
  //--- Добавим библиотеку в список доступных библиотек в визуальном компоненте (ListBox)
     lbLibraryList.Items.Add(tmpLibraryTask.LibraryName);
-//--- Сохраним полный путь библиотеки в .ini файле
-    if Assigned(iniFile) then
-      iniFile.WriteString('formTools Settings', format('lbLibraryList_Item%d  ', [tmpItem]), odGetLibrary.Files.Strings[tmpItem]);
    end
    else
     LibraryList[tmpLibraryNum].Free;
@@ -156,6 +190,11 @@ procedure TformTools.FormClose(Sender: TObject; var Action: TCloseAction);
 var
   tmpWord: word;
 begin
+try
+
+ formMain.miTools.Enabled:= true;
+ SaveSettingsformTools(Sender);
+
  if TaskList.Count <1 then exit;
 
  for tmpWord:=0 to (TaskList.Count - 1) do
@@ -168,29 +207,40 @@ begin
 //   sleep(300); //--- ждём завершения текущей щадачи
  end;
 
- formMain.miTools.Enabled:= true;
- SaveSettingsformTools(Sender);
+finally
+
+end;
 
 end;
 
 procedure TformTools.FormCreate(Sender: TObject);
 var
-  tmpWord: word;
+  tmpInt: integer;
   tmpString: WideString;
+  tmpStrings: TStringList;
 begin
+try
 // TaskInitialize;
-  odGetLibrary.Files.Clear;
-  for tmpWord:= 0 to 100 {заведомо большое количество библиотек} do
-  begin
-   tmpString:= iniFile.ReadString('formTools Settings', format('lbLibraryList_Item%d  ', [tmpWord]), '');
-   if tmpString <> '' then
-    odGetLibrary.Files.Add(tmpString)
-   else
-   break;
-  end;
-
-  if odGetLibrary.Files.Count > 0 then
-    formTools.btnLoadLibraryClick(Sender);
+ iniFile.ReadBool(wsIniToolsTitle2, wsIniExchangeType_WMCopyData, true);
+//--- Считывание библиотек из *.ini
+ odGetLibrary.Files.Clear;
+ tmpStrings:= TStringList.Create;
+ tmpStrings.Clear;
+ iniFile.ReadSection(wsIniToolsTitle1, tmpStrings);
+ for tmpInt:= 0 to tmpStrings.Count - 1 do
+ begin
+  tmpString:= iniFile.ReadString(wsIniToolsTitle1, tmpStrings[tmpInt], '');
+  if FileExists(tmpString) then
+     odGetLibrary.Files.Add(tmpString)
+  else
+   if tmpString = '' then
+    iniFile.DeleteKey(wsIniToolsTitle1, format(wsIniLibraryPath_Item, [tmpInt]));
+ end;
+ if odGetLibrary.Files.Count > 0 then
+  formTools.btnLoadLibraryClick(Sender);
+finally
+  FreeAndNil(tmpStrings);
+end;
 end;
 
 procedure TformTools.FormShow(Sender: TObject);
@@ -226,7 +276,7 @@ begin
    begin
     DM.PrepareServerSetting(false);
     ModulsExchangeType:= etMessage_WMCopyData;
-    formMain.sbMain.Panels[0].Text:= 'Режим: Message WM_CopyData';
+    formMain.sbMain.Panels[0].Text:= wsNameExchangeType_WMCopyData;
    end;
 
   if self.rbClientServer_udp.Checked then
@@ -240,12 +290,36 @@ begin
 end;
 
 procedure TformTools.SaveSettingsformTools(Sender: TObject);
+var
+  tmpInt: integer;
+  tmpStrings: TStringList;
 begin
 try
+//--- Сохрание настроек в .ini файле
+//------------------------------------------------
+ if not Assigned(iniFile) then
+    exit;
 
- iniFile.WriteBool('formTools Settings', 'rbMessage_WMCoptData', true);
+ iniFile.WriteBool(wsIniToolsTitle2, wsIniExchangeType_WMCopyData, true);
+
+//--- Удалим предыдудущие записи о библиотеках из *.ini for tmpWord:= 0 to lbLibraryList.Items.Count - 1 do
+ tmpStrings:= TStringList.Create;
+ iniFile.ReadSection(wsIniToolsTitle1, tmpStrings);
+ for tmpInt:= 0 to tmpStrings.Count - 1 do
+ begin
+  iniFile.DeleteKey(wsIniToolsTitle1, tmpStrings[tmpInt]);
+ end;
+
+ if lbLibraryList.Items.Count < 1 then
+  exit;
+//--- Запишем в *.ini текущие библиотеки
+ for tmpInt:= 0 to lbLibraryList.Items.Count - 1 do
+ begin
+  iniFile.WriteString(wsIniToolsTitle1, format(wsIniLibraryPath_Item, [tmpInt]), LibraryList[tmpInt].LibraryFileName);
+ end;
 
 finally
+ FreeAndNil(tmpStrings);
 end;
 end;
 

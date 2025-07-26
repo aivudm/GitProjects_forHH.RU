@@ -14,6 +14,7 @@ object formMain: TformMain
   OldCreateOrder = False
   Position = poDesktopCenter
   OnClose = FormClose
+  OnCreate = FormCreate
   OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
@@ -32,9 +33,9 @@ object formMain: TformMain
     Caption = #1048#1085#1092#1086#1088#1084#1072#1094#1080#1103' '#1086' '#1079#1072#1076#1072#1095#1072#1093' ('#1087#1086#1090#1086#1082#1072#1093')'
     TabOrder = 0
     object memInfoTread1: TMemo
-      Left = 399
+      Left = 3
       Top = 247
-      Width = 590
+      Width = 595
       Height = 89
       HideSelection = False
       ScrollBars = ssBoth
@@ -44,7 +45,7 @@ object formMain: TformMain
       OnClick = memInfoTread1Click
     end
     object memInfo_2: TMemo
-      Left = 0
+      Left = 604
       Top = 247
       Width = 385
       Height = 89

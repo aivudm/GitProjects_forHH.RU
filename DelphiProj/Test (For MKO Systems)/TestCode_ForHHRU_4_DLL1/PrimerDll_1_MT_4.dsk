@@ -16,12 +16,17 @@ File_13=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\RTL\SYS\System.pas',0,1
 File_14=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Controls.pas',0,1,7344,1,7366,0,0,,
 
 [Modules]
-Module0=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\PrimerDll_1_MT_4.dproj
-Module1=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unVariables.pas
-Module2=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unTaskSource.pas
-Module3=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unLibrary1API.pas
+Module0=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unLibrary1API.pas
+Module1=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\PrimerDll_1_MT_4.dproj
+Module2=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unVariables.pas
+Module3=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unTaskSource.pas
 Count=4
 EditWindowCount=1
+
+[D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unLibrary1API.pas]
+ModuleType=TSourceModule
+FormState=0
+FormOnTop=0
 
 [D:\DelphiProj\TestCode_ForHHRU_4_DLL1\PrimerDll_1_MT_4.dproj]
 ModuleType=TBaseProject
@@ -36,14 +41,9 @@ ModuleType=TSourceModule
 FormState=0
 FormOnTop=0
 
-[D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unLibrary1API.pas]
-ModuleType=TSourceModule
-FormState=0
-FormOnTop=0
-
 [EditWindow0]
 ViewCount=4
-CurrentEditView=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\PrimerDll_1_MT_4.dpr
+CurrentEditView=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unLibrary1API.pas
 View0=0
 View1=1
 View2=2
@@ -104,7 +104,7 @@ CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unTaskSource.pas
 CursorX=43
 CursorY=5
-TopLine=1
+TopLine=7
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -115,7 +115,7 @@ CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unVariables.pas
 CursorX=58
 CursorY=187
-TopLine=167
+TopLine=189
 LeftCol=1
 Elisions=
 Bookmarks=

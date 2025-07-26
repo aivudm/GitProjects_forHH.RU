@@ -1,7 +1,8 @@
 unit unVariables;
 
 interface
-uses Windows, SysUtils, Classes, IOUtils, ActiveX, ComObj, Vcl.AxCtrls, System.Diagnostics, System.Contnrs, Dialogs,
+uses Windows, SysUtils, Classes, IOUtils, ActiveX, ComObj, Vcl.AxCtrls,
+     System.Diagnostics, System.Contnrs, Dialogs, IniFiles,
      unTaskSource, unEditInputParams_Task1, unEditInputParams_Task2;
 
 type
@@ -50,15 +51,16 @@ type
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
    procedure TaskProcedure(TaskLibraryIndex: word); safecall;
    function GetTaskLibraryIndex: word;
-   function GetTask1_Result: TTask1_Result; safecall;
-   function GetTask2_Result(ResultIndex: integer): TTask2_Result; safecall;
-   function GetTask2_TotalResult: DWORD; safecall;
-   function GetTask2_ResultBuffer: Pointer; safecall;
+   function GetTask_Result: TTask_Result; safecall;
+   function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
+   function GetTask_TotalResult: DWORD; safecall;
+   function GetTask_ResultStream: IStream; safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
-   property Task1_Result: TTask1_Result read GetTask1_Result;
-   property Task2_Results[ResultIndex: integer]: TTask2_Result read GetTask2_Result; // write SetTask2_Result;
-   property Task2_TotalResult: DWORD read GetTask2_TotalResult;
+   property Task_Result: TTask_Result read GetTask_Result;
+   property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex;
+   property Task_TotalResult: DWORD read GetTask_TotalResult;
+   property Task_ResultStream: IStream read GetTask_ResultStream;
    property TaskMainModuleIndex: WORD write SetTaskMainModuleIndex;
   end;
 
@@ -69,32 +71,35 @@ type
     FTaskMainModuleIndex: word;
     FTaskSourceList: word;
     FTaskState: TTaskState;
-    FResultBuffer: Pointer;
-    FStopWatch: TStopWatch;
+    FTaskMemoryStream: TMemoryStream;
+    FTaskResultStream: IStream;
+//    FStopWatch: TStopWatch;
    protected
-    FTask1_Result: TTask1_Result;
+    FTask_Result: TTask_Result;
     procedure TaskProcedure(TaskLibraryIndex: word); safecall;
-    function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+    function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 //    function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask2_Result: TTask2_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
-    function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask2_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+    function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 
    public
-    FTask2_TotalResult: DWORD;
-    FTask2_Results: TTask2_Results;
+    FTask_TotalResult: DWORD;
+    FTask_Results: TTask_Results;
     constructor Create(TaskLibraryIndex: word);
+    destructor Destroy(); overload;
     function GetTaskLibraryIndex: word;
-    function GetTask1_Result: TTask1_Result; safecall;
-    function GetTask2_Result(ResultIndex: integer): TTask2_Result; safecall;
-    function GetTask2_TotalResult: DWORD; safecall;
-    function GetTask2_ResultBuffer: Pointer; safecall;
+    function GetTask_Result: TTask_Result; safecall;
+    function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
+    function GetTask_TotalResult: DWORD; safecall;
+    function GetTask_ResultStream: IStream; safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
     property TaskMainModuleIndex: WORD write FTaskMainModuleIndex;
     property TaskState: TTaskState read FTaskState write FTaskState;
-    property StopWatch: TStopWatch read FStopWatch write FStopWatch;
-    property Task1_Result: TTask1_Result read FTask1_Result write FTask1_Result;
-    property Task2_Results[ResultIndex: integer]: TTask2_Result read GetTask2_Result; // write SetTask2_Result;
-    property Task2_TotalResult: DWORD read GetTask2_TotalResult;
+//    property StopWatch: TStopWatch read FStopWatch write FStopWatch;
+    property Task_Result: TTask_Result read FTask_Result write FTask_Result;
+    property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex; // write SetTask2_Result;
+    property Task_TotalResult: DWORD read GetTask_TotalResult;
+    property Task_ResultStream: IStream read GetTask_ResultStream;
   end;
 
 
@@ -115,6 +120,7 @@ type
 var
   LoadLibraryEx: function(lpFileName: PChar; Reserved: THandle; dwFlags: DWORD): HMODULE; stdcall;
   TaskSourceList: TTaskSourceList; //--- Массив для хранения всех созданных задач
+  bDllInitExecuted: boolean = false;
 
 //  SetDllDirectory: function(lpPathName: PChar): BOOL; stdcall;
 //  SetSearchPathMode: function(Flags: DWORD): BOOL; stdcall;
@@ -171,11 +177,34 @@ end;
 //------------------------------------------------------------------------------
 
 constructor TTaskSource.Create(TaskLibraryIndex: word);
+var
+  tmpString: AnsiString;
+
 begin
  inherited Create();
    FTaskLibraryIndex:= TaskLibraryIndex;
-   FTaskSourceList:= TaskSourceList.Add(self);
+//--- Создание потока для обмена результатами с главным модулем
+  FTaskMemoryStream:= TMemoryStream.Create;
+//--- Запись в поток "начальных данных", что бы поток не был нулевой длины, иначе ошибка в главном модуля
+//--- на моменте создания объекта задачи
+  tmpString:= wsResultStreamTitle + inttostr(TaskLibraryIndex);
+  FTaskMemoryStream.WriteBuffer(tmpString, length(tmpString));
+
+  FTaskResultStream:= TStreamAdapter.Create(FTaskMemoryStream, soReference);
+
+//--- Добавление созданного объекта Задачи в список Задач
+//   FTaskSourceList:= TaskSourceList.Add(self);
+
 end;
+
+//------------------------------------------------------------------------------
+destructor TTaskSource.Destroy();
+begin
+  FreeAndNil(FTaskMemoryStream);
+  FreeAndNil(FTaskResultStream);
+ inherited Destroy();
+end;
+
 
 //------------------------------------------------------------------------------
 function TTaskSource.GetTaskLibraryIndex: WORD;
@@ -190,43 +219,43 @@ begin
 end;
 
 //------------------------------------------------------------------------------
-function TTaskSource.GetTask1_Result: TTask1_Result; safecall;
+function TTaskSource.GetTask_Result: TTask_Result; safecall;
 begin
-  Result:= FTask1_Result;
+  Result:= FTask_Result;
 end;
 
 //------------------------------------------------------------------------------
 
-function TTaskSource.GetTask2_Result(ResultIndex: integer): TTask2_Result; safecall;
+function TTaskSource.GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
 begin
 //  if sizeof(FTask2_Results) > ResultIndex then
-  Result:= FTask2_Results[ResultIndex];
+  Result:= FTask_Results[ResultIndex];
 end;
 
 //------------------------------------------------------------------------------
 
-function TTaskSource.GetTask2_TotalResult: DWORD; safecall;
+function TTaskSource.GetTask_TotalResult: DWORD; safecall;
 var
   tmpWord: word;
 begin
   Result:= 0;
 //--- Суммируем результаты по всем шаблонам в общий результат
-  if length(FTask2_Results) > 0 then
+  if length(FTask_Results) > 0 then
   begin
-   FTask2_TotalResult:= 0;
-   for tmpWord:= 0 to (length(FTask2_Results) - 1) do
-     FTask2_TotalResult:= FTask2_TotalResult + FTask2_Results[tmpWord].dwEqualsCount;
-   Result:= FTask2_TotalResult;
+   FTask_TotalResult:= 0;
+   for tmpWord:= 0 to (length(FTask_Results) - 1) do
+     FTask_TotalResult:= FTask_TotalResult + FTask_Results[tmpWord].dwEqualsCount;
+   Result:= FTask_TotalResult;
   end;
 end;
 
 //------------------------------------------------------------------------------
 
-function TTaskSource.GetTask2_ResultBuffer: Pointer; safecall;
+function TTaskSource.GetTask_ResultStream: IStream; safecall;
 begin
 try
 finally
-  Result:= FResultBuffer;
+  Result:= FTaskResultStream;
 end;
 end;
 
@@ -271,7 +300,7 @@ try
 
     self.Task1_FileFinderByMask(WideString(tmpTask1_Parameters.inputParam1), WideString(tmpTask1_Parameters.inputParam2),
                                 WideString(tmpTask1_Parameters.inputParam3), tmpTask1_Parameters.inputParam4,
-                                FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask1_Result); //, nil, 0);
+                                FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask_Result); //, nil, 0);
    end;
 
 
@@ -304,7 +333,7 @@ try
 //    GetPatternsFromString(WideString(Task2_Parameters.inputParam1), tmpArray_WideString, tmpWord);
 //    setlength(self.FTask2_Results, tmpWord);
 
-    self.FTask2_TotalResult:= 0;
+    self.FTask_TotalResult:= 0;
     tmpTask2_Parameters.inputParam1:= Task2_Parameters.inputParam1;
     tmpTask2_Parameters.inputParam2:= Task2_Parameters.inputParam2;
     tmpTask2_Parameters.inputParam3:= Task2_Parameters.inputParam3;
@@ -314,11 +343,11 @@ try
 
 //--- Если выбран режим передачи результата через память, то выделим память (сначала мин. объём = 4096 (Б)
 //--- по мере увеличения объёма требующейся памяти, по ходу выполнения, будет выполнено увеличение размера буфера
-    SysAllocStringLen(self.FResultBuffer, Task2_DefaultBufferSize);
+//    SysAllocStringLen(self.FResultBuffer, Task2_DefaultBufferSize);
 
     self.Task2_FindInFilesByPattern(WideString(tmpTask2_Parameters.inputParam1), WideString(tmpTask2_Parameters.inputParam2),
                                     WideString(tmpTask2_Parameters.inputParam3), tmpTask2_Parameters.inputParam4,
-                                    FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask2_Results); //, nil, 0);
+                                    FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask_Results); //, nil, 0);
 
    end;
 
@@ -329,7 +358,7 @@ end;
  end;
 
 //------------------------------------------------------------------------------
-function TTaskSource.Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+function TTaskSource.Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 var
   inputParam5, iProcedureWorkTime: DWORD;
   tmpTargetFile: WideString;
@@ -411,11 +440,6 @@ try
 
 
 
-
-
-
-
-
 finally
  if Win32Check(Assigned(tmpStreamWriter)) then
     freeandnil(tmpStreamWriter); //    tmpStreamWriter.Free;
@@ -426,7 +450,7 @@ end;
 //------------------------------------------------------------------------------
 //------------------------- Задача №2 ------------------------------------------
 //------------------------------------------------------------------------------
-function TTaskSource.Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask2_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
+function TTaskSource.Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 var
   tmpWideString: WideString;
   tmpStreamWriter: TStreamWriter;
@@ -462,7 +486,11 @@ try
        else
         tmpWideString:= TDirectory.GetCurrentDirectory() + '\' + tmpWideString;
 //--- Создание файла результата поиска
-        tmpStreamWriter:= TFile.CreateText(tmpWideString);
+        if inputParam4 then //--- Запись результата в файл
+          tmpStreamWriter:= TFile.CreateText(tmpWideString)
+        else //--- Запись результата в память и проброс в главный модуль
+          tmpStreamWriter:= TStreamWriter.Create(self.FTaskMemoryStream);
+
 
 //--- Извлечение элементов-шаблонов из входящей строки (inputParam1)
        GetPatternsFromString(inputParam1, tmpPatternItemsStr, tmpPatternCount);
