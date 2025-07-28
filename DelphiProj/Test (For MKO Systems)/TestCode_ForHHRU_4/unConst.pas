@@ -23,6 +23,7 @@ const
   wsIniToolsTitle2 = 'formTools Settings';
   wsIniExchangeType_WMCopyData = 'rbMessage_WMCopyData';
   wsNameExchangeType_WMCopyData = 'Режим: Message WM_CopyData';
+  wsNameExchangeType_ServerUDP = 'Режим: Сервер UDP [Порт: %5d]';
   wsError_LoadLibrary = 'Ошибка загрузки библиотеки';
   wsError_LoadLibraryWithTargetAPI = 'Ошибка. Библиотека не поддерживает целевой API';
   wsResultPartDll1Task0_InfoFromTask = 'Кол-во файлов по маскам: %3d';

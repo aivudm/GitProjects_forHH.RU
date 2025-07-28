@@ -42,6 +42,7 @@ type
     FBeginTickCount: cardinal;
     FEndTickCount: cardinal;
     FMemoryStream: TMemoryStream;
+    FStringStream: TStringStream;
     FStream: TStream;
     FOLEStream: IStream;  //--- Поток в "COM-формате" принимаем посредством TStreamAdapter
 //    FStopWatch: TStopwatch;
@@ -112,6 +113,7 @@ type
     property InfoFromTask: WideString read FInfoFromTask write FInfoFromTask;
     property StreamWriterNum: word read FSreamWriterNum;
     property Stream: TStream read FStream write FStream;
+    property StringStream: TStringStream read FStringStream write FStringStream;
     property MemoryStream: TMemoryStream read FMemoryStream write FMemoryStream;
     property ThreadIDWinForView: THandle read FThreadIDWinForView write FThreadIDWinForView;
 //    property TimerCycleCount: Int64 read FTimerCycleCount;
@@ -344,20 +346,14 @@ begin
   Result:= self.Terminated;
 end;
 
-
+//------------------------------------------------------------------------------
 procedure TTaskItem.Execute;
 var
   tmpProc: TTaskProcedure;
   tmpWord: word;
   tmpInt64: Int64;
 begin
-
- // задержка необходима для исключения возможности "слишком раннего обращения"
- // к методам или полям обхекта, который ещй не создался полностью.
-// sleep(100);
-
-//--- Сначала задача из библиотеки запускалась здесь
-//  self.FTaskSource.TaskProcedure(self.TaskNum); // FTaskProcedure(self.TaskNum); // вызов алгоритма задачи, заложенного в шаблоне задачи
+try
 //--- Создаём новый объект "Ядро исходника Задачи" - для получения функционала управления потоком
 //--- Делаем это в главном модуле, так как этот объект "продолжение" TaskItem, который становится аналогом
 //--- "callback pump" для TaskSource, который создаётся в библиотеке
@@ -414,7 +410,10 @@ repeat
         begin
           case self.FTaskSource.TaskLibraryIndex of
           0:
-           self.FInfoFromTask:= format(wsResultPartDll1Task0_InfoFromTask, [self.FTaskSource.Task_Result.dwEqualsCount]);
+           begin
+            self.FInfoFromTask:= format(wsResultPartDll1Task0_InfoFromTask, [self.FTaskSource.Task_Result.dwEqualsCount]);
+            self.FStringStream.LoadFromStream(self.FStream);
+           end;
           1:
            begin
             if Win32Check(Assigned(self.FTaskSource)) then
@@ -432,7 +431,7 @@ repeat
 
      case ModulsExchangeType of
      etMessage_WMCopyData:
-      SendReportToMainProcess;  //Synchronize(SendReportToMainProcess);
+      SendReportToMainProcess;
      etClientServerUDP:
       SendReportToMainProcess;
      end;
@@ -444,16 +443,12 @@ repeat
    end;
 
 
-  while (TaskState = tsPause) and (TaskState <> tsTerminate) do
-   begin
+//  while (TaskState = tsPause) and (TaskState <> tsTerminate) do
+//   begin
 //    self.FTaskCore.Suspended:= true; //--- Пережидаем паузу
 //    self.Priority:= tpIdle;
-   end;
+//   end;
 
-(*
-  if self.TaskState = tsPause then
-   self.Suspend; //--- Для отработки (устарело) Пережидаем паузу
-*)
   sleep(round(FCycleTimeValue*0.75)); // 15мс - время выполнениея кода (ниже) и sleep
                                      // это эмуляция квантованного предоставления времени выполнения потока
  until (self.TaskState = tsTerminate);
@@ -479,6 +474,10 @@ repeat
    CriticalSection.Leave;
  end;
 *)
+
+finally
+ FreeAndNil(self.FTaskCore);
+end;
 end; //--- TTaskItem.Execute;
 
 //------------------------------------------------------------------------------
@@ -618,7 +617,7 @@ begin
      begin
       //--- После каждого цикла запускаем передачу информации в окно главной формы
       // OutInfo_ForViewing.TextForViewObject:= OutInfo_ForViewing.TextForViewObject +
-      if formMain.memInfoTread <> nil then
+      if formMain.memInfoThread <> nil then
        self.thrSendInfoToView(OutInfo_ForViewing.TextForViewComponent);
      end;
 

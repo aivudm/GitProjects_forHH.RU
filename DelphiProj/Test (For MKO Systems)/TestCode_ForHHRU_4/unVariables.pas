@@ -193,7 +193,9 @@ var
   hTaskLibrary: THandle;  //--- он же HMODULE
   iniFile: TIniFile;
   logFileName: WideString;
-  logFileStream: TStringList;
+  logFileStringList: TStringList;
+  logFileStream: TStringStream;
+  logFileStream_LastPos: Cardinal = 0;
   logFile: TextFile;
 
 
@@ -211,6 +213,7 @@ var
   LibraryTask: TLibraryTask;
   LibraryList: TLibraryList; //TObjectList<TLibraryTaskInfo>;
   CriticalSection: TCriticalSection;
+  hMemoLogInfo_2: HWND = INVALID_HANDLE_VALUE;  //--- для журнала
 
 
 
@@ -361,7 +364,8 @@ if FileExists(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.E
 else
  Rewrite(logFile);
 }
-logFileStream:= TStringList.Create;
+logFileStringList:= TStringList.Create;
+logFileStream:= TStringStream.Create(logFileStringList.Text, TEncoding.ANSI)
 
 
 //StreamWriter:= TFile.CreateText('d:\Task_3_SimpleNumbers.txt');
@@ -370,6 +374,7 @@ finalization
 
 FreeAndNil(LibraryList);
 FreeAndNil(iniFile);
+FreeAndNil(logFileStream);
 FreeAndNil(logFileStream);
 //StreamWriter.Free;
 

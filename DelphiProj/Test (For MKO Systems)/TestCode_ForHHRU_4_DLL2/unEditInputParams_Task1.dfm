@@ -71,7 +71,7 @@ object formEditParams_Task1: TformEditParams_Task1
     Width = 354
     Height = 21
     TabOrder = 1
-    Text = 'sfc /scannow'
+    Text = 'runas sfc /scannow'
   end
   object btbRunTask: TButton
     Left = 287

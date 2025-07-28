@@ -2,7 +2,7 @@ unit unVariables;
 
 interface
 uses Windows, SysUtils, Classes, IOUtils, ActiveX, ComObj, Vcl.AxCtrls,
-     System.Diagnostics, System.Contnrs, Dialogs, IniFiles,
+     System.Diagnostics, System.Contnrs, Dialogs, IniFiles, EncdDecd,
      unTaskSource, unEditInputParams_Task1, unEditInputParams_Task2;
 
 type
@@ -20,10 +20,7 @@ type
   TTaskState = (tsNotDefined = -1 {одно из применений - при запуске, до момента полного создания всех объектов задачи},
                 tsActive = 0, tsTerminate = 1, tsPause = 2, tsReportPause = 3);
 //------------------------------------------------------------------------------
-//--- FileFinderByMask
-//  TCallingDLL1Proc1 = function (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT; stdcall;
 
-//------------------------------------------------------------------------------
   IBSTRItems = interface (IInterface)
   ['{7988654F-59FB-401F-9E4C-972FF343C66B}']
     function GetCount: Integer; safecall;
@@ -71,14 +68,14 @@ type
     FTaskMainModuleIndex: word;
     FTaskSourceList: word;
     FTaskState: TTaskState;
+    FTaskStringList: TStringList;
+    FStringStream: TStringStream;
     FTaskMemoryStream: TMemoryStream;
     FTaskResultStream: IStream;
-//    FStopWatch: TStopWatch;
    protected
     FTask_Result: TTask_Result;
     procedure TaskProcedure(TaskLibraryIndex: word); safecall;
     function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
-//    function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask2_Result: TTask2_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
     function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 
    public
@@ -95,7 +92,6 @@ type
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
     property TaskMainModuleIndex: WORD write FTaskMainModuleIndex;
     property TaskState: TTaskState read FTaskState write FTaskState;
-//    property StopWatch: TStopWatch read FStopWatch write FStopWatch;
     property Task_Result: TTask_Result read FTask_Result write FTask_Result;
     property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex; // write SetTask2_Result;
     property Task_TotalResult: DWORD read GetTask_TotalResult;
@@ -121,15 +117,6 @@ var
   LoadLibraryEx: function(lpFileName: PChar; Reserved: THandle; dwFlags: DWORD): HMODULE; stdcall;
   TaskSourceList: TTaskSourceList; //--- Массив для хранения всех созданных задач
   bDllInitExecuted: boolean = false;
-
-//  SetDllDirectory: function(lpPathName: PChar): BOOL; stdcall;
-//  SetSearchPathMode: function(Flags: DWORD): BOOL; stdcall;
-//  AddDllDirectory: function(Path: PWideChar): Pointer; stdcall;
-//  RemoveDllDirectory: function(Cookie: Pointer): BOOL; stdcall;
-//  SetDefaultDllDirectories: function(DirectoryFlags: DWORD): BOOL; stdcall;
-
-
-
 
 
 implementation
@@ -179,18 +166,17 @@ end;
 constructor TTaskSource.Create(TaskLibraryIndex: word);
 var
   tmpString: AnsiString;
+  tmpStringStream: TStringStream;
+  tmpUTF8String: UTF8String;
 
 begin
  inherited Create();
    FTaskLibraryIndex:= TaskLibraryIndex;
 //--- Создание потока для обмена результатами с главным модулем
-  FTaskMemoryStream:= TMemoryStream.Create;
-//--- Запись в поток "начальных данных", что бы поток не был нулевой длины, иначе ошибка в главном модуля
-//--- на моменте создания объекта задачи
-  tmpString:= wsResultStreamTitle + inttostr(TaskLibraryIndex);
-  FTaskMemoryStream.WriteBuffer(tmpString, length(tmpString));
-
-  FTaskResultStream:= TStreamAdapter.Create(FTaskMemoryStream, soReference);
+//--- Запись в поток "начальных данных" (наименование, номер)
+  tmpString:= wsResultStreamTitle + inttostr(TaskLibraryIndex) + wsCRLF;
+  FStringStream:= TStringStream.Create(tmpString, TEncoding.ANSI);
+  FTaskResultStream:= TStreamAdapter.Create(FStringStream, soReference);
 
 //--- Добавление созданного объекта Задачи в список Задач
 //   FTaskSourceList:= TaskSourceList.Add(self);
@@ -275,7 +261,7 @@ try
    0: //--- Task1_FileFinderByMask
    begin
 //--- Критическая секция для доступа к структуре - входные параметры для задачи
-    CriticalSection.Enter; //--- Выход из критической секции будет в начале задачи
+    CriticalSection.Enter;
 
     tmpInputForm_Task1:= TformEditParams_Task1.Create(nil);
     tmpInputForm_Task1.ShowModal;
@@ -285,12 +271,6 @@ try
     //--- Заполним inputParam5 (TaskMainModuleIndex), переданный через API
     Task1_Parameters.inputParam5:= self.FTaskMainModuleIndex;
 //--- После заполения входных параметров запуск задачи на выполнение
- {   ShowMessage('Перед входом в Task1_FileFinderByMask'
-                + #13#10 + 'inputParam1 = ' + WideString(Task1_Parameters.inputParam1)
-                + #13#10 + 'inputParam2 = ' + WideString(Task1_Parameters.inputParam2)
-                + #13#10 + 'inputParam3 = ' + WideString(Task1_Parameters.inputParam3)
-                + #13#10 + 'inputParam5 = ' + IntToStr(FTaskMainModuleIndex)); // Task1_Parameters.inputParam5
-}
     tmpTask1_Parameters.inputParam1:= Task1_Parameters.inputParam1;
     tmpTask1_Parameters.inputParam2:= Task1_Parameters.inputParam2;
     tmpTask1_Parameters.inputParam3:= Task1_Parameters.inputParam3;
@@ -300,7 +280,7 @@ try
 
     self.Task1_FileFinderByMask(WideString(tmpTask1_Parameters.inputParam1), WideString(tmpTask1_Parameters.inputParam2),
                                 WideString(tmpTask1_Parameters.inputParam3), tmpTask1_Parameters.inputParam4,
-                                FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask_Result); //, nil, 0);
+                                FTaskMainModuleIndex, self.FTask_Result);
    end;
 
 
@@ -323,15 +303,6 @@ try
     //--- Заполним inputParam5 (TaskMainModuleIndex), переданный через API
 //    Task2_Parameters.inputParam5:= self.FTaskMainModuleIndex;
 //--- После заполения входных параметров запуск задачи на выполнение
-{    ShowMessage('Перед входом в Task2_FindInFilesByPattern'
-                + #13#10 + 'inputParam1 = ' + WideString(Task2_Parameters.inputParam1)
-                + #13#10 + 'inputParam2 = ' + WideString(Task2_Parameters.inputParam2)
-                + #13#10 + 'inputParam3 = ' + WideString(Task2_Parameters.inputParam3)
-                + #13#10 + 'inputParam5 = ' + IntToStr(FTaskMainModuleIndex)); // Task1_Parameters.inputParam5
-}
- //--- Установка размера выходного параметра согласно количеству шаблонов
-//    GetPatternsFromString(WideString(Task2_Parameters.inputParam1), tmpArray_WideString, tmpWord);
-//    setlength(self.FTask2_Results, tmpWord);
 
     self.FTask_TotalResult:= 0;
     tmpTask2_Parameters.inputParam1:= Task2_Parameters.inputParam1;
@@ -340,10 +311,6 @@ try
     tmpTask2_Parameters.inputParam4:= Task2_Parameters.inputParam4;
     tmpTask2_Parameters.inputParam5:= Task2_Parameters.inputParam5;
     CriticalSection.Leave;
-
-//--- Если выбран режим передачи результата через память, то выделим память (сначала мин. объём = 4096 (Б)
-//--- по мере увеличения объёма требующейся памяти, по ходу выполнения, будет выполнено увеличение размера буфера
-//    SysAllocStringLen(self.FResultBuffer, Task2_DefaultBufferSize);
 
     self.Task2_FindInFilesByPattern(WideString(tmpTask2_Parameters.inputParam1), WideString(tmpTask2_Parameters.inputParam2),
                                     WideString(tmpTask2_Parameters.inputParam3), tmpTask2_Parameters.inputParam4,
@@ -364,19 +331,17 @@ var
   tmpTargetFile: WideString;
   tmpStreamWriter: TStreamWriter;
   tmpMemoryStream: TOLEStream;
+  tmpStringStream: TStringStream;
   tmpMaskItems: TArray_WideString;
   tmpMaskCount: word;
   tmpWord: word;
   tmpBool: Boolean;
   tmpPAnsiChar: PAnsiChar;
   tmpWideString: WideString;
+  tmpUTF8String: UTF8String;
 
 begin
 try
- CriticalSection.Leave; //--- Вход в критическую секцию был до вызова окна с входными параметрами
-
-// iProcedureWorkTime:= GetTickCount(); // запоминаем значение тиков в начале подпрограммы
-
 //--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
 //--- Добавим к имени выходного файла информацию о номере задачи по порядку запуска потоков в главном модуле, иначе имена файлов в потоках совпадут
        if TPath.GetFileName(inputParam3) <> '' then
@@ -393,9 +358,11 @@ try
          tmpStreamWriter:= TFile.CreateText(tmpWideString)
         else //--- Запись результата в память
         begin
-//         tmpMemoryStream:= TOLEStream.Create();
-//         tmpMemoryStream.set:= self.FResultBuffer;
-//         tmpMemoryStream.SetSize(sizeof(self.FResultBuffer));
+// Создание промежуточного потока для преобразование текстовой информации в поток TStream
+         tmpStringStream:= TStringStream.Create('', TEncoding.ANSI);
+//         self.FTaskStringList.Clear;
+//         self.FTaskMemoryStream.Clear;
+//         self.FTaskMemoryStream.Position:= 0;
         end;
 
 //--- Извлечение элементов-масок из входящей строки (inputParam1)
@@ -419,31 +386,34 @@ try
             if inputParam4 then
               tmpStreamWriter.WriteLine(tmpTargetFile + ', ')
             else //--- Результат через память
-            //--- Настройка памяти для выгрузки результата
-//             tmpMemoryStream.Memory;
             begin
-
+             tmpWideString:= tmpTargetFile + ', ' + wsCRLF;
+             FStringStream.WriteString(tmpWideString);
             end;
-           { if (GetTickCount() - iProcedureWorkTime) >=  inputParam5 then
-             begin
-              tmpStreamWriter.Flush;
-              iProcedureWorkTime:= GetTickCount(); // запоминаем текущее значение тиков
-             end;}
+
            end;
           end;
          end;
         end;
 
-       tmpPAnsiChar:= 'Всего найдено совпадений: ';
-       tmpStreamWriter.WriteLine(tmpPAnsiChar + IntToStr(outTask1_Result.dwEqualsCount));
-       tmpStreamWriter.Close;
+       tmpWideString:= 'Всего найдено совпадений: ' + IntToStr(outTask1_Result.dwEqualsCount);
+       if inputParam4 then
+        tmpStreamWriter.WriteLine(tmpWideString)
+       else //--- Результат через память
+       begin
+        tmpWideString:= tmpWideString + ', ' + wsCRLF;
+        FStringStream.WriteString(tmpWideString);
+       end;
 
 
 
 finally
- if Win32Check(Assigned(tmpStreamWriter)) then
-    freeandnil(tmpStreamWriter); //    tmpStreamWriter.Free;
-
+// if Win32Check(Assigned(tmpStreamWriter)) then
+// begin
+//  tmpStreamWriter.Close;
+//  freeandnil(tmpStreamWriter); //    tmpStreamWriter.Free;
+// end;
+//freeandnil(tmpStringStream);
 end;
 end;
 

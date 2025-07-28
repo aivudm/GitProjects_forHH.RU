@@ -15,6 +15,7 @@ const
   wsTask2_Result_TemplateView: WideString = 'Шаблон: %12s, Позиция в файле: %d';
   wsTask2_TotalResult_TemplateView: WideString = 'Шаблон: %12s, Всего совпадений: %d';
   wsResultStreamTitle: WideString = 'Задача в библиотеке №';
+  wsCRLF = #13#10;
 
 //--- Для Задачи №2 ------------------------------------------------------------
 const
@@ -382,6 +383,7 @@ try
             inputStreamWriter.WriteLine(format(wsTask2_Result_TemplateView, [ByteToWS(inputSearchPatternSet[tmpWord].Pattern, inputSearchPatternSet[tmpWord].PatternSize),
                                                                              inputSearchPatternSet[tmpWord].LastPosBeginSearch]));
             CriticalSection.Leave;
+
            end
            else
            begin

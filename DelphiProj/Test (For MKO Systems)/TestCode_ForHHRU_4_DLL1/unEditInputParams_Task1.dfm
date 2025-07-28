@@ -94,8 +94,6 @@ object formEditParams_Task1: TformEditParams_Task1
     Width = 161
     Height = 17
     Caption = #1042#1099#1074#1086#1076' '#1088#1077#1079#1091#1083#1100#1090#1072#1090#1072' '#1074' '#1092#1072#1081#1083
-    Checked = True
-    State = cbChecked
     TabOrder = 4
   end
   object odTargetDirectory: TOpenDialog

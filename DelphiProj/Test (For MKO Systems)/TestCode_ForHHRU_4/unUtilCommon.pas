@@ -3,7 +3,7 @@ unit unUtilCommon;
 interface
 uses
   Windows, TlHelp32, ImageHlp, PsAPI, SysUtils, Classes, Forms, Controls, StdCtrls,
-  DateUtils;
+  DateUtils, Messages;
 
 
 function GetSubStr(FullString:String;Index:Byte;Count:Integer):String;
@@ -133,19 +133,11 @@ begin
                 + E_source1
                 + #13#10
                 + '-------------------------------------------------------------';
- logFileStream.Add(tmpWideString);
+ logFileStream.WriteString(tmpWideString);
  logFileStream.SaveToFile(logFileName);
-
-{
- WriteLn(logFile, '-------------------------------------------------------------');
- WriteLn(logFile, FormatDateTime('yyyy.mm.dd', Today()) + '  ' + FormatDateTime('hh:mm:ss', Time()));
- WriteLn(logFile, #13#10);
- WriteLn(logFile, 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName);
- tmpString:= E_source1;
- WriteLn(logFile, 'Msg: ' + tmpString);
- WriteLn(logFile, '-------------------------------------------------------------');
-}
  CriticalSection.Leave;
+//--- Прокрутить ТМемо с журналом работы на последнюю строку
+ SendMessage(hMemoLogInfo_2, EM_LINESCROLL, 0, 0);
 end;
 
 function ByteToWS(inputBytes: TArray<Byte>; inputBytesSize: dword): WideString;

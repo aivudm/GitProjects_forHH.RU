@@ -18,23 +18,30 @@ object formMain: TformMain
   OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
-  object Label1: TLabel
-    Left = 8
-    Top = 350
-    Width = 31
-    Height = 13
-    Caption = 'Label1'
-  end
   object GroupBox1: TGroupBox
     Left = 3
     Top = 8
     Width = 992
-    Height = 345
+    Height = 353
     Caption = #1048#1085#1092#1086#1088#1084#1072#1094#1080#1103' '#1086' '#1079#1072#1076#1072#1095#1072#1093' ('#1087#1086#1090#1086#1082#1072#1093')'
     TabOrder = 0
+    object Label1: TLabel
+      Left = 5
+      Top = 243
+      Width = 117
+      Height = 13
+      Caption = #1048#1085#1092#1086#1088#1084#1072#1094#1080#1103' '#1086#1090' '#1087#1086#1090#1086#1082#1072
+    end
+    object Label2: TLabel
+      Left = 606
+      Top = 244
+      Width = 81
+      Height = 13
+      Caption = #1046#1091#1088#1085#1072#1083' '#1086#1096#1080#1073#1086#1082
+    end
     object memInfoTread1: TMemo
       Left = 3
-      Top = 247
+      Top = 259
       Width = 595
       Height = 89
       HideSelection = False
@@ -44,11 +51,13 @@ object formMain: TformMain
       WordWrap = False
       OnClick = memInfoTread1Click
     end
-    object memInfo_2: TMemo
+    object memLogInfo_2: TMemo
       Left = 604
-      Top = 247
+      Top = 259
       Width = 385
       Height = 89
+      ReadOnly = True
+      ScrollBars = ssBoth
       TabOrder = 1
     end
     object lbThreadList: TListBox
@@ -80,7 +89,7 @@ object formMain: TformMain
       TabOrder = 4
       OnClick = bStopClick
     end
-    object memInfoTread: TRichEdit
+    object memInfoThread: TRichEdit
       Left = 0
       Top = 85
       Width = 989
@@ -93,6 +102,7 @@ object formMain: TformMain
       Lines.Strings = (
         '')
       ParentFont = False
+      ScrollBars = ssBoth
       TabOrder = 5
       Zoom = 100
     end

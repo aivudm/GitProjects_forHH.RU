@@ -47,7 +47,7 @@ begin
  end;
  if serverUDP.Active then
  begin
-  formMain.sbMain.Panels[0].Text:= format('Режим: Сервер UDP [Порт: %5d]', [ServerUDPPort]);
+  formMain.sbMain.Panels[0].Text:= format(wsNameExchangeType_ServerUDP, [ServerUDPPort]);
  end;
 end;
 
@@ -72,10 +72,10 @@ begin
  tmpString:= BytesToString(AData, IndyTextEncoding_UTF8);
  tmpWord:= StrToInt(GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1, IndexInString(sDelimiterNumTask, tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1) - 1));
  tmpString:= GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 2) + 2, - 1);
- if tmpWord > formMain.memInfoTread.Lines.Count  then
-  formMain.memInfoTread.Lines.Add(tmpString)
+ if tmpWord > formMain.memInfoThread.Lines.Count  then
+  formMain.memInfoThread.Lines.Add(tmpString)
  else
-  formMain.memInfoTread.Lines[tmpWord]:= tmpString;
+  formMain.memInfoThread.Lines[tmpWord]:= tmpString;
 end;
 
 end.

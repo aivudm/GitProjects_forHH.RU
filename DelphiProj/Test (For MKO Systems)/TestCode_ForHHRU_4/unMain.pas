@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls, ActiveX, Vcl.AxCtrls, Vcl.ExtCtrls,
-  Vcl.Menus, IOUtils, Types, DateUtils,
+  Vcl.Menus, IOUtils, Types, DateUtils, IdGlobal, EncdDecd,
   unConst;
 
 const
@@ -24,14 +24,15 @@ type
     miTools: TMenuItem;
     GroupBox1: TGroupBox;
     memInfoTread1: TMemo;
-    memInfo_2: TMemo;
+    memLogInfo_2: TMemo;
     lbThreadList: TListBox;
-    Label1: TLabel;
     bThreadPause: TButton;
     bStop: TButton;
     sbMain: TStatusBar;
     N1: TMenuItem;
-    memInfoTread: TRichEdit;
+    memInfoThread: TRichEdit;
+    Label1: TLabel;
+    Label2: TLabel;
     procedure miToolsClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure lbThreadListMouseUp(Sender: TObject; Button: TMouseButton;
@@ -50,6 +51,7 @@ type
 //    message WM_WINDOWPOSCHANGING;
     procedure WMCopyData(var MessageData: TWMCopyData); message WM_COPYDATA;
     procedure WMWINDOWPOSCHANGING(var Msg: TWMWINDOWPOSCHANGING); message WM_WINDOWPOSCHANGING;
+    procedure memLogInfo_2_WndProc_Current(var Message: TMessage);
     procedure HandleProc(var updMessage: TMessage); message WM_Data_Update;
   public
     { Public declarations }
@@ -58,7 +60,7 @@ type
 
 var
   formMain: TformMain;
-
+  memLogInfo_2_WndProc_Original: TWndMethod;
 
 
 implementation
@@ -77,10 +79,10 @@ begin
   tmpString:= PWChar(MessageData.CopyDataStruct.lpData);
    tmpWord:= StrToInt(GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1, IndexInString(sDelimiterNumTask, tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1) - 1));
    tmpString:= GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 2) + 2, - 1);
-   if tmpWord > formMain.memInfoTread.Lines.Count  then
-    formMain.memInfoTread.Lines.Add(tmpString)
+   if tmpWord > formMain.memInfoThread.Lines.Count  then
+    formMain.memInfoThread.Lines.Add(tmpString)
    else
-    formMain.memInfoTread.Lines[tmpWord]:= tmpString;
+    formMain.memInfoThread.Lines[tmpWord]:= tmpString;
 
     MessageData.Result := 1;
   end
@@ -97,6 +99,20 @@ begin
   formTools.Left:= self.Left + self.Width;
   formTools.Top:= self.Top;
  end;
+
+end;
+
+procedure TformMain.memLogInfo_2_WndProc_Current(var Message: TMessage);
+begin
+ if (Message.Msg = EM_LINESCROLL) then
+ begin
+  logFileStream.Position:= logFileStream_LastPos;
+  memInfoThread.Lines.LoadFromStream(logFileStream);
+  logFileStream_LastPos:= logFileStream.Position;
+ end;
+
+ if Assigned(memLogInfo_2_WndProc_Original) then
+  memLogInfo_2_WndProc_Original(Message);
 
 end;
 
@@ -145,28 +161,6 @@ begin
 end;
 
 
-
-
-
-function GetSubStr(inSourceString: WideString; inIndex:Byte; inCount:Integer): WideString;
-begin
-if inCount<>-1 then
-   Result:=copy(inSourceString, inIndex, inCount)
-else
-   Result:=copy(inSourceString, inIndex, (length(inSourceString) - inIndex + 1));
-end;
-
-function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): word;
-var
-   MyStr: WideString;
-begin
-MyStr:= GetSubStr(inSourceString, inPosBegin, -1);
-Result:=pos(inSubStr, MyStr);
-
-end;
-
-
-
 procedure TformMain.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
 try
@@ -186,6 +180,7 @@ try
   formInfo.Close;
   FreeAndNil(formInfo);
  end;
+
 finally
 // DeinitializeVariables;
  FinalizeLibraryes;
@@ -200,12 +195,25 @@ begin
     showmessage(wsUncknownVersionOS);
     Application.Terminate;
   end;
+
+
+//--- Заполнение глобальных переменных
+ hMemoLogInfo_2:= self.memLogInfo_2.Handle;
+
+//--- Открытие журнала
+ memLogInfo_2_WndProc_Original:= formMain.memLogInfo_2.WindowProc;
+ formMain.memLogInfo_2.WindowProc := memLogInfo_2_WndProc_Current;
+//--- Прокрутить ТМемо с журналом работы на последнюю строку
+ SendMessage(hMemoLogInfo_2, EM_LINESCROLL, 0, 0);
+
 end;
 
 procedure TformMain.FormShow(Sender: TObject);
 begin
 //--- Что бы сразу открывалось окно с настройками
-  formMain.memInfoTread.Clear;
+  formMain.lbThreadList.Clear;
+  formMain.memInfoThread.Clear;
+  formMain.memLogInfo_2.Clear;
   formMain.miToolsClick(Sender);
 end;
 
@@ -215,7 +223,7 @@ var
 begin
   pBuffer:= PWideChar(updMessage.LParam);
 //  memInfoTread.Lines.Add(updMessage.WParam.ToString());
-  memInfo_2.Lines.Add(pBuffer);
+  memLogInfo_2.Lines.Add(pBuffer);
 end;
 
 procedure TformMain.lbThreadListClick(Sender: TObject);
@@ -225,6 +233,11 @@ var
   tmpHandle: THandle;
   tmpBytes: TArray<Byte>;
   tmpIStream: IStream;
+  tmpStringList: TStringList;
+
+  tmpWideString: AnsiString;
+  tmpUTF8: UTF8String;
+
 
 begin
 try
@@ -239,22 +252,12 @@ try
 
 //--- Выведем информацию о результате выполнения задачи в TMemo
 try
-// TaskList[tmpInt].Stream.ReadBuffer(tmpResultBuffer, TaskList[tmpInt].Stream.Size);
-
-// tmpIStream:= TaskList[tmpInt].TaskSource.Task2_ResultStream;
-// TaskList[tmpInt].Stream:= TOleStream.Create(tmpIStream);
-// setlength(tmpBytes, TaskList[tmpInt].Stream.Size*2 + 1);
- tmpHandle:= HeapCreate(0, TaskList[tmpInt].Stream.Size, 0);
- tmpResultBuffer:= HeapAlloc(tmpHandle, HEAP_ZERO_MEMORY, TaskList[tmpInt].Stream.Size);
 
  TaskList[tmpInt].Stream.Position:= 0;
-// TaskList[tmpInt].Stream.ReadBuffer(tmpBytes[0], TaskList[tmpInt].Stream.Size);
-// TaskList[tmpInt].Stream.ReadBuffer(tmpResultBuffer, TaskList[tmpInt].Stream.Size);
+ TaskList[tmpInt].StringStream.LoadFromStream(TaskList[tmpInt].Stream);
 
-//--- ???????????????????????????????????????????????????????????????????????????
-// TaskList[tmpInt].MemoryStream. LoadFromStream(TaskList[tmpInt].Stream);
-// memInfoTread1.Lines.LoadFromStream(TaskList[tmpInt].Stream.ReadBuffer(tmpResultBuffer, TaskList[tmpInt].Stream.Size));
-
+ memInfoTread1.Lines.LoadFromStream(TaskList[tmpInt].StringStream);
+ memInfoTread1.Lines.Text:= TaskList[tmpInt].StringStream.DataString;
 
 
 except
@@ -265,7 +268,7 @@ except
 end;
 
 //--- Выведем лог ошибок текущей задачи в TMemo
- memInfo_2.Lines.LoadFromFile(logFileName);
+// memInfo_2.Lines.LoadFromFile(logFileName);
 
 finally
  HeapFree(tmpHandle, 0, tmpResultBuffer);
@@ -330,8 +333,8 @@ procedure TformMain.N1Click(Sender: TObject);
 var
   tmpStringList: TStrings; //List;
 begin
-  memInfo_2.Lines.Clear;
-  ListDLLsForProcess(GetPIDByName(PWChar(formMain.Caption)), memInfo_2.Lines);
+  memLogInfo_2.Lines.Clear;
+  ListDLLsForProcess(GetPIDByName(PWChar(formMain.Caption)), memLogInfo_2.Lines);
 end;
 
 procedure TformMain.SetButtonState_ThreadList(ThreadNum: word);

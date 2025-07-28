@@ -177,9 +177,6 @@ begin
 
 //--- Добавление созданного объекта Задачи в список Хадач
 //   FTaskSourceList:= TaskSourceList.Add(self);
-  ShowMessage('Внутри TaskSource.Create'
-                + #13#10 + 'На выходе'); // Task1_Parameters.inputParam5
-
 end;
 
 //------------------------------------------------------------------------------
@@ -314,14 +311,14 @@ try
       tmpStartupInfo.cb := SizeOf(tmpStartupInfo);
 //--- Запускаем процесс Shell-командера
       tmpWideString:= PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2);
-{   ShowMessage('Внутри в TaskSource.Task1_WinExecute'
+   ShowMessage('Внутри в TaskSource.Task1_WinExecute'
                 + #13#10 + 'inputParam1 = ' + WideString(Task1_Parameters.inputParam1)
                 + #13#10 + 'inputParam2 = ' + WideString(Task1_Parameters.inputParam2)
                 + #13#10 + 'inputParam3 = ' + WideString(Task1_Parameters.inputParam3)
                 + #13#10 + 'inputParam5 = ' + IntToStr(FTaskMainModuleIndex)
                 + #13#10 + 'Строка для CreateProcess = ' + tmpWideString);
- }
-      CreateProcess(nil, PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2), nil, nil, False, CREATE_NEW_CONSOLE or NORMAL_PRIORITY_CLASS, nil, nil, tmpStartupInfo, tmpProcessInfo);
+
+      CreateProcess(nil, PWideChar(tmpWideString){PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2)}, nil, nil, False, CREATE_NEW_CONSOLE or NORMAL_PRIORITY_CLASS, nil, nil, tmpStartupInfo, tmpProcessInfo);
 //--- И ждём "до конца", либо будет принудительно завершён из главного модуля
       WaitForSingleObject(tmpProcessInfo.hProcess, INFINITE);
 

@@ -7,7 +7,7 @@ uses Vcl.Forms, System.Classes, System.SysUtils, Winapi.Windows, Winapi.Messages
 
 function GetWorkingDirectoryName(): String;
 //function IsTaskDllAttached(DllFileName: String): Integer;
-procedure GetLibraryInfo(inputDllFileName: WideString; var inoutLibraryTask: TLibraryTask);
+procedure GetLibraryInfo(inputDllFileName: WideString; inputLibraryNum: word);
 //procedure GetDLLExportList(const DllFileName: string; var outputList: TArray<string>);
 //--- Получение элементов из строки, разделённых ';'
 procedure GetItemsFromString(SourceBSTR: WideString; var outputStringItems: TArray_WideString);
@@ -87,25 +87,26 @@ begin
 end;
 
 
-procedure GetLibraryInfo(inputDllFileName: WideString; var inoutLibraryTask: TLibraryTask);
+procedure GetLibraryInfo(inputDllFileName: WideString; inputLibraryNum: word);
 var
   tmp_hTaskLibrary: THandle;  //--- он же HMODULE
   tmpDLLAPIProc: TDLLAPIProc;
   tmpBSTR, tmpWString: WideString; //--- Для обмена строками с Dll только BSTR (или в Делфи WideString)
-  tmpByte, i, tmpInfoRecordSize, tmpInfoRecordCount: Byte;
+  tmpInfoRecordSize, tmpInfoRecordCount: Byte;
+  tmpInt: integer;
   tmpIntrfDllAPI: ILibraryAPI;
 begin
- inoutLibraryTask.LibraryName:= '';
+ LibraryList[inputLibraryNum].LibraryName:= '';
 try
- for tmpByte:= 0 to LibraryList.Count - 1 do
+ for tmpInt:= 0 to LibraryList.Count - 1 do
 //--- Проверяем на повтор загружаемой библиотеки, если такая уже есть, то выходим
-  if LibraryList.Items[tmpByte].LibraryFileName = inputDllFileName then
+  if LibraryList.Items[tmpInt].LibraryFileName = inputDllFileName then
   begin
-   LibraryList.Items[tmpByte].Free;
+   LibraryList.Items[tmpInt].Free;
   end;
 
  tmp_hTaskLibrary:= LoadAnyLibrary(inputDllFileName);
- if tmp_hTaskLibrary <= 0 then
+ if tmp_hTaskLibrary = INVALID_HANDLE_VALUE then
  begin
   WriteDataToLog(wsError_LoadLibrary + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
   exit;
@@ -137,21 +138,25 @@ try
  end;
 
 //--- Сохраним интерфейс в объекте LibraryTask
- if inoutLibraryTask.LibraryAPI = nil then
-    inoutLibraryTask.LibraryAPI:= tmpIntrfDllAPI;
+ if LibraryList[inputLibraryNum].LibraryAPI = nil then
+    LibraryList[inputLibraryNum].LibraryAPI:= tmpIntrfDllAPI;
+
+//--- Получим Id библиотеки
+ LibraryList[inputLibraryNum].LibraryId:= tmpIntrfDllAPI.GetId;
+
 //--- Получим имя библиотеки
- inoutLibraryTask.LibraryName:= tmpIntrfDllAPI.Name;
+ LibraryList[inputLibraryNum].LibraryName:= tmpIntrfDllAPI.Name;
 
   //--- Очистим переменную с именами шаблонов задач
- inoutLibraryTask.Clear;
+// inoutLibraryTask.Clear;
 
  //--- Получим количество реализованных в библиотеке задач
- inoutLibraryTask.TaskCount:= tmpIntrfDllAPI.GetTaskList.Count;
- inoutLibraryTask.SetTaskTemplateCount(tmpIntrfDllAPI.GetTaskList.Count);
+ LibraryList[inputLibraryNum].TaskCount:= tmpIntrfDllAPI.GetTaskList.Count;
+ LibraryList[inputLibraryNum].SetTaskTemplateCount(tmpIntrfDllAPI.GetTaskList.Count);
  //--- Получим имена реализованных задач
- for i:= 0 to (tmpIntrfDllAPI.GetTaskList.Count - 1) do
+ for tmpInt:= 0 to (tmpIntrfDllAPI.GetTaskList.Count - 1) do
  begin
-  inoutLibraryTask.TaskTemplateName[i]:= tmpIntrfDllAPI.GetTaskList.Strings[i];
+  LibraryList[inputLibraryNum].TaskTemplateName[tmpInt]:= tmpIntrfDllAPI.GetTaskList.Strings[tmpInt];
  end;
 
 // tmpIntrfDllAPI.GetFormParams;
@@ -167,14 +172,14 @@ GetItemsFromString(tmpBSTR, TaskDllProcName);
 
 //------------>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
  if intrfDllAPI = nil then
-    inoutLibraryTask.LibraryAPI:= tmpIntrfDllAPI;
+    LibraryList[inputLibraryNum].LibraryAPI:= tmpIntrfDllAPI;
 
  //--- Один раз запустим LibraryAPI.InitDLL
 //--- проверка на
-  inoutLibraryTask.LibraryAPI.InitDLL;
+  LibraryList[inputLibraryNum].LibraryAPI.InitDLL;
   tmpIntrfDllAPI:= nil;
 
-  inoutLibraryTask.SetLibraryFileName(inputDllFileName);
+  LibraryList[inputLibraryNum].SetLibraryFileName(inputDllFileName);
 
 finally
  if tmpintrfDllAPI <> nil then
@@ -247,5 +252,9 @@ begin
     CloseHandle(SnapProcHandle);
   end;
 end;
+
+initialization
+
+finalization
 
 end.

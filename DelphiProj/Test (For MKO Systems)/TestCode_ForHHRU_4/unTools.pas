@@ -4,7 +4,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Menus, Vcl.ExtCtrls, Vcl.StdCtrls, IOUtils, ActiveX, Vcl.AxCtrls;
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Menus, Vcl.ExtCtrls, Vcl.StdCtrls,
+  IOUtils, ActiveX, Vcl.AxCtrls, EncdDecd;
 
 type
   TformTools = class(TForm)
@@ -96,10 +97,13 @@ begin
 
 //--- 2.1 Настройка потока передачи результатов из библиотек в главный модуль
    TaskList[iTaskListNum].Stream:= TOleStream.Create(TaskList[iTaskListNum].TaskSource.Task_ResultStream);
+   TaskList[iTaskListNum].Stream.Position:= 0;
 
 //--- Запускаем получение потока из задачи в библиотеке
-   TaskList[iTaskListNum].Stream.Position:= 0;
-//   TaskList[iTaskListNum].MemoryStream.LoadFromStream(TaskList[iTaskListNum].Stream);
+   TaskList[iTaskListNum].StringStream:= TStringStream.Create;
+   TaskList[iTaskListNum].StringStream.LoadFromStream(TaskList[iTaskListNum].Stream);
+   DecodeStream(TaskList[iTaskListNum].StringStream, TaskList[iTaskListNum].StringStream); // двоичное дешиврование
+
 
 
   finally
@@ -117,12 +121,10 @@ begin
                                                               TaskList[iTaskListNum].TaskName]));
 
 //--- 4. Назначим объекты для отображения информации от задач (потоков)
-//  formMain.memInfoTread.Lines.Add(sWaitForThreadAnswer);
-//  formMain.memInfoTread.Lines[iTaskListNum]:= (sWaitForThreadAnswer);
-  TaskList[iTaskListNum].LineIndex_ForView:= formMain.memInfoTread.Lines.Add(sWaitForThreadAnswer);
+  TaskList[iTaskListNum].LineIndex_ForView:= formMain.memInfoThread.Lines.Add(sWaitForThreadAnswer);
 
-  TaskList[iTaskListNum].HandleWinForView:= formMain.memInfoTread.Handle;
-  GetWindowThreadProcessId(formMain.memInfoTread.Handle, @tmpDWord);
+  TaskList[iTaskListNum].HandleWinForView:= formMain.memInfoThread.Handle;
+  GetWindowThreadProcessId(formMain.memInfoThread.Handle, @tmpDWord);
   TaskList[iTaskListNum].ThreadIDWinForView:= tmpDWord;
 
 //--- Запускаем Задачу на выполнение
@@ -161,27 +163,32 @@ begin
   else
    LibraryList.Clear;
 
+ try
+//--- Временный объект "Описатель библиотеки"
+//--- для получения информации о библиотеке
+  tmpLibraryTask:= TLibraryTask.Create;
+  for tmpItem:= 0 to odGetLibrary.Files.Count-1 do
+  begin
 //--- Создание объекта библиотек
-//--- состоит из: имени шаблона задачи и индекса задачи в библиотеке
 //--- Индекс соответсвует индексу строки при получении списка реализуемых задач
 //--- полученных через интерфейс DllAPI
-  tmpLibraryNum:= LibraryList.Add(TLibraryTask.Create);
-  tmpLibraryTask:= LibraryList[tmpLibraryNum];
-
- for tmpItem:= 0 to odGetLibrary.Files.Count-1 do
- begin
+     tmpLibraryNum:= LibraryList.Add(TLibraryTask.Create);
  //--- По номеру библиотеки с списке библиотек получим её наименование и список реализованных в ней функций
-  GetLibraryInfo(odGetLibrary.Files.Strings[tmpItem], tmpLibraryTask);
+   GetLibraryInfo(odGetLibrary.Files.Strings[tmpItem], tmpLibraryNum);
  //--- Если наименование не получено от Dll, значит Dll "не наша", просто пропускаем её
-  if tmpLibraryTask.LibraryName <> '' then
-   begin
-    LibraryList[tmpLibraryNum]:= tmpLibraryTask;
+   if LibraryList[tmpLibraryNum].LibraryName <> '' then
+    begin
+//     LibraryList[tmpLibraryNum]:= tmpLibraryTask;
  //--- Добавим библиотеку в список доступных библиотек в визуальном компоненте (ListBox)
-    lbLibraryList.Items.Add(tmpLibraryTask.LibraryName);
-   end
-   else
-    LibraryList[tmpLibraryNum].Free;
+     lbLibraryList.Items.Add(LibraryList[tmpLibraryNum].LibraryName);
+    end
+    else
+     LibraryList[tmpLibraryNum].Clear;
  end;
+ finally
+  FreeAndNil(tmpLibraryTask);
+ end;
+
  lbLibraryList.ItemIndex:= 0;
  lbLibraryList.OnClick(Sender);
 end;
@@ -220,6 +227,7 @@ var
   tmpStrings: TStringList;
 begin
 try
+ formTools.Height:= formMain.Height;
 // TaskInitialize;
  iniFile.ReadBool(wsIniToolsTitle2, wsIniExchangeType_WMCopyData, true);
 //--- Считывание библиотек из *.ini
@@ -252,6 +260,7 @@ procedure TformTools.lbLibraryListClick(Sender: TObject);
 var
   tmpItem: integer;
   tmpTaskTemplateIndex: integer;
+  tmpLibraryTask: TLibraryTask;
 begin
 //--- Выведем список доступных в библиотеке задач в визуальный компонент (ListBox)
   lbTemplateTaskList.Clear;

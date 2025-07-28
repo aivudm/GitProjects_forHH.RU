@@ -2,7 +2,7 @@ object formTools: TformTools
   Left = 0
   Top = 0
   Caption = #1053#1072#1089#1090#1088#1086#1081#1082#1072
-  ClientHeight = 456
+  ClientHeight = 376
   ClientWidth = 286
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
