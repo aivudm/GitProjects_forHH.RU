@@ -10,18 +10,21 @@ const
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
   wsTask2_Result_TemplateView: WideString = 'Шаблон: %12s, Позиция в файле: %d';
   wsTask2_TotalResult_TemplateView: WideString = 'Шаблон: %12s, Всего совпадений: %d';
-  wsResultStreamTitle: WideString = 'Задача в библиотеке №';
+  wsResultStreamTitle: WideString = 'Библиотека №%3d, Задача №%3d';
   wsIniFileTitle1: WideString = 'EditInputParams_DLL1_Task1 Settings';
   wsIniFileParam1: WideString = 'edShellCommander';
   wsIniFileParam2: WideString = 'edTargetCommand';
   wsIniFileParam3: WideString = 'edResultFile';
   wsSignofWorkWileClosing: WideString = ' /c ';
+  wsCRLF = #13#10;
+  wsIniFileName = 'Primer_MT_4_Lib2.ini';
 
 
 //--- Для Задачи №2 ------------------------------------------------------------
 const
   iPatternNotFound = $FFFFFFFF;
   Task2_DefaultBufferSize = 4096;
+  CMD_SetLogInfo = 2;
 type
 //------------------- Для Задачи №2 --------------------------------------------
 

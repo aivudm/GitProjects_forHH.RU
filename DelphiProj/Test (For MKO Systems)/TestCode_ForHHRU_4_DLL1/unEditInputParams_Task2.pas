@@ -51,7 +51,7 @@ try
   SysReAllocStringLen(Task2_Parameters.inputParam3, Task2_Parameters.inputParam3, tmpWord);
   edResultFile.GetTextBuf(Task2_Parameters.inputParam3, tmpWord);
 
-  Task2_Parameters.inputParam4:= true; //(chkbTypeResultOutput.Checked);
+  Task2_Parameters.inputParam4:= chkbTypeResultOutput.Checked; //(chkbTypeResultOutput.Checked);
   Task2_Parameters.inputParam5:= 1; //--- это номер задачи в списке согласно очерёдности запуска в главном модуле
 
   Close;

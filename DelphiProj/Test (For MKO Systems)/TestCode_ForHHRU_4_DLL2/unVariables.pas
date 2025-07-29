@@ -65,15 +65,13 @@ type
     FTaskLibraryIndex: word;
     FTaskMainModuleIndex: word;
     FTaskSourceList: word;
-    FTaskState: TTaskState;
-    FTaskMemoryStream: TMemoryStream;
+//    FTaskState: TTaskState;
+    FTaskStringList: TStringList;
+    FStringStream: TStringStream;
     FTaskResultStream: IStream;
-//    FStopWatch: TStopWatch;
    protected
     FTask_Result: TTask_Result;
     procedure TaskProcedure(TaskLibraryIndex: word); safecall;
-//    function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
-//    function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
     function Task1_WinExecute (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask1_Result: TTask_Result): HRESULT;
 
    public
@@ -87,9 +85,10 @@ type
     function GetTask_TotalResult: DWORD; safecall;
     function GetTask_ResultStream: IStream; safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+    procedure SendInfoToLog(inputString: WideString);
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
     property TaskMainModuleIndex: WORD write FTaskMainModuleIndex;
-    property TaskState: TTaskState read FTaskState write FTaskState;
+//    property TaskState: TTaskState read FTaskState write FTaskState;
 //    property StopWatch: TStopWatch read FStopWatch write FStopWatch;
     property Task_Result: TTask_Result read FTask_Result write FTask_Result;
     property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex; // write SetTask2_Result;
@@ -162,27 +161,26 @@ end;
 constructor TTaskSource.Create(TaskLibraryIndex: word);
 var
   tmpString: AnsiString;
+  tmpStringStream: TStringStream;
 
 begin
  inherited Create();
+   FTaskLibraryIndex:= dllLibraryId;
    FTaskLibraryIndex:= TaskLibraryIndex;
 //--- Создание потока для обмена результатами с главным модулем
-  FTaskMemoryStream:= TMemoryStream.Create;
-//--- Запись в поток "начальных данных", что бы поток не был нулевой длины, иначе ошибка в главном модуля
-//--- на моменте создания объекта задачи
-  tmpString:= wsResultStreamTitle + inttostr(TaskLibraryIndex);
-  FTaskMemoryStream.WriteBuffer(tmpString, length(tmpString));
+//--- Запись в поток "начальных данных" (наименование, номер)
+  tmpString:= format(wsResultStreamTitle, [FTaskLibraryIndex, FTaskLibraryIndex]) + wsCRLF;
+  FStringStream:= TStringStream.Create(tmpString, TEncoding.ANSI);
+  FTaskResultStream:= TStreamAdapter.Create(FStringStream, soReference);
 
-  FTaskResultStream:= TStreamAdapter.Create(FTaskMemoryStream, soReference);
-
-//--- Добавление созданного объекта Задачи в список Хадач
+//--- Добавление созданного объекта Задачи в список Задач
 //   FTaskSourceList:= TaskSourceList.Add(self);
+
 end;
 
 //------------------------------------------------------------------------------
 destructor TTaskSource.Destroy();
 begin
-  FreeAndNil(FTaskMemoryStream);
   FreeAndNil(FTaskResultStream);
  inherited Destroy();
 end;
@@ -293,7 +291,7 @@ end;
 //------------------------------------------------------------------------------
 function TTaskSource.Task1_WinExecute(inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask1_Result: TTask_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 var
-  tmpWideString: WideString;
+  tmpWideString, tmpWideString1: WideString;
   tmpStreamWriter: TStreamWriter;
   tmpSearchPatternSet: array of TSearchPatternSet;
   tmpStartupInfo: TStartupInfo;
@@ -307,29 +305,108 @@ try
 //  inputParam3:= 'D:\Install\Result_Library1_Task2.txt'; // Имя файла для записи результата, если inputParam4 - true
 //  inputParam4:= true;                                  // Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
 
-      ZeroMemory(@tmpStartupInfo, SizeOf(tmpStartupInfo));
-      tmpStartupInfo.cb := SizeOf(tmpStartupInfo);
-//--- Запускаем процесс Shell-командера
-      tmpWideString:= PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2);
-   ShowMessage('Внутри в TaskSource.Task1_WinExecute'
+//--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
+//--- Добавим к имени выходного файла информацию о номере задачи по порядку запуска потоков в главном модуле, иначе имена файлов в потоках совпадут
+       if TPath.GetFileName(inputParam3) <> '' then
+        tmpWideString:= TPath.GetFileNameWithoutExtension(inputParam3) + format('_%d', [self.FTaskMainModuleIndex]) + TPath.GetExtension(inputParam3)
+       else
+        tmpWideString:= TPath.GetFileNameWithoutExtension(wsTask2_ResultFileNameByDefault)
+                                                         + format('_%d', [self.FTaskMainModuleIndex])
+                                                         + TPath.GetExtension(wsTask2_ResultFileNameByDefault);
+//--- ...правильность имени выходной директории
+       if TPath.GetDirectoryName(inputParam3) <> '' then
+        tmpWideString:= TPath.GetDirectoryName(inputParam3) + '\' + tmpWideString
+       else
+        tmpWideString:= TDirectory.GetCurrentDirectory() + '\' + tmpWideString;
+
+//--- Удалить с этого места в боевом режиме и разкомментировать код внутри if...then
+        tmpStreamWriter:= TFile.CreateText(tmpWideString);
+//--- Разкомментировать в боевом режиме
+        if inputParam4 then //--- Запись результата в файл (пока отработка - запись в файл будет всегда)
+        begin
+//         tmpStreamWriter:= TFile.CreateText(tmpWideString)
+        end
+        else //--- Запись результата в память
+        begin
+//         self.FTaskStringList.Clear;
+         self.FStringStream.Clear;
+         self.FStringStream.Position:= 0;
+        end;
+//--- Вывод информации с входными параметрами ----------------------------------
+       tmpWideString:= 'Входные параметры: '
                 + #13#10 + 'inputParam1 = ' + WideString(Task1_Parameters.inputParam1)
                 + #13#10 + 'inputParam2 = ' + WideString(Task1_Parameters.inputParam2)
                 + #13#10 + 'inputParam3 = ' + WideString(Task1_Parameters.inputParam3)
                 + #13#10 + 'inputParam5 = ' + IntToStr(FTaskMainModuleIndex)
-                + #13#10 + 'Строка для CreateProcess = ' + tmpWideString);
+                + #13#10 + 'Строка для выполнения = ' + PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2);
 
-      CreateProcess(nil, PWideChar(tmpWideString){PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2)}, nil, nil, False, CREATE_NEW_CONSOLE or NORMAL_PRIORITY_CLASS, nil, nil, tmpStartupInfo, tmpProcessInfo);
-//--- И ждём "до конца", либо будет принудительно завершён из главного модуля
+       tmpStreamWriter.WriteLine(tmpWideString);
+       if inputParam4 then
+       begin
+//        tmpStreamWriter.WriteLine(tmpWideString)
+       end
+       else //--- Результат через память
+       begin
+        tmpWideString:= tmpWideString + wsCRLF;
+        FStringStream.WriteString(tmpWideString);
+       end;
+//------------------------------------------------------------------------------
+
+      ZeroMemory(@tmpStartupInfo, SizeOf(tmpStartupInfo));
+      tmpStartupInfo.cb := SizeOf(tmpStartupInfo);
+//--- Запускаем процесс Shell-командера
+
+      if CreateProcess(nil, PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2), nil, nil, False, CREATE_NEW_CONSOLE or NORMAL_PRIORITY_CLASS, nil, nil, tmpStartupInfo, tmpProcessInfo)
+            then
+      begin
+//--- Ожидаем "до конца", либо будет принудительно завершён из главного модуля
       WaitForSingleObject(tmpProcessInfo.hProcess, INFINITE);
+      end
+      else
+      begin
+       showmessage('ошибка CreateProcess');
+       RaiseLastWin32Error; //RaiseLastOSError;
+      end;
+
 
 
 finally
  CloseHandle(tmpProcessInfo.hProcess);
  CloseHandle(tmpProcessInfo.hThread);
-end;
+
+ if Win32Check(Assigned(tmpStreamWriter)) then
+ begin
+  tmpStreamWriter.Close;
+  freeandnil(tmpStreamWriter);
+ end;
 
 end;
 
+end;
+
+procedure TTaskSource.SendInfoToLog(inputString: WideString);
+var
+  cdsData: TCopyDataStruct;
+  tmpHandle: THandle;
+//  tmpString: WideString;
+begin
+  //Устанавливаем наш тип команды
+  cdsData.dwData := CMD_SetLogInfo;
+  cdsData.cbData := Length(PChar(inputString)) * sizeof(Char) + 1;
+  SysAllocStringLen(cdsData.lpData, cdsData.cbData);
+  try
+    StrPCopy(cdsData.lpData, PWChar(inputString));
+//    tmpHandle:= FindWindow(nil, PWChar(formMain.ClassName));
+    //Отсылаем сообщение в окно главного модуля
+//    PostThreadMessage(FindWindow(nil, PWChar(formMain.Caption)),
+//    PostMessage(FindWindow(nil, PWChar(formMain.ClassName)),
+//    SendMessage(FindWindow(nil, PWChar(formMain.Caption)),
+//                  WM_COPYDATA, Handle, Integer(@cdsData));
+  finally
+    //Высвобождаем буфер
+   SysFreeString(cdsData.lpData);
+  end;
+end;
 //---------------- Подпрограммы вне классов ------------------------------------
 
 

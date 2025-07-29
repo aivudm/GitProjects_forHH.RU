@@ -9,7 +9,7 @@ uses
 type
 
 //------------------------------------------------------------------------------
-  TTaskState = (tsNotDefined = -1 {одно из применений - при запуске, до момента полного создания всех объектов задачи},
+  TTaskState = (tsNotDefined = -1,
                 tsActive = 0, tsTerminate = 1, tsPause = 2, tsDone = 3);
 //------------------------------------------------------------------------------
 //  TProcedure = reference to procedure;
@@ -43,6 +43,7 @@ type
     FEndTickCount: cardinal;
     FMemoryStream: TMemoryStream;
     FStringStream: TStringStream;
+    FStringStream_LastPos: DWORD;
     FStream: TStream;
     FOLEStream: IStream;  //--- Поток в "COM-формате" принимаем посредством TStreamAdapter
 //    FStopWatch: TStopwatch;
@@ -114,6 +115,7 @@ type
     property StreamWriterNum: word read FSreamWriterNum;
     property Stream: TStream read FStream write FStream;
     property StringStream: TStringStream read FStringStream write FStringStream;
+    property StringStream_LastPos: DWORD read FStringStream_LastPos write FStringStream_LastPos;
     property MemoryStream: TMemoryStream read FMemoryStream write FMemoryStream;
     property ThreadIDWinForView: THandle read FThreadIDWinForView write FThreadIDWinForView;
 //    property TimerCycleCount: Int64 read FTimerCycleCount;
@@ -165,10 +167,8 @@ type
  var
     TaskList: TTaskList;
 
-    OutInfo_ForViewing: TOutInfo_ForViewing;
     ReportingTaskItemNum: integer;
     stSystemTimes: TThread.TSystemTimes;
-    curTaskItem: TTaskItem;
 
 //------------------------------------------------------------------------------
 
@@ -294,8 +294,8 @@ try
 
  Priority:= tpLower; //tpNormal; этот поток только запускает и крутится в цикле
 // self.FDSiTimer.Interval:= TaskList[TaskItemNum].GetPeriodReport;
- FPeriodReport:= 1000; //--- миллисекунд
- FCycleTimeValue:= 20; //--- миллисекунд Время делится на 1/4 выполнение Задачи + 3/4 на отчёт + простой
+ FPeriodReport:= iTaskPeriodReport; //--- миллисекунд
+ FCycleTimeValue:= iCycleTimeValue; //--- длительность цикла работы потока миллисекунд Время делится на 1/4 выполнение Задачи + 3/4 на отчёт + простой
 
 // if ExchangeType = etClientServerTCP then
 //  begin
@@ -317,6 +317,8 @@ try
  end;
  FPauseEvent:= TEvent.Create(nil, true, tmpBool, 'ThreadPauseEvent_Task_' + IntToStr(FTaskTemplateId));
 
+//--- Начальное значение для потока (информация от задач)
+ FStringStream_LastPos:= 0;
 //--- присвоим состояние задачи, которое пришло на входе данной подпрограммы
 TaskState:= inputBeginState;
 
@@ -359,8 +361,7 @@ try
 //--- "callback pump" для TaskSource, который создаётся в библиотеке
  self.FTaskCore:= TTaskCore.Create(self); //--- создаётся с отложенным запуском
  self.FTaskCore.Start;
- tmpInt64:= 0;
-// FStopWatch.StartNew; // Начинаем отсчёт времени работы ядра текущей задачи (потока)
+ tmpInt64:= 0; // Начинаем отсчёт времени работы ядра текущей задачи (потока)
  self.FBeginTickCount:= GetTickCount();
 repeat
   case self.TaskState of
@@ -374,7 +375,7 @@ repeat
        if self.FTaskCore.Priority <> tpNormal then self.FTaskCore.Priority:= tpNormal;
        if self.FTaskCore.Suspended then self.FTaskCore.Suspended:= false;
       //--- выдаём квант времени на выполнение Задачи
-       sleep(round(FCycleTimeValue*0.05)); // 5мс - на выполнение Задачи в библиотеке
+       sleep(round(FCycleTimeValue*iTaskBoreHole)); // 5мс - на выполнение Задачи в библиотеке
                              // 95 - время выполнениея кода (ниже) и sleep
                              // это эмуляция квантованного предоставления времени выполнения потока
 //--- Фиксируем текущее время (для вывода на экран)
@@ -400,19 +401,18 @@ repeat
       CriticalSection.Enter;
 // curTaskItem:= self;
 
-      OutInfo_ForViewing.hWndViewObject:= self.FHandleWinForView;
       OutInfo_ForViewing.IndexInViewComponent:= self.FLineIndex_ForView;
       OutInfo_ForViewing.TextForViewComponent:= self.InfoFromTask;
-//--- Формирование краткого результата выполнения задачи
 
+//--- Формирование краткого результата выполнения задачи
       case self.FLibraryId of
       0:
         begin
           case self.FTaskSource.TaskLibraryIndex of
           0:
            begin
-            self.FInfoFromTask:= format(wsResultPartDll1Task0_InfoFromTask, [self.FTaskSource.Task_Result.dwEqualsCount]);
-            self.FStringStream.LoadFromStream(self.FStream);
+            if Win32Check(Assigned(self.FTaskSource)) then
+             self.FInfoFromTask:= format(wsResultPartDll1Task0_InfoFromTask, [self.FTaskSource.Task_Result.dwEqualsCount]);
            end;
           1:
            begin
@@ -424,9 +424,25 @@ repeat
         end;
       1:
       begin
+          case self.FTaskSource.TaskLibraryIndex of
+          0:
+           begin
+            if Win32Check(Assigned(self.FTaskSource)) then
+             self.FInfoFromTask:= wsResultPartDll2Task0_InfoFromTask;
+//            self.FStringStream.LoadFromStream(self.FStream);
+           end;
+         end;
+      end;
+      end;
+//--- Прокрутить ТМемо с информацией от задач на последнюю строку
+//--- Обновление результирующей информации, получаемой от задачи
+     if (TaskState = tsActive) or (TaskState = tsDone) then
+      if OutInfo_ForViewing.CurrentViewingTask = self.FTaskNumInList then
+      begin
+       if self.StringStream_LastPos < self.Stream.Position then
+         PostMessage(OutInfo_ForViewing.hMemoThreadInfo_1, WM_Data_Update, self.FTaskNumInList, CMD_SetMemoStreamUpd);
+      end;
 
-      end;
-      end;
 
 
      case ModulsExchangeType of
@@ -449,7 +465,7 @@ repeat
 //    self.Priority:= tpIdle;
 //   end;
 
-  sleep(round(FCycleTimeValue*0.75)); // 15мс - время выполнениея кода (ниже) и sleep
+  sleep(round(FCycleTimeValue*(iCycleTimeValue*(1 - iTaskBoreHole)))); // 15мс - время выполнениея кода (ниже) и sleep
                                      // это эмуляция квантованного предоставления времени выполнения потока
  until (self.TaskState = tsTerminate);
 
@@ -461,19 +477,6 @@ repeat
  //--- Удаление задачи из списка объектов "задача" (информацию на компоненте отображения оставляем в окне просмотра...)
 // TaskList[self.FTaskNum].Destroy;
  //--- Удаление задачи из списка "задач" (информацию на компоненте отображения оставляем в окне просмотра...)
-
-(*
-//--- Необходимо реализовать аналогично отсылке строки о состоянии (асинхронно)
- try
-   CriticalSection.Enter;
-   OutInfo_ForViewing.hWndViewObject:= formMain.lbThreadList.Handle;
-   OutInfo_ForViewing.IndexInViewComponent:= self.FLineIndex_ForView;
-   Synchronize(DeleteTaskFromViewingList);
-
- finally
-   CriticalSection.Leave;
- end;
-*)
 
 finally
  FreeAndNil(self.FTaskCore);
@@ -617,7 +620,7 @@ begin
      begin
       //--- После каждого цикла запускаем передачу информации в окно главной формы
       // OutInfo_ForViewing.TextForViewObject:= OutInfo_ForViewing.TextForViewObject +
-      if formMain.memInfoThread <> nil then
+      if formMain.hMemoThreadInfo_Main <> nil then
        self.thrSendInfoToView(OutInfo_ForViewing.TextForViewComponent);
      end;
 

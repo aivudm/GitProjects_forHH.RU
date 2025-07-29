@@ -16,7 +16,7 @@ function ByteToWS(inputBytes: TArray<Byte>; inputBytesSize: dword): WideString;
 
 
 implementation
-uses unVariables;
+uses unConst, unVariables;
 
 function GetSubStr(FullString:String;Index:Byte;Count:Integer):String;
 begin
@@ -122,9 +122,10 @@ end;
 procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
 var
   tmpWideString: WideString;
+  tmpCardinal: Cardinal;
 begin
  CriticalSection.Enter;
- tmpWideString:= '-------------------------------------------------------------'
+  tmpWideString:= '-------------------------------------------------------------'
                 + #13#10
                 + DatetimeToStr(today())
                 + #13#10
@@ -133,11 +134,14 @@ begin
                 + E_source1
                 + #13#10
                 + '-------------------------------------------------------------';
- logFileStream.WriteString(tmpWideString);
- logFileStream.SaveToFile(logFileName);
+  tmpCardinal:= logFileStringStream.Position;
+  logFileStringStream.WriteString(tmpWideString);
+  logFileStringStream.Position:= tmpCardinal;
+  SetLength(logFileBuffer, logFileStringStream.Size);
+//  logFileStringStream.SaveToStream(logFileStream);
+//--- Обновить информацию в ТМемо (с журналом работы)
+  PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
  CriticalSection.Leave;
-//--- Прокрутить ТМемо с журналом работы на последнюю строку
- SendMessage(hMemoLogInfo_2, EM_LINESCROLL, 0, 0);
 end;
 
 function ByteToWS(inputBytes: TArray<Byte>; inputBytesSize: dword): WideString;

@@ -28,19 +28,19 @@ object formMain: TformMain
     object Label1: TLabel
       Left = 5
       Top = 243
-      Width = 117
+      Width = 151
       Height = 13
-      Caption = #1048#1085#1092#1086#1088#1084#1072#1094#1080#1103' '#1086#1090' '#1087#1086#1090#1086#1082#1072
+      Caption = #1056#1077#1079#1091#1083#1100#1090#1072#1090' '#1074#1099#1087#1086#1083#1085#1077#1085#1080#1103' '#1079#1072#1076#1072#1095
     end
     object Label2: TLabel
       Left = 606
       Top = 244
-      Width = 81
+      Width = 146
       Height = 13
-      Caption = #1046#1091#1088#1085#1072#1083' '#1086#1096#1080#1073#1086#1082
+      Caption = #1046#1091#1088#1085#1072#1083' '#1088#1072#1073#1086#1090#1099' '#1087#1088#1080#1083#1086#1078#1077#1085#1080#1103
     end
-    object memInfoTread1: TMemo
-      Left = 3
+    object memThreadInfo_1: TMemo
+      Left = 5
       Top = 259
       Width = 595
       Height = 89
@@ -49,16 +49,7 @@ object formMain: TformMain
       TabOrder = 0
       WantReturns = False
       WordWrap = False
-      OnClick = memInfoTread1Click
-    end
-    object memLogInfo_2: TMemo
-      Left = 604
-      Top = 259
-      Width = 385
-      Height = 89
-      ReadOnly = True
-      ScrollBars = ssBoth
-      TabOrder = 1
+      OnClick = memThreadInfo_1Click
     end
     object lbThreadList: TListBox
       Left = 3
@@ -66,7 +57,7 @@ object formMain: TformMain
       Width = 382
       Height = 63
       ItemHeight = 13
-      TabOrder = 2
+      TabOrder = 1
       OnClick = lbThreadListClick
       OnKeyPress = lbThreadListKeyPress
       OnMouseUp = lbThreadListMouseUp
@@ -77,7 +68,7 @@ object formMain: TformMain
       Width = 105
       Height = 25
       Caption = #1055#1072#1091#1079#1072
-      TabOrder = 3
+      TabOrder = 2
       OnClick = bThreadPauseClick
     end
     object bStop: TButton
@@ -86,10 +77,10 @@ object formMain: TformMain
       Width = 105
       Height = 25
       Caption = #1054#1089#1090#1072#1085#1086#1074#1080#1090#1100
-      TabOrder = 4
+      TabOrder = 3
       OnClick = bStopClick
     end
-    object memInfoThread: TRichEdit
+    object hMemoThreadInfo_Main: TRichEdit
       Left = 0
       Top = 85
       Width = 989
@@ -103,8 +94,18 @@ object formMain: TformMain
         '')
       ParentFont = False
       ScrollBars = ssBoth
-      TabOrder = 5
+      TabOrder = 4
       Zoom = 100
+    end
+    object memLogInfo_2: TMemo
+      Left = 606
+      Top = 259
+      Width = 383
+      Height = 89
+      Lines.Strings = (
+        '')
+      ScrollBars = ssBoth
+      TabOrder = 5
     end
   end
   object sbMain: TStatusBar

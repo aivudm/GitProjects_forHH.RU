@@ -80,9 +80,6 @@ type
   TArray_WideString = TArray<WideString>;
   TArray_Cardinal = array [0..High(Byte)] of Cardinal;
 
-//  TArray_WideString = array [0..High(Byte)] of WideString;
-//  TArray_Cardinal = array [0..High(Byte)] of Cardinal;
-
 type
 //------------------------------------------------------------------------------
   TModulsExchangeType = (etMessage_WMCopyData = 0, etClientServerUDP = 1);
@@ -128,13 +125,6 @@ type
     procedure SetItem(Index: integer; const Value: TLibraryTask);
    public
     property Items[Index: integer]: TLibraryTask read GetItem write SetItem; default;
-  end;
-
-
-  TOutInfo_ForViewing = packed record
-    hWndViewObject: hWnd;
-    IndexInViewComponent: integer;
-    TextForViewComponent: ansistring;
   end;
 
 
@@ -186,15 +176,28 @@ type
   end;
 //------------------------------------------------------------------------------
 
+  TOutInfo_ForViewing = packed record
+    IndexInViewComponent: integer;
+    TextForViewComponent: ansistring;
+    hMemoThreadInfo_Main: HWND;  //--- для журнала
+    hMemoThreadInfo_1: HWND;  //--- для информации от потоков
+    hMemoLogInfo_2: HWND;  //--- для журнала
+    CurrentViewingTask: word;
+  end;
 
+//------------------------------------------------------------------------------
+  TFileBuffer = array of byte;
+//------------------------------------------------------------------------------
 
 var
   intrfDllAPI: ILibraryAPI;
   hTaskLibrary: THandle;  //--- он же HMODULE
   iniFile: TIniFile;
   logFileName: WideString;
+  logFileBuffer: TFileBuffer;
   logFileStringList: TStringList;
-  logFileStream: TStringStream;
+  logFileStream: TFileStream;
+  logFileStringStream: TStringStream;
   logFileStream_LastPos: Cardinal = 0;
   logFile: TextFile;
 
@@ -205,6 +208,7 @@ var
   aResultArraySimple: TArray<Int64>;
   FileList: TFileList; //StreamWriter: TStreamWriter;
 
+  OutInfo_ForViewing: TOutInfo_ForViewing;
   CallingDLLProc: TCallingDLLProc;
   hDllTask: THandle;
   sWorkDirectory: WideString = '';
@@ -213,7 +217,6 @@ var
   LibraryTask: TLibraryTask;
   LibraryList: TLibraryList; //TObjectList<TLibraryTaskInfo>;
   CriticalSection: TCriticalSection;
-  hMemoLogInfo_2: HWND = INVALID_HANDLE_VALUE;  //--- для журнала
 
 
 
@@ -354,7 +357,6 @@ LibraryList:= TLibraryList.Create;; //TObjectList<TLibraryTaskInfo>.Create;
 FileList:= TFileList.Create();
 
 iniFile:= TIniFile.Create(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.ini' )));
-logFileName:= sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log'));
 
 {
 FileMode:= fmOpenReadWrite or fmShareDenyWrite;
@@ -364,9 +366,16 @@ if FileExists(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.E
 else
  Rewrite(logFile);
 }
-logFileStringList:= TStringList.Create;
-logFileStream:= TStringStream.Create(logFileStringList.Text, TEncoding.ANSI)
 
+logFileName:= sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log'));
+//--- Создание потока для файла журнала
+logFileStream:= TFileStream.Create(logFileName, fmOpenRead or fmShareDenyWrite);
+SetLength(logFileBuffer, logFileStream.Size);
+logFileStream.ReadBuffer(Pointer(logFileBuffer)^, Length(logFileBuffer));
+//logFileStream.Position:= 0;
+
+logFileStringList:= TStringList.Create;
+logFileStringStream:= TStringStream.Create(logFileStringList.Text, TEncoding.ANSI)
 
 //StreamWriter:= TFile.CreateText('d:\Task_3_SimpleNumbers.txt');
 
@@ -375,7 +384,7 @@ finalization
 FreeAndNil(LibraryList);
 FreeAndNil(iniFile);
 FreeAndNil(logFileStream);
-FreeAndNil(logFileStream);
+FreeAndNil(logFileStringStream);
 //StreamWriter.Free;
 
 end.

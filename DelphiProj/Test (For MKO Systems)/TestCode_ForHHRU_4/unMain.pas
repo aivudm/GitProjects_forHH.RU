@@ -23,16 +23,16 @@ type
     miAbout: TMenuItem;
     miTools: TMenuItem;
     GroupBox1: TGroupBox;
-    memInfoTread1: TMemo;
-    memLogInfo_2: TMemo;
+    memThreadInfo_1: TMemo;
     lbThreadList: TListBox;
     bThreadPause: TButton;
     bStop: TButton;
     sbMain: TStatusBar;
     N1: TMenuItem;
-    memInfoThread: TRichEdit;
+    hMemoThreadInfo_Main: TRichEdit;
     Label1: TLabel;
     Label2: TLabel;
+    memLogInfo_2: TMemo;
     procedure miToolsClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure lbThreadListMouseUp(Sender: TObject; Button: TMouseButton;
@@ -44,15 +44,15 @@ type
     procedure N1Click(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure bStopClick(Sender: TObject);
-    procedure memInfoTread1Click(Sender: TObject);
+    procedure memThreadInfo_1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
-//    message WM_WINDOWPOSCHANGING;
+    procedure WMWindowPosChanging(var Msg: TWMWindowPosChanging); message WM_WINDOWPOSCHANGING;
     procedure WMCopyData(var MessageData: TWMCopyData); message WM_COPYDATA;
-    procedure WMWINDOWPOSCHANGING(var Msg: TWMWINDOWPOSCHANGING); message WM_WINDOWPOSCHANGING;
+    procedure memThreadInfo_1_WndProc_Current(var Message: TMessage);
     procedure memLogInfo_2_WndProc_Current(var Message: TMessage);
-    procedure HandleProc(var updMessage: TMessage); message WM_Data_Update;
+    procedure WMDataUpdate(var Message: TMessage); message WM_Data_Update;
   public
     { Public declarations }
     procedure SetButtonState_ThreadList(ThreadNum: word);
@@ -60,6 +60,7 @@ type
 
 var
   formMain: TformMain;
+  memThreadInfo_1_WndProc_Original: TWndMethod;
   memLogInfo_2_WndProc_Original: TWndMethod;
 
 
@@ -79,10 +80,10 @@ begin
   tmpString:= PWChar(MessageData.CopyDataStruct.lpData);
    tmpWord:= StrToInt(GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1, IndexInString(sDelimiterNumTask, tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1) - 1));
    tmpString:= GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 2) + 2, - 1);
-   if tmpWord > formMain.memInfoThread.Lines.Count  then
-    formMain.memInfoThread.Lines.Add(tmpString)
+   if tmpWord > formMain.hMemoThreadInfo_Main.Lines.Count  then
+    formMain.hMemoThreadInfo_Main.Lines.Add(tmpString)
    else
-    formMain.memInfoThread.Lines[tmpWord]:= tmpString;
+    formMain.hMemoThreadInfo_Main.Lines[tmpWord]:= tmpString;
 
     MessageData.Result := 1;
   end
@@ -102,19 +103,109 @@ begin
 
 end;
 
-procedure TformMain.memLogInfo_2_WndProc_Current(var Message: TMessage);
+
+procedure TformMain.WMDataUpdate(var Message: TMessage);
+{
+var
+  tmpStringList: TStringList;
+}
 begin
- if (Message.Msg = EM_LINESCROLL) then
+{
+  if Message.WParam = OutInfo_ForViewing.CurrentViewingTask then
+  begin
+   TaskList[Message.WParam].StringStream.LoadFromStream(TaskList[Message.WParam].Stream);
+   if (TaskList[Message.WParam].StringStream.Position > TaskList[Message.WParam].StringStream_LastPos) then
+   begin
+    TaskList[Message.WParam].StringStream.Position:= TaskList[Message.WParam].StringStream_LastPos;
+    try
+      tmpStringList:= TStringList.Create;
+      tmpStringList.LoadFromStream(TaskList[Message.WParam].StringStream);
+      TaskList[Message.WParam].StringStream_LastPos:= TaskList[Message.WParam].StringStream.Position;
+     if memThreadInfo_1.Lines.Count < tmpStringList.Count then
+     begin
+      memThreadInfo_1.Lines.AddStrings(tmpStringList);
+      Message.LParam:= memThreadInfo_1.Lines.Count;
+     end;
+    finally
+     FreeAndNil(tmpStringList);
+    end;
+//   memThreadInfo_1.Lines.LoadFromStream(TaskList[Message.WParam].StringStream);
+//   memThreadInfo_1.Lines.Text:= TaskList[Message.WParam].StringStream.DataString;
+   end;
+  end;
+}
+
+end;
+
+
+procedure TformMain.memThreadInfo_1_WndProc_Current(var Message: TMessage);
+var
+  tmpStringList: TStringList;
+begin
+// if (Message.Msg = EM_LINESCROLL) or ((Message.Msg = WM_VSCROLL)) then
+ if (Message.Msg = WM_Data_Update) and (Message.LParam = CMD_SetMemoStreamUpd) then
  begin
-  logFileStream.Position:= logFileStream_LastPos;
-  memInfoThread.Lines.LoadFromStream(logFileStream);
-  logFileStream_LastPos:= logFileStream.Position;
+  if Message.WParam = OutInfo_ForViewing.CurrentViewingTask then
+  begin
+   if TaskList[Message.WParam].StringStream.Position < TaskList[Message.WParam].Stream.Position then
+   begin
+    TaskList[Message.WParam].StringStream.LoadFromStream(TaskList[Message.WParam].Stream);
+    TaskList[Message.WParam].StringStream.Seek(0, soEnd);
+   end;
+   if (TaskList[Message.WParam].StringStream.Position > TaskList[Message.WParam].StringStream_LastPos) then
+   begin
+    TaskList[Message.WParam].StringStream.Position:= TaskList[Message.WParam].StringStream_LastPos;
+    try
+      tmpStringList:= TStringList.Create;
+      tmpStringList.LoadFromStream(TaskList[Message.WParam].StringStream);
+      TaskList[Message.WParam].StringStream_LastPos:= TaskList[Message.WParam].StringStream.Position;
+      memThreadInfo_1.Lines.AddStrings(tmpStringList);
+    finally
+     FreeAndNil(tmpStringList);
+    end;
+
+   end;
+  end;
  end;
 
- if Assigned(memLogInfo_2_WndProc_Original) then
+ if Assigned(memThreadInfo_1_WndProc_Original) then
+  memThreadInfo_1_WndProc_Original(Message);
+
+end;
+
+
+procedure TformMain.memLogInfo_2_WndProc_Current(var Message: TMessage);
+var
+  tmpBool: boolean;
+begin
+ tmpBool:= false;
+ if (Message.Msg = WM_Data_Update) and (Message.WParam = CMD_SetMemoStreamUpd) then
+ begin
+  try
+   logFileStringList.LoadFromStream(logFileStream);
+   logFileStream_LastPos:= logFileStream.Position;
+   memLogInfo_2.Lines.AddStrings(logFileStringList);
+  finally
+   tmpBool:= true;
+  end;
+
+ end;
+
+ if Assigned(memLogInfo_2_WndProc_Original) and (not  tmpBool) then
   memLogInfo_2_WndProc_Original(Message);
 
 end;
+
+{
+procedure TformMain.WMDataUpdate(var updMessage: TMessage);
+var
+  pBuffer: PWideChar;
+begin
+  pBuffer:= PWideChar(updMessage.LParam);
+//  memInfoTread.Lines.Add(updMessage.WParam.ToString());
+  memLogInfo_2.Lines.Add(pBuffer);
+end;
+}
 
 procedure TformMain.bStopClick(Sender: TObject);
 var
@@ -198,13 +289,20 @@ begin
 
 
 //--- Заполнение глобальных переменных
- hMemoLogInfo_2:= self.memLogInfo_2.Handle;
+ OutInfo_ForViewing.hMemoThreadInfo_Main:= hMemoThreadInfo_Main.Handle;
+ OutInfo_ForViewing.hMemoThreadInfo_1:= memThreadInfo_1.Handle;
+ OutInfo_ForViewing.hMemoLogInfo_2:= memLogInfo_2.Handle;
 
-//--- Открытие журнала
+//--- Настройка обработки сообщения для информации о задачах
+ memThreadInfo_1_WndProc_Original:= formMain.memThreadInfo_1.WindowProc;
+ formMain.memThreadInfo_1.WindowProc := memThreadInfo_1_WndProc_Current;
+
+ //--- Настройка обработки сообщения для журнала
  memLogInfo_2_WndProc_Original:= formMain.memLogInfo_2.WindowProc;
  formMain.memLogInfo_2.WindowProc := memLogInfo_2_WndProc_Current;
+
 //--- Прокрутить ТМемо с журналом работы на последнюю строку
- SendMessage(hMemoLogInfo_2, EM_LINESCROLL, 0, 0);
+ PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
 
 end;
 
@@ -212,18 +310,9 @@ procedure TformMain.FormShow(Sender: TObject);
 begin
 //--- Что бы сразу открывалось окно с настройками
   formMain.lbThreadList.Clear;
-  formMain.memInfoThread.Clear;
+  formMain.hMemoThreadInfo_Main.Clear;
   formMain.memLogInfo_2.Clear;
   formMain.miToolsClick(Sender);
-end;
-
-procedure TformMain.HandleProc(var updMessage: TMessage);
-var
-  pBuffer: PWideChar;
-begin
-  pBuffer:= PWideChar(updMessage.LParam);
-//  memInfoTread.Lines.Add(updMessage.WParam.ToString());
-  memLogInfo_2.Lines.Add(pBuffer);
 end;
 
 procedure TformMain.lbThreadListClick(Sender: TObject);
@@ -231,33 +320,52 @@ var
   tmpInt: integer;
   tmpResultBuffer: Pointer;
   tmpHandle: THandle;
-  tmpBytes: TArray<Byte>;
   tmpIStream: IStream;
   tmpStringList: TStringList;
-
   tmpWideString: AnsiString;
-  tmpUTF8: UTF8String;
-
 
 begin
 try
+ tmpStringList:= TStringList.Create;
  if not ((lbThreadList.ItemIndex > -1) and ((Sender as TListBox).ItemIndex <= (Sender as TListBox).Items.Count)) then
  begin
   exit;
  end;
 
  tmpInt:= lbThreadList.ItemIndex;
+ if (OutInfo_ForViewing.CurrentViewingTask = tmpInt) and (lbThreadList.Count > 1) then
+  exit;
+
+ CriticalSection.Enter;
+  memThreadInfo_1.Lines.Clear;
+  OutInfo_ForViewing.CurrentViewingTask:= tmpInt;
+  TaskList[tmpInt].StringStream_LastPos:= 0;
+ CriticalSection.Leave;
 
  SetButtonState_ThreadList(lbThreadList.ItemIndex);
 
+//--- Первоначальный вывод информации о результатах от задачи (потока)
+//--- будет отображена информация, которая уже есть на момент переключения
+//--- последующая информация будет выводиться по сообщениям от задач (по мере выполнения)
 //--- Выведем информацию о результате выполнения задачи в TMemo
 try
 
- TaskList[tmpInt].Stream.Position:= 0;
- TaskList[tmpInt].StringStream.LoadFromStream(TaskList[tmpInt].Stream);
-
- memInfoTread1.Lines.LoadFromStream(TaskList[tmpInt].StringStream);
- memInfoTread1.Lines.Text:= TaskList[tmpInt].StringStream.DataString;
+   TaskList[tmpInt].StringStream.LoadFromStream(TaskList[tmpInt].Stream);
+   if (TaskList[tmpInt].StringStream.Position > TaskList[tmpInt].StringStream_LastPos) then
+   begin
+    TaskList[tmpInt].StringStream.Position:= TaskList[tmpInt].StringStream_LastPos;
+//   TaskList[Message.WParam].StringStream.Position:= 0;
+    try
+      tmpStringList:= TStringList.Create;
+      tmpStringList.LoadFromStream(TaskList[tmpInt].StringStream);
+      TaskList[tmpInt].StringStream_LastPos:= TaskList[tmpInt].StringStream.Position;
+//     if memThreadInfo_1.Lines.Count < tmpStringList.Count then
+//      memThreadInfo_1.Lines.AddStrings(tmpStringList);
+      memThreadInfo_1.Lines.Text:= tmpStringList.Text;
+    finally
+     FreeAndNil(tmpStringList);
+    end;
+   end;
 
 
 except
@@ -267,19 +375,14 @@ except
  end;
 end;
 
-//--- Выведем лог ошибок текущей задачи в TMemo
-// memInfo_2.Lines.LoadFromFile(logFileName);
-
 finally
- HeapFree(tmpHandle, 0, tmpResultBuffer);
+ if Assigned(tmpStringList) then
+  FreeAndNil(tmpStringList);
 end;
 
-
-// memInfoTread.SelStart := Perform(EM_LINEINDEX, lbThreadList.ItemIndex, 0) + 2; // start two chars beyond the linestart
-// memInfoTread.SelLength:= Perform(EM_LINELENGTH, memInfoTread.SelStart,0) - 2; // decrease the whole length by these two chars
-
-
 //--- Выделим соответсвующую строку состояния задачи в memInfoTread
+// memInfoTread.SelStart := Perform(EM_LINEINDEX, lbThreadList.ItemIndex, 0) + 2; // отступ слева - 2 точки
+// memInfoTread.SelLength:= Perform(EM_LINELENGTH, memInfoTread.SelStart,0) - 2; // отступ справа - 2 точки
 //   tmpInt:=Perform(EM_LINEFROMCHAR, lbThreadList.ItemIndex, 0);
 //   memInfoTread.SelStart:=Perform(EM_LINEINDEX, tmpInt, 0);
 //   memInfoTread.SelLength:=Length(memInfoTread.Lines[tmpInt]);
@@ -298,27 +401,28 @@ begin
 SetButtonState_ThreadList((Sender as TListbox).ItemIndex);
 end;
 
-procedure TformMain.memInfoTread1Click(Sender: TObject);
-var
+procedure TformMain.memThreadInfo_1Click(Sender: TObject);
+{
   tmpInt: integer;
+}
 begin
+{
 with (Sender as TMemo) do
 begin
    tmpInt:=Perform(EM_LINEFROMCHAR, SelStart, 0);
    SelStart:=Perform(EM_LINEINDEX, tmpInt, 0);
    SelLength:=Length(Lines[tmpInt]);
 end;
+}
 end;
 
 procedure TformMain.miExitClick(Sender: TObject);
 begin
  Close;
-//- Application.Terminate;
 end;
 
 procedure TformMain.miToolsClick(Sender: TObject);
 begin
-// fmTools:= TfmTools.Create(Application);
 try
  miTools.Enabled:= false;
  Application.CreateForm(TformTools, formTools);
@@ -331,7 +435,7 @@ end;
 
 procedure TformMain.N1Click(Sender: TObject);
 var
-  tmpStringList: TStrings; //List;
+  tmpStringList: TStrings;
 begin
   memLogInfo_2.Lines.Clear;
   ListDLLsForProcess(GetPIDByName(PWChar(formMain.Caption)), memLogInfo_2.Lines);
@@ -343,26 +447,26 @@ begin
   tsActive:
    begin
     bThreadPause.Enabled:= true;
-    bThreadPause.Caption:= 'Пауза';
+    bThreadPause.Caption:= aButtonStateCaption[0]; //--- 'Пауза';
     bStop.Enabled:= true;
    end;
   tsPause:
    begin
     bThreadPause.Enabled:= true;
-    bThreadPause.Caption:= 'Продолжить';
+    bThreadPause.Caption:= aButtonStateCaption[1]; //--- 'Продолжить';
     bStop.Enabled:= true;
    end;
   tsTerminate:
    begin
     bStop.Enabled:= false;
     bThreadPause.Enabled:= false;
-    bThreadPause.Caption:= 'Завершён';
+    bThreadPause.Caption:= aButtonStateCaption[2]; //--- 'Завершён';
    end;
   tsDone:
    begin
     bStop.Enabled:= false;
     bThreadPause.Enabled:= true;
-    bThreadPause.Caption:= 'Запуск (повтор)';
+    bThreadPause.Caption:= aButtonStateCaption[3]; //--- 'Запуск (повтор)';
    end;
 
  end;

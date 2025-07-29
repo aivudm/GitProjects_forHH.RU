@@ -70,6 +70,8 @@ procedure TformTools.btnNewThreadClick(Sender: TObject);
     tmpDWord: DWORD;
 begin
  try
+  if lbTemplateTaskList.ItemIndex < 0 then
+    exit;
 //--- Настроим передачу информации от потоков в главное окно согласно выбранному типу
 
   //--- Назначение задачи (из списка доступных задач) новому потоку
@@ -81,6 +83,9 @@ begin
   //--- и текущего номера задачи (в текущем списке активных задач) в объект TaskItem
   TaskList[iTaskListNum].SetTaskNum(iTaskListNum);
 
+  CriticalSection.Enter;
+//   OutInfo_ForViewing.CurrentViewingTask:= iTaskListNum;
+  CriticalSection.Leave;
 
   //--- 2. Создаём новый объект "Исходник Задачи", затем помещаем его в массив объектов типа "Список Исходников Задач" - нужна реализация каждого объекта, так как они будут выполняться в потоках
   try
@@ -121,10 +126,10 @@ begin
                                                               TaskList[iTaskListNum].TaskName]));
 
 //--- 4. Назначим объекты для отображения информации от задач (потоков)
-  TaskList[iTaskListNum].LineIndex_ForView:= formMain.memInfoThread.Lines.Add(sWaitForThreadAnswer);
+  TaskList[iTaskListNum].LineIndex_ForView:= formMain.hMemoThreadInfo_Main.Lines.Add(sWaitForThreadAnswer);
 
-  TaskList[iTaskListNum].HandleWinForView:= formMain.memInfoThread.Handle;
-  GetWindowThreadProcessId(formMain.memInfoThread.Handle, @tmpDWord);
+//  TaskList[iTaskListNum].HandleWinForView:= formMain.memThreadInfo.Handle;
+  GetWindowThreadProcessId(formMain.hMemoThreadInfo_Main.Handle, @tmpDWord);
   TaskList[iTaskListNum].ThreadIDWinForView:= tmpDWord;
 
 //--- Запускаем Задачу на выполнение
@@ -142,7 +147,7 @@ begin
  if lbLibraryList.ItemIndex < 1 then
   exit;
 
- LibraryList[lbLibraryList.ItemIndex].Free;
+// LibraryList[lbLibraryList.ItemIndex].Free;
 
  lbLibraryList.DeleteSelected;
 end;

@@ -86,7 +86,7 @@ object formEditParams_Task1: TformEditParams_Task1
     Width = 354
     Height = 21
     TabOrder = 3
-    Text = 'D:\Install\ResultSearchByMask1.txt'
+    Text = 'D:\Install\Result_Library1_Task1.txt'
   end
   object chkbTypeResultOutput: TCheckBox
     Left = 8

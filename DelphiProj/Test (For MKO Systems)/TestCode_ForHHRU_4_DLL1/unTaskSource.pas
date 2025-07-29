@@ -14,7 +14,7 @@ const
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
   wsTask2_Result_TemplateView: WideString = 'Шаблон: %12s, Позиция в файле: %d';
   wsTask2_TotalResult_TemplateView: WideString = 'Шаблон: %12s, Всего совпадений: %d';
-  wsResultStreamTitle: WideString = 'Задача в библиотеке №';
+  wsResultStreamTitle: WideString = 'Библиотека №%d, Задача №%d';
   wsCRLF = #13#10;
 
 //--- Для Задачи №2 ------------------------------------------------------------
@@ -89,7 +89,6 @@ function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): 
 //--- Для Задачи №2 ------------
 procedure GetPatternsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputPatternCount: word);
 function GetPosForPattern(inputBuffer: Pointer; inputFileSize: DWORD; inputSearchPatternSet: TSearchPatternSet; inputPosBeginSearch: DWORD): DWORD;
-procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask_Results; inputStreamWriter: TStreamWriter);
 function WSToByte(inputWideString: WideString): TSearchPattern;
 function ByteToWS(inputBytes: TSearchPattern; inputBytesSize: dword): WideString;
 
@@ -185,144 +184,9 @@ finally
 
 end;
 end;
-}
-procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
-begin
- outputMaskCount:= 0;
- if pos(wsBeginMask, inputSourceBSTR, 1) > 0 then
- begin
-  while pos(wsBeginMask, inputSourceBSTR, 1) > 0 do
-   begin
-//--- Проверка на правильное начало маски, если нет, то отбросим всё что до начала маски расширения
-    if pos(wsBeginMask, inputSourceBSTR, 1) > 0 then
-      delete(inputSourceBSTR, 1, length(GetSubStr(inputSourceBSTR, 1, pos(wsBeginMask, inputSourceBSTR)))); //--- удалим всё, что до '*.' - ищем только расширения
 
-    if pos(ItemDelemiter, inputSourceBSTR, 1) > 0 then
-      outputStringItems[outputMaskCount]:= Copy(inputSourceBSTR, 1, pos(ItemDelemiter, inputSourceBSTR, 1) - 1)
-    else // осталась последняя маска и без завершающего разделителя (но мы её не бросим!)
-      outputStringItems[outputMaskCount]:= Copy(inputSourceBSTR, 1, length(inputSourceBSTR));
 
-    delete(inputSourceBSTR, 1, Length(outputStringItems[outputMaskCount]) + 1); //--- удалим прочтённую запись и разделитель
-    inc(outputMaskCount);
-   end;
- end;
-end;
-
-function GetSubStr(inSourceString: WideString; inIndex:Byte; inCount:Integer): WideString;
-begin
-if inCount<>-1 then
-   Result:=copy(inSourceString, inIndex, inCount)
-else
-   Result:=copy(inSourceString, inIndex, (length(inSourceString) - inIndex + 1));
-end;
-
-function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): word;
-var
-   MyStr: WideString;
-begin
-MyStr:= GetSubStr(inSourceString, inPosBegin, -1);
-Result:=pos(inSubStr, MyStr);
-
-end;
-
-//------------------------------------------------------------------------------------------------------------------------------------
-//------------------------------ Для Задачи №2 ---------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------------------------------------------------------
-
-function GetPosForPattern(inputBuffer: Pointer; inputFileSize: DWORD; inputSearchPatternSet: TSearchPatternSet; inputPosBeginSearch: DWORD): DWORD;
-var
-   LastStartComparePos, Test, MaxLastComparePosOffset, tmpPatternSize: DWORD;
-begin
- Result:= $0FFFFFFFF; //iPatternNotFound;
- tmpPatternSize:= inputSearchPatternSet.PatternSize;
- if tmpPatternSize < 1 then
-  exit;
-
-asm
- mov esi, inputBuffer
- mov edx, esi
- add esi, inputPosBeginSearch
- dec esi
- mov LastStartComparePos, esi
- mov eax, inputFileSize
- sub eax, tmpPatternSize
- jb @@Exit_Failed
- add edx, eax //--- edx = MaxLastComparePos
-
-@@BeginCompare:
- inc LastStartComparePos
- cmp edx, LastStartComparePos
- jb @@Exit_Failed
-
-@@PrepareNextStep:
- mov esi, LastStartComparePos
- mov edi, inputSearchPatternSet.Pattern
- mov ecx, tmpPatternSize
-@@CompareByte:
- mov al, byte ptr [edi]
- mov ah, byte ptr [esi]
- cmp al, ah
- jnz @@BeginCompare
- inc esi
- cmp edx, esi
- jb @@Exit_Failed
- inc edi
- dec ecx
- test ecx, ecx
- ja @@CompareByte
- mov eax, LastStartComparePos
- sub eax, inputBuffer
- jmp @@Exit
-@@Exit_Failed:
- mov eax, 0FFFFFFFFh
-@@Exit:
- mov Result, eax
-end;
-
-end;
-
-function WSToByte(inputWideString: WideString): TSearchPattern;
-var
-  tmpPChar: PChar;
-  tmpWord: word;
-begin
-  if length(inputWideString) = 0 then
-    exit;
-
-  setlength(Result, length(inputWideString));
-  tmpPChar:= PChar(inputWideString);
- for tmpWord:= 0 to length(inputWideString) - 1 do
- begin
-   Result[tmpWord]:= ord(tmpPChar[tmpWord]);
- end;
-end;
-
-function ByteToWS(inputBytes: TSearchPattern; inputBytesSize: dword): WideString;
-var
-  tmpPChar: PChar;
-  tmpWord: word;
-  tmpStr: AnsiString;
-begin
-  Result:= '';
-  if inputBytesSize < 1 then
-  begin
-   Result:= '';
-   exit;
-  end;
-
-//  setlength(Result, inputBytesSize*sizeof(WideChar) + 1);
- setlength(Result, inputBytesSize*sizeof(WideChar) + 1);
- Result:='';
-
- for tmpWord:= 0 to inputBytesSize - 1 do
- begin
-   tmpStr:= AnsiChar(inputBytes[tmpWord]);
-   Result:= Result + WideChar(tmpStr[1]);
- end;
- Result:= Result + #0;
-end;
-
-procedure CountPatternIncluding(inputTargetFileName: WideString; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask_Results; inputStreamWriter: TStreamWriter);
+procedure CountPatternIncluding(inputTargetFileName: WideString; inputParam4: boolean; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask_Results; inputStreamWriter: TStreamWriter);
 var
   tmpFileStream: TFileStream;
   tmpTargetFileBuffer: TTargetFile;
@@ -401,6 +265,144 @@ try
 finally
  FreeAndNil(tmpFileStream);
 end;
+end;
+
+
+
+}
+procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
+begin
+ outputMaskCount:= 0;
+ if pos(wsBeginMask, inputSourceBSTR, 1) > 0 then
+ begin
+  while pos(wsBeginMask, inputSourceBSTR, 1) > 0 do
+   begin
+//--- Проверка на правильное начало маски, если нет, то отбросим всё что до начала маски расширения
+    if pos(wsBeginMask, inputSourceBSTR, 1) > 0 then
+      delete(inputSourceBSTR, 1, length(GetSubStr(inputSourceBSTR, 1, pos(wsBeginMask, inputSourceBSTR)))); //--- удалим всё, что до '*.' - ищем только расширения
+
+    if pos(ItemDelemiter, inputSourceBSTR, 1) > 0 then
+      outputStringItems[outputMaskCount]:= Copy(inputSourceBSTR, 1, pos(ItemDelemiter, inputSourceBSTR, 1) - 1)
+    else // осталась последняя маска и без завершающего разделителя (но мы её не бросим!)
+      outputStringItems[outputMaskCount]:= Copy(inputSourceBSTR, 1, length(inputSourceBSTR));
+
+    delete(inputSourceBSTR, 1, Length(outputStringItems[outputMaskCount]) + 1); //--- удалим прочтённую запись и разделитель
+    inc(outputMaskCount);
+   end;
+ end;
+end;
+
+function GetSubStr(inSourceString: WideString; inIndex:Byte; inCount:Integer): WideString;
+begin
+if inCount<>-1 then
+   Result:=copy(inSourceString, inIndex, inCount)
+else
+   Result:=copy(inSourceString, inIndex, (length(inSourceString) - inIndex + 1));
+end;
+
+function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): word;
+var
+   MyStr: WideString;
+begin
+MyStr:= GetSubStr(inSourceString, inPosBegin, -1);
+Result:=pos(inSubStr, MyStr);
+
+end;
+
+//------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------ Для Задачи №2 ---------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------
+
+function GetPosForPattern(inputBuffer: Pointer; inputFileSize: DWORD; inputSearchPatternSet: TSearchPatternSet; inputPosBeginSearch: DWORD): DWORD;
+var
+   LastStartComparePos, tmpPatternSize: DWORD;
+begin
+ Result:= $0FFFFFFFF; //iPatternNotFound;
+ tmpPatternSize:= inputSearchPatternSet.PatternSize;
+ if tmpPatternSize < 1 then
+  exit;
+
+asm
+ mov esi, inputBuffer
+ mov edx, esi
+ add esi, inputPosBeginSearch
+ dec esi
+ mov LastStartComparePos, esi
+ mov eax, inputFileSize
+ sub eax, tmpPatternSize
+ jb @@Exit_Failed
+ add edx, eax //--- edx = MaxLastComparePos
+
+@@BeginCompare:
+ inc LastStartComparePos
+ cmp edx, LastStartComparePos
+ jb @@Exit_Failed
+
+@@PrepareNextStep:
+ mov esi, LastStartComparePos
+ mov edi, inputSearchPatternSet.Pattern
+ mov ecx, tmpPatternSize
+@@CompareByte:
+ mov al, byte ptr [edi]
+ mov ah, byte ptr [esi]
+ cmp al, ah
+ jnz @@BeginCompare
+ inc esi
+ cmp edx, esi
+ jb @@Exit_Failed
+ inc edi
+ dec ecx
+ test ecx, ecx
+ ja @@CompareByte
+ mov eax, LastStartComparePos
+ sub eax, inputBuffer
+ jmp @@Exit
+@@Exit_Failed:
+ mov eax, 0FFFFFFFFh
+@@Exit:
+ mov Result, eax
+end;
+
+end;
+
+function WSToByte(inputWideString: WideString): TSearchPattern;
+var
+  tmpPChar: PChar;
+  tmpWord: word;
+begin
+  if length(inputWideString) = 0 then
+    exit;
+
+  setlength(Result, length(inputWideString));
+  tmpPChar:= PChar(inputWideString);
+ for tmpWord:= 0 to length(inputWideString) - 1 do
+ begin
+   Result[tmpWord]:= ord(tmpPChar[tmpWord]);
+ end;
+end;
+
+function ByteToWS(inputBytes: TSearchPattern; inputBytesSize: dword): WideString;
+var
+  tmpWord: word;
+  tmpStr: AnsiString;
+begin
+  Result:= '';
+  if inputBytesSize < 1 then
+  begin
+   Result:= '';
+   exit;
+  end;
+
+//  setlength(Result, inputBytesSize*sizeof(WideChar) + 1);
+ setlength(Result, inputBytesSize*sizeof(WideChar) + 1);
+ Result:='';
+
+ for tmpWord:= 0 to (inputBytesSize - 1) do
+ begin
+   tmpStr:= AnsiChar(inputBytes[tmpWord]);
+   Result:= Result + WideChar(tmpStr[1]);
+ end;
+// Result:= Result + #0;
 end;
 
 procedure GetPatternsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputPatternCount: word);

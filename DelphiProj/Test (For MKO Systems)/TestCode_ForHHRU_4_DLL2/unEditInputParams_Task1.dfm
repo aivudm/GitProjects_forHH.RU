@@ -55,6 +55,7 @@ object formEditParams_Task1: TformEditParams_Task1
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
+    Visible = False
   end
   object edShellCommander: TEdit
     Left = 8
@@ -67,11 +68,11 @@ object formEditParams_Task1: TformEditParams_Task1
   end
   object edTargetCommand: TEdit
     Left = 8
-    Top = 67
+    Top = 68
     Width = 354
     Height = 21
     TabOrder = 1
-    Text = 'runas sfc /scannow'
+    Text = 'runas /user:'#1040#1076#1084#1080#1085#1080#1089#1090#1088#1086#1090#1086#1088' "sfc /scannow"'
   end
   object btbRunTask: TButton
     Left = 287
@@ -88,7 +89,8 @@ object formEditParams_Task1: TformEditParams_Task1
     Width = 354
     Height = 21
     TabOrder = 3
-    Text = 'D:\Install\ResultSearchByMask1.txt'
+    Text = 'D:\Install\Result_Library2_Task1.txt'
+    Visible = False
   end
   object chkbTypeResultOutput: TCheckBox
     Left = 8
@@ -96,13 +98,12 @@ object formEditParams_Task1: TformEditParams_Task1
     Width = 161
     Height = 17
     Caption = #1042#1099#1074#1086#1076' '#1088#1077#1079#1091#1083#1100#1090#1072#1090#1072' '#1074' '#1092#1072#1081#1083
-    Checked = True
-    State = cbChecked
     TabOrder = 4
+    Visible = False
   end
   object odTargetDirectory: TOpenDialog
     InitialDir = 'edTargetDirectory.Text'
-    Left = 328
-    Top = 48
+    Left = 336
+    Top = 24
   end
 end

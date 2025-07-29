@@ -57,7 +57,7 @@ try
   SysReAllocStringLen(Task1_Parameters.inputParam3, Task1_Parameters.inputParam3, tmpWord);
   edResultFile.GetTextBuf(Task1_Parameters.inputParam3, tmpWord);
 
-  Task1_Parameters.inputParam4:= true; //(chkbTypeResultOutput.Checked);
+  Task1_Parameters.inputParam4:= chkbTypeResultOutput.Checked; //(chkbTypeResultOutput.Checked);
   Task1_Parameters.inputParam5:= 0; //--- это номер задачи в списке согласно очерёдности запуска в главном модуле
 
   Close;
@@ -74,9 +74,9 @@ try
  if Assigned(iniFile) then
  begin
   try
-   iniFile.WriteString(wsIniFileTitle1, wsIniFileParam1, edShellCommander.Text);
-   iniFile.WriteString(wsIniFileTitle1, wsIniFileParam1, edTargetCommand.Text);
-   iniFile.WriteString(wsIniFileTitle1, wsIniFileParam1, edResultFile.Text);
+//   iniFile.WriteString(wsIniFileTitle1, wsIniFileParam1, edShellCommander.Text);
+//   iniFile.WriteString(wsIniFileTitle1, wsIniFileParam1, edTargetCommand.Text);
+//   iniFile.WriteString(wsIniFileTitle1, wsIniFileParam1, edResultFile.Text);
   except
 //   on E: EIniFileException do
 
@@ -93,10 +93,10 @@ var
    tmpStr: WideString;
 begin
 try
- tmpStr:= GetEnvironmentVariable('APPDATA') + '\' + Copy(ExtractFileName(Application.ExeName), 1, Pos('.', ExtractFileName(Application.ExeName)) - 1);
+ tmpStr:= GetEnvironmentVariable('APPDATA') + '\' + wsIniFileName;
+// tmpStr:= wsIniFileName;
  if not TDirectory.Exists(tmpStr) then
   TDirectory.CreateDirectory(tmpStr);
-
  iniFile:= TIniFile.Create(tmpStr);
 except
  FreeAndNil(iniFile);
@@ -109,7 +109,7 @@ var
 begin
 try
 // btbRunTaskClick(Sender);
-
+{
  if Assigned(iniFile) then
  begin
    tmpString:= iniFile.ReadString(wsIniFileTitle1, wsIniFileParam1, '');
@@ -125,6 +125,7 @@ try
      edResultFile.Text:= tmpString;
 
  end;
+}
 finally
 
 end;
