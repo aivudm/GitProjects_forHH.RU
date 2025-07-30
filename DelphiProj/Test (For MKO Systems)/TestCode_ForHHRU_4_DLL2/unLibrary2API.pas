@@ -12,6 +12,7 @@ const
   dllVersion: BSTR = '1.0';
 
 type
+//------------------------------------------------------------------------------
   ILibraryAPI = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
     // Методы реализуемые DLL API
@@ -21,6 +22,7 @@ type
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
     function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
 
@@ -29,8 +31,8 @@ type
     property TaskCount: byte read GetTaskCount;
 
   end;
-
-  TLibraryAPI = class(TInterfacedObject, ILibraryAPI) //, ISupportErrorInfo)
+//------------------------------------------------------------------------------
+  TLibraryAPI = class(TInterfacedObject, ILibraryAPI)
   strict private
     FLibraryId: DWORD;
     FLibraryFuncName: BSTR;
@@ -42,6 +44,7 @@ type
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
     function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
   public
@@ -98,6 +101,11 @@ try
  end;
  if not Assigned(CriticalSection) then
    CriticalSection:= TCriticalSection.Create();
+
+ if not Assigned(LibraryLog) then
+   LibraryLog:= TLibraryLog.Create;
+
+
   bDllInitExecuted:= true;
 finally
 
@@ -112,12 +120,8 @@ begin
   freeandnil(TaskSourceList);//    TaskSourceList.Free;
  if Assigned(CriticalSection) then
   freeandnil(CriticalSection); //   CriticalSection.Free;
-{ if Win32Check(Assigned(TaskSourceList)) then
- begin
-  TaskSourceList.Clear;
-  freeandnil(TaskSourceList);
- end;
-}
+ if Assigned(LibraryLog) then
+  freeandnil(LibraryLog);
 
 //--- Память выделялась через SysReAllocStringLen
 //--- для получения строк из визуальных компонентов
@@ -149,6 +153,11 @@ var
 begin
   tmpTaskSource:= TTaskSource.Create(TaskLibraryIndex);
   Result:= tmpTaskSource;
+end;
+
+function TLibraryAPI.GetStream: IStream; safecall;
+begin
+  Result:= LibraryLog.GetStream;
 end;
 
 

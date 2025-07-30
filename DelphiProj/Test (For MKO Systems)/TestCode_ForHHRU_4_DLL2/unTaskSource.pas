@@ -1,7 +1,7 @@
 unit unTaskSource;
 
 interface
-uses   Windows, ActiveX, Classes, IOUtils, SysUtils, System.SyncObjs, Dialogs;
+uses   Windows, ActiveX, Classes, IOUtils, SysUtils, System.SyncObjs, Dialogs, DateUtils;
 
 //--- Для Задачи №1 ------------------------------------------------------------
 const
@@ -74,11 +74,35 @@ type
   TArray_WideString = array [0..High(Byte)] of WideString;
 //------------------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+
+  ILibraryLog = interface (IInterface)
+  ['{417D26A0-0BA7-4F69-877C-0E80A224E8EA}']
+    function GetStream: IStream; safecall;
+    property Stream: IStream read GetStream;
+  end;
+
+//------------------------------------------------------------------------------
+  TLibraryLog = class(TInterfacedObject, ILibraryLog)
+  strict private
+    FStringStream: TStringStream;
+    FStream: IStream;
+  strict protected
+  public
+    constructor Create();
+    function GetStream: IStream; safecall;
+    property StringStream: TStringStream read FStringStream;
+    property Stream: IStream read GetStream;
+  end;
+//------------------------------------------------------------------------------
+
+//--- Вспомогательные попрограммы
+procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
 
 var
   CriticalSection: TCriticalSection;
   Task1_Parameters: TTask1_Parameters;
-
+  LibraryLog: TLibraryLog;
 
 
 //--- Вспомогательные функции
@@ -90,10 +114,57 @@ var
 
 implementation
 
+//------------------------------------------------------------------------------
+//---------- Данные для TLibraryLog --------------------------------------
+//------------------------------------------------------------------------------
+constructor TLibraryLog.Create;
+begin
+try
+ inherited Create();
+ FStringStream:= TStringStream.Create('', TEncoding.ANSI);
+ FStream:= TStreamAdapter.Create(FStringStream, soReference);
+
+finally
+end;
+end;
+
+
+function TLibraryLog.GetStream: IStream; safecall;
+begin
+try
+  Result:= FStream;
+finally
+end;
+end;
+
+//------------------------------------------------------------------------------
+procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
+var
+  tmpWideString: WideString;
+  tmpCardinal: Cardinal;
+begin
+try
+  tmpWideString:= '--------------- Библиотека №2 -------------------------------'
+                + #13#10
+                + DatetimeToStr(today())
+                + #13#10
+                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
+                + #13#10
+                + E_source1
+                + #13#10
+                + '-------------------------------------------------------------';
+  LibraryLog.StringStream.WriteString(tmpWideString);
+
+finally
+
+end;
+end;
+
 
 //------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------ Для Задачи №1 ---------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------
+
 
 
 

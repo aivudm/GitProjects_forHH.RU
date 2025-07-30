@@ -45,6 +45,13 @@ var
   tmpWord: word;
 begin
 try
+ if not TFile.Exists(edShellCommander.Text) then
+ begin
+  WriteDataToLog(format('Целевой файл: %s не найден.', [edShellCommander.Text]),
+                        'TformEditParams_Task1.btbRunTaskClick', 'unformEditParams_Task1');
+  showmessage('Целевой файл не найден.');
+  exit;
+ end;
   tmpWord:= edShellCommander.GetTextLen + 1;
   SysReAllocStringLen(Task1_Parameters.inputParam1, Task1_Parameters.inputParam1, tmpWord);
   edShellCommander.GetTextBuf(Task1_Parameters.inputParam1, tmpWord);
