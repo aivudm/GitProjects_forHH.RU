@@ -102,8 +102,6 @@ object formMain: TformMain
       Top = 259
       Width = 383
       Height = 89
-      Lines.Strings = (
-        '')
       ScrollBars = ssBoth
       TabOrder = 5
     end

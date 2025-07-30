@@ -116,7 +116,7 @@ var
   LoadLibraryEx: function(lpFileName: PChar; Reserved: THandle; dwFlags: DWORD): HMODULE; stdcall;
   TaskSourceList: TTaskSourceList; //--- Массив для хранения всех созданных задач
   bDllInitExecuted: boolean = false;
-
+  sWorkDirectory: WideString;
 
 implementation
 uses unLibrary1API;
@@ -143,6 +143,7 @@ function TBSTRItems.GetString(const Index: Integer): BSTR;
 begin
   Result := FBSTRItems[Index];
 end;
+
 //------------------------------------------------------------------------------
 //---------- Данные для TTaskSourceList ----------------------------------------
 //------------------------------------------------------------------------------
@@ -171,7 +172,8 @@ begin
  inherited Create();
    FTaskLibraryIndex:= dllLibraryId;
    FTaskLibraryIndex:= TaskLibraryIndex;
-//--- Создание потока для обмена результатами с главным модулем
+
+//--- Создание потока для передачи результатов в главный модуль
 //--- Запись в поток "начальных данных" (наименование, номер)
   tmpString:= format(wsResultStreamTitle, [FTaskLibraryIndex, FTaskLibraryIndex]) + wsCRLF;
   FStringStream:= TStringStream.Create(tmpString, TEncoding.ANSI);
@@ -238,8 +240,8 @@ end;
 function TTaskSource.GetTask_ResultStream: IStream; safecall;
 begin
 try
-finally
   Result:= FTaskResultStream;
+finally
 end;
 end;
 
@@ -347,14 +349,24 @@ try
        else
         tmpWideString:= TDirectory.GetCurrentDirectory() + '\' + tmpWideString;
 
-        tmpStreamWriter:= TFile.CreateText(tmpWideString);
-        if inputParam4 then //--- Запись результата в файл (пока отработка - запись в файл будет всегда)
+        try
+         tmpStreamWriter:= TFile.CreateText(tmpWideString);
+         if inputParam4 then //--- Запись результата в файл (пока отработка - запись в файл будет всегда)
 //         tmpStreamWriter:= TFile.CreateText(tmpWideString)
-        else //--- Запись результата в память
-        begin
+         else //--- Запись результата в память
+         begin
 //         self.FTaskStringList.Clear;
-         self.FStringStream.Clear;
-         self.FStringStream.Position:= 0;
+          self.FStringStream.Clear;
+          self.FStringStream.Position:= 0;
+         end;
+        except
+         on E: Exception {EStreamError} do
+         begin
+          CriticalSection.Enter;
+           WriteDataToLog(E.ClassName + ', E.Message = ' + E.Message, 'Task1_FileFinderByMask', 'unVariables');
+          CriticalSection.Leave;
+          raise;
+         end;
         end;
 
 //--- Вывод информации с входными параметрами ----------------------------------
@@ -670,8 +682,8 @@ end;
 
 end;
 
-//---------------- Подпрограммы вне классов ------------------------------------
 
+//---------------- Подпрограммы вне классов ------------------------------------
 
 
 

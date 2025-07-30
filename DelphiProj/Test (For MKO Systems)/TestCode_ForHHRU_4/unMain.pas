@@ -52,7 +52,6 @@ type
     procedure WMCopyData(var MessageData: TWMCopyData); message WM_COPYDATA;
     procedure memThreadInfo_1_WndProc_Current(var Message: TMessage);
     procedure memLogInfo_2_WndProc_Current(var Message: TMessage);
-    procedure WMDataUpdate(var Message: TMessage); message WM_Data_Update;
   public
     { Public declarations }
     procedure SetButtonState_ThreadList(ThreadNum: word);
@@ -103,41 +102,6 @@ begin
 
 end;
 
-
-procedure TformMain.WMDataUpdate(var Message: TMessage);
-{
-var
-  tmpStringList: TStringList;
-}
-begin
-{
-  if Message.WParam = OutInfo_ForViewing.CurrentViewingTask then
-  begin
-   TaskList[Message.WParam].StringStream.LoadFromStream(TaskList[Message.WParam].Stream);
-   if (TaskList[Message.WParam].StringStream.Position > TaskList[Message.WParam].StringStream_LastPos) then
-   begin
-    TaskList[Message.WParam].StringStream.Position:= TaskList[Message.WParam].StringStream_LastPos;
-    try
-      tmpStringList:= TStringList.Create;
-      tmpStringList.LoadFromStream(TaskList[Message.WParam].StringStream);
-      TaskList[Message.WParam].StringStream_LastPos:= TaskList[Message.WParam].StringStream.Position;
-     if memThreadInfo_1.Lines.Count < tmpStringList.Count then
-     begin
-      memThreadInfo_1.Lines.AddStrings(tmpStringList);
-      Message.LParam:= memThreadInfo_1.Lines.Count;
-     end;
-    finally
-     FreeAndNil(tmpStringList);
-    end;
-//   memThreadInfo_1.Lines.LoadFromStream(TaskList[Message.WParam].StringStream);
-//   memThreadInfo_1.Lines.Text:= TaskList[Message.WParam].StringStream.DataString;
-   end;
-  end;
-}
-
-end;
-
-
 procedure TformMain.memThreadInfo_1_WndProc_Current(var Message: TMessage);
 var
   tmpStringList: TStringList;
@@ -176,15 +140,33 @@ end;
 
 procedure TformMain.memLogInfo_2_WndProc_Current(var Message: TMessage);
 var
+  tmpWord: word;
   tmpBool: boolean;
 begin
  tmpBool:= false;
  if (Message.Msg = WM_Data_Update) and (Message.WParam = CMD_SetMemoStreamUpd) then
  begin
   try
-   logFileStringList.LoadFromStream(logFileStream);
-   logFileStream_LastPos:= logFileStream.Position;
-   memLogInfo_2.Lines.AddStrings(logFileStringList);
+//--- Проверка на новые данные от потоков библиотек
+   if Assigned(LibraryList) then
+    for tmpWord:= 0 to (LibraryList.Count - 1) do
+    begin
+     if Assigned(LibraryList[tmpWord].Stream) then
+      if LibraryList[tmpWord].Stream.Position > LibraryList[tmpWord].Stream_LastPos then
+      begin
+       LibraryList[tmpWord].Stream.Position:= LibraryList[tmpWord].Stream_LastPos;
+       logFileStringList.LoadFromStream(LibraryList[tmpWord].Stream);
+       LibraryList[tmpWord].Stream_LastPos:= LibraryList[tmpWord].Stream.Position;
+       memLogInfo_2.Lines.AddStrings(logFileStringList);
+      end;
+    end;
+
+   if logFileStream_LastPos < logFileStringStream.Position then
+   begin
+    logFileStringList.LoadFromStream(logFileStringStream);
+    memLogInfo_2.Lines.AddStrings(logFileStringList);
+   end;
+
   finally
    tmpBool:= true;
   end;
@@ -311,7 +293,6 @@ begin
 //--- Что бы сразу открывалось окно с настройками
   formMain.lbThreadList.Clear;
   formMain.hMemoThreadInfo_Main.Clear;
-  formMain.memLogInfo_2.Clear;
   formMain.miToolsClick(Sender);
 end;
 
@@ -354,13 +335,10 @@ try
    if (TaskList[tmpInt].StringStream.Position > TaskList[tmpInt].StringStream_LastPos) then
    begin
     TaskList[tmpInt].StringStream.Position:= TaskList[tmpInt].StringStream_LastPos;
-//   TaskList[Message.WParam].StringStream.Position:= 0;
     try
       tmpStringList:= TStringList.Create;
       tmpStringList.LoadFromStream(TaskList[tmpInt].StringStream);
       TaskList[tmpInt].StringStream_LastPos:= TaskList[tmpInt].StringStream.Position;
-//     if memThreadInfo_1.Lines.Count < tmpStringList.Count then
-//      memThreadInfo_1.Lines.AddStrings(tmpStringList);
       memThreadInfo_1.Lines.Text:= tmpStringList.Text;
     finally
      FreeAndNil(tmpStringList);

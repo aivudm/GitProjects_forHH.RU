@@ -83,10 +83,6 @@ begin
   //--- и текущего номера задачи (в текущем списке активных задач) в объект TaskItem
   TaskList[iTaskListNum].SetTaskNum(iTaskListNum);
 
-  CriticalSection.Enter;
-//   OutInfo_ForViewing.CurrentViewingTask:= iTaskListNum;
-  CriticalSection.Leave;
-
   //--- 2. Создаём новый объект "Исходник Задачи", затем помещаем его в массив объектов типа "Список Исходников Задач" - нужна реализация каждого объекта, так как они будут выполняться в потоках
   try
    TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex));
@@ -107,9 +103,7 @@ begin
 //--- Запускаем получение потока из задачи в библиотеке
    TaskList[iTaskListNum].StringStream:= TStringStream.Create;
    TaskList[iTaskListNum].StringStream.LoadFromStream(TaskList[iTaskListNum].Stream);
-   DecodeStream(TaskList[iTaskListNum].StringStream, TaskList[iTaskListNum].StringStream); // двоичное дешиврование
-
-
+   DecodeStream(TaskList[iTaskListNum].StringStream, TaskList[iTaskListNum].StringStream);
 
   finally
    tmpIntrfDllAPI:= nil;

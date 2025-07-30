@@ -2,10 +2,10 @@ unit unUtils;
 
 interface
 uses Vcl.Forms, System.Classes, System.SysUtils, Winapi.Windows, Winapi.Messages, IOUtils,
-     TlHelp32, ImageHlp, {PsAPI,}
+     Vcl.AxCtrls, TlHelp32, ImageHlp, {PsAPI,}
      unVariables;
 
-function GetWorkingDirectoryName(): String;
+function GetWorkingDirectoryName(): WideString;
 //function IsTaskDllAttached(DllFileName: String): Integer;
 procedure GetLibraryInfo(inputDllFileName: WideString; inputLibraryNum: word);
 //procedure GetDLLExportList(const DllFileName: string; var outputList: TArray<string>);
@@ -18,7 +18,7 @@ function GetPIDByName(const name: PWideChar): Cardinal;
 implementation
 uses unConst, unUtilCommon;
 
-function GetWorkingDirectoryName(): string;
+function GetWorkingDirectoryName(): WideString;
 var
   tmpStr: string;
 begin
@@ -180,6 +180,11 @@ GetItemsFromString(tmpBSTR, TaskDllProcName);
   tmpIntrfDllAPI:= nil;
 
   LibraryList[inputLibraryNum].SetLibraryFileName(inputDllFileName);
+//--- Настройка потока передачи результатов из библиотек в главный модуль
+   LibraryList[inputLibraryNum].Stream:= TOleStream.Create(LibraryList[inputLibraryNum].LibraryAPI.GetStream);
+   LibraryList[inputLibraryNum].Stream.Position:= 0;
+   LibraryList[inputLibraryNum].Stream_LastPos:= 0;
+
 
 finally
  if tmpintrfDllAPI <> nil then

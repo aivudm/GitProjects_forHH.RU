@@ -30,6 +30,13 @@ type
   end;
 
 //------------------------------------------------------------------------------
+
+  ILibraryLog = interface (IInterface)
+  ['{417D26A0-0BA7-4F69-877C-0E80A224E8EA}']
+    function GetStream: IStream; safecall;
+    property Stream: IStream read GetStream;
+  end;
+//------------------------------------------------------------------------------
   ILibraryAPI = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
     // Методы реализуемые DLL API
@@ -39,6 +46,7 @@ type
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
     function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
 
@@ -48,6 +56,8 @@ type
 
   end;
 
+
+//------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
@@ -65,6 +75,8 @@ type
    property Task_ResultStream: IStream read GetTask_ResultStream;
    property TaskMainModuleIndex: WORD write SetTaskMainModuleIndex;
   end;
+
+//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 
@@ -93,6 +105,8 @@ type
     FTaskTemplateName: TArray_WideString; //--- заполняется после подключения Dll
     FLibraryAPI: ILibraryAPI; //--- заполняется после подключения Dll
     FLibraryFileName: WideString;
+    FStream: TStream;
+    FStream_LastPos: Cardinal;
 
     function GetItemName(Index: integer): WideString;
     procedure SetItemName(Index: integer; const Value: WideString);
@@ -111,6 +125,9 @@ type
     property LibraryFileName: WideString read FLibraryFileName write SetLibraryFileName;
     property TaskCount: Byte read FTaskCount write FTaskCount;
     property TaskTemplateName[Index: integer]: WideString read GetItemName write SetItemName;
+    property Stream: TStream read FStream write FStream;
+    property Stream_LastPos: Cardinal read FStream_LastPos write FStream_LastPos;
+
 //    property TaskLibraryIndex[Index: integer]: Cardinal read GetItemIndex write SetItemIndex; default;
 
   end;
@@ -369,22 +386,23 @@ else
 
 logFileName:= sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log'));
 //--- Создание потока для файла журнала
-logFileStream:= TFileStream.Create(logFileName, fmOpenRead or fmShareDenyWrite);
-SetLength(logFileBuffer, logFileStream.Size);
-logFileStream.ReadBuffer(Pointer(logFileBuffer)^, Length(logFileBuffer));
+//logFileStream:= TFileStream.Create(logFileName, fmOpenRead or fmShareDenyWrite);
+//SetLength(logFileBuffer, logFileStream.Size);
+//logFileStream.ReadBuffer(Pointer(logFileBuffer)^, Length(logFileBuffer));
 //logFileStream.Position:= 0;
 
-logFileStringList:= TStringList.Create;
-logFileStringStream:= TStringStream.Create(logFileStringList.Text, TEncoding.ANSI)
+logFileStringStream:= TStringStream.Create;
+logFileStringStream.LoadFromFile(logFileName);
 
-//StreamWriter:= TFile.CreateText('d:\Task_3_SimpleNumbers.txt');
+logFileStringList:= TStringList.Create;
+logFileStringList.LoadFromStream(logFileStringStream);
 
 finalization
-
+logFileStringStream.SaveToFile(logFileName);
 FreeAndNil(LibraryList);
 FreeAndNil(iniFile);
-FreeAndNil(logFileStream);
+//FreeAndNil(logFileStream);
 FreeAndNil(logFileStringStream);
-//StreamWriter.Free;
+FreeAndNil(logFileStringList);
 
 end.

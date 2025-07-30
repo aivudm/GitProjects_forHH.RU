@@ -41,6 +41,11 @@ var
   tmpWord: word;
 begin
 try
+ if not TDirectory.Exists(edTargetDirectory.Text) then
+ begin
+  showmessage('Целевая директория не найдена.');
+  exit;
+ end;
 //  GetMem(tmpPWideChar, tmpWord + 1);
 //   Task1_Parameters.inputParam1:= PWideChar(edMask.Text);
   tmpWord:= edMask.GetTextLen + 1;

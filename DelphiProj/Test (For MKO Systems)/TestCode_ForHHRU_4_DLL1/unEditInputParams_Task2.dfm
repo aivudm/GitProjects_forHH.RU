@@ -65,7 +65,7 @@ object formEditParams_Task2: TformEditParams_Task2
   object edTargetFile: TEdit
     Left = 8
     Top = 64
-    Width = 354
+    Width = 322
     Height = 21
     TabOrder = 1
     Text = 'D:\Install\FFscriptCache.bin'
@@ -104,10 +104,19 @@ object formEditParams_Task2: TformEditParams_Task2
     Enabled = False
     TabOrder = 5
   end
+  object bbOpenFile: TBitBtn
+    Left = 328
+    Top = 62
+    Width = 34
+    Height = 25
+    Caption = #1054#1073#1079'.'
+    TabOrder = 6
+    OnClick = bbOpenFileClick
+  end
   object odTargetFile: TOpenDialog
     Filter = '*.*|*.bin'
     InitialDir = 'edTargetDirectory.Text'
     Left = 328
-    Top = 48
+    Top = 96
   end
 end

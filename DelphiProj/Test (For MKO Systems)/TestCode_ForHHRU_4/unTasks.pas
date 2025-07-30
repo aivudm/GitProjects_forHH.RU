@@ -46,6 +46,12 @@ type
     FStringStream_LastPos: DWORD;
     FStream: TStream;
     FOLEStream: IStream;  //--- ѕоток в "COM-формате" принимаем посредством TStreamAdapter
+    FLogStream: TStream;
+    FLogStringStream: TStringStream;
+    FLogStringStream_LastPos: DWORD;
+    FOLELogStream: IStream;  //--- ѕоток в "COM-формате" принимаем посредством TStreamAdapter
+
+
 //    FStopWatch: TStopwatch;
 //    FElapsedMillseconds: Int64;
 //    FTimerCycleCount: Int64;
@@ -116,6 +122,9 @@ type
     property Stream: TStream read FStream write FStream;
     property StringStream: TStringStream read FStringStream write FStringStream;
     property StringStream_LastPos: DWORD read FStringStream_LastPos write FStringStream_LastPos;
+    property LogStream: TStream read FLogStream write FLogStream;
+    property LogStringStream: TStringStream read FLogStringStream write FLogStringStream;
+    property LogStringStream_LastPos: DWORD read FLogStringStream_LastPos write FLogStringStream_LastPos;
     property MemoryStream: TMemoryStream read FMemoryStream write FMemoryStream;
     property ThreadIDWinForView: THandle read FThreadIDWinForView write FThreadIDWinForView;
 //    property TimerCycleCount: Int64 read FTimerCycleCount;

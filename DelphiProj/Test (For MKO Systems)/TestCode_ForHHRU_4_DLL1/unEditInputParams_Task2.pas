@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, ActiveX,
-  unTaskSource;
+  unTaskSource, Vcl.Buttons, IOUtils;
 
 type
   TformEditParams_Task2 = class(TForm)
@@ -19,7 +19,9 @@ type
     chkbTypeResultOutput: TCheckBox;
     odTargetFile: TOpenDialog;
     chkbTypeCase: TCheckBox;
+    bbOpenFile: TBitBtn;
     procedure btbRunTaskClick(Sender: TObject);
+    procedure bbOpenFileClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -30,8 +32,22 @@ var
   formEditParams_Task2: TformEditParams_Task2;
 
 implementation
-
+uses unVariables;
 {$R *.dfm}
+
+procedure TformEditParams_Task2.bbOpenFileClick(Sender: TObject);
+begin
+try
+ sWorkDirectory:= GetWorkingDirectoryName();
+ odTargetFile.Files.Clear;
+ if TFile.Exists(sWorkDirectory) then
+  odTargetFile.InitialDir:= sWorkDirectory;
+ if Not odTargetFile.Execute(formEditParams_Task2.Handle) then Exit;
+ edTargetFile.Text:= odTargetFile.FileName;
+finally
+
+end;
+end;
 
 procedure TformEditParams_Task2.btbRunTaskClick(Sender: TObject);
 var
@@ -40,6 +56,14 @@ var
   tmpWord: word;
 begin
 try
+ if not TFile.Exists(edTargetFile.Text) then
+ begin
+  WriteDataToLog(format('Целевой файл: %s не найден.', [edTargetFile.Text]),
+                        'TformEditParams_Task2.btbRunTaskClick', 'unformEditParams_Task2');
+  showmessage('Целевой файл не найден.');
+  exit;
+ end;
+
 //  GetMem(tmpPWideChar, tmpWord + 1);
   tmpWord:= edPattern.GetTextLen + 1;
   SysReAllocStringLen(Task2_Parameters.inputParam1, Task2_Parameters.inputParam1, tmpWord);

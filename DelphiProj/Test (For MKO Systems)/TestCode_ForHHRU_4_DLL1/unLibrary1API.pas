@@ -12,6 +12,7 @@ const
   dllVersion: BSTR = '1.0';
 
 type
+//------------------------------------------------------------------------------
   ILibraryAPI = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
     // Методы реализуемые DLL API
@@ -21,6 +22,7 @@ type
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
     function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
 
@@ -29,8 +31,8 @@ type
     property TaskCount: byte read GetTaskCount;
 
   end;
-
-  TLibraryAPI = class(TInterfacedObject, ILibraryAPI) //, ISupportErrorInfo)
+//------------------------------------------------------------------------------
+  TLibraryAPI = class(TInterfacedObject, ILibraryAPI)
   strict private
     FLibraryId: DWORD;
     FLibraryFuncName: BSTR;
@@ -42,6 +44,7 @@ type
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
     function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
   public
@@ -98,6 +101,10 @@ try
  end;
  if not Assigned(CriticalSection) then
    CriticalSection:= TCriticalSection.Create();
+
+ if not Assigned(LibraryLog) then
+   LibraryLog:= TLibraryLog.Create;
+
   bDllInitExecuted:= true;
 finally
 
@@ -109,9 +116,12 @@ var
   tmpWord: word;
 begin
  if Assigned(TaskSourceList) then
-  freeandnil(TaskSourceList);//    TaskSourceList.Free;
+  freeandnil(TaskSourceList);
  if Assigned(CriticalSection) then
-  freeandnil(CriticalSection); //   CriticalSection.Free;
+  freeandnil(CriticalSection);
+ if Assigned(LibraryLog) then
+  freeandnil(LibraryLog);
+
 { if Win32Check(Assigned(TaskSourceList)) then
  begin
   TaskSourceList.Clear;
@@ -124,6 +134,11 @@ begin
  SysFreeString(Task1_Parameters.inputParam1);
  SysFreeString(Task1_Parameters.inputParam2);
  SysFreeString(Task1_Parameters.inputParam3);
+ SysFreeString(Task2_Parameters.inputParam1);
+ SysFreeString(Task2_Parameters.inputParam2);
+ SysFreeString(Task2_Parameters.inputParam3);
+
+
 
 { for tmpWord:= 0 to (TaskSourceList.Count - 1) do
   SysFreeString(TaskSourceList[tmpWord].GetTask2_ResultBuffer);
@@ -140,7 +155,6 @@ begin
   SetLength(tmpInfoRecordData, 2);
   tmpInfoRecordData[0] := wsTask1_Name;
   tmpInfoRecordData[1] := wsTask2_Name;
-
   Result := TBSTRItems.Create(tmpInfoRecordData);
 end;
 
@@ -150,7 +164,11 @@ var
 begin
   tmpTaskSource:= TTaskSource.Create(TaskLibraryIndex);
   Result:= tmpTaskSource;
+end;
 
+function TLibraryAPI.GetStream: IStream; safecall;
+begin
+  Result:= LibraryLog.GetStream;
 end;
 
 
