@@ -41,7 +41,7 @@ var
   tmpWord: word;
 begin
 try
- if not TDirectory.Exists(edTargetDirectory.Text) then
+ if (not TDirectory.Exists(edTargetDirectory.Text)) or (edTargetDirectory.Text = '') then
  begin
   showmessage('Целевая директория не найдена.');
   exit;

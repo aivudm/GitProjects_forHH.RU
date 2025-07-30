@@ -228,16 +228,11 @@ begin
     try
      FTaskItemOwner.FTaskSource.TaskProcedure(self.FTaskItemOwner.FLibraryId);
     except
-//    if Assigned(e) then     1
-//     tmpPAnsiChar:= PAnsiChar(e.Message + #13 + e.ClassName())
-//    else
-//    begin
+
      tmpObject:= ExceptObject;
      tmpWideString:= Exception(tmpObject).Message;
      WriteDataToLog(Exception(tmpObject).ClassName + ', E.Message = ' + tmpWideString, 'TTaskCore.Execute', 'unTasks');
 
-//    raise Exception.Create(tmpPAnsiChar);
-//   end;
     end;
     self.FTaskItemOwner.TaskState:= tsDone;
 //--- Фиксируем общее время выполнения задачи
@@ -488,7 +483,7 @@ repeat
  //--- Удаление задачи из списка "задач" (информацию на компоненте отображения оставляем в окне просмотра...)
 
 finally
- FreeAndNil(self.FTaskCore);
+// FreeAndNil(self.FTaskCore);
 end;
 end; //--- TTaskItem.Execute;
 

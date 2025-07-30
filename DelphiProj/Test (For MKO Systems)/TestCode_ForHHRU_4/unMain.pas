@@ -161,6 +161,7 @@ begin
       end;
     end;
 
+//--- ѕроверка на новые данные от потока главного модул€
    if logFileStream_LastPos < logFileStringStream.Position then
    begin
     logFileStringList.LoadFromStream(logFileStringStream);

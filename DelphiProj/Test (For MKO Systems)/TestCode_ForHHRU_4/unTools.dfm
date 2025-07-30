@@ -121,4 +121,9 @@ object formTools: TformTools
     Left = 232
     Top = 99
   end
+  object tmLogUpdate: TTimer
+    OnTimer = tmLogUpdateTimer
+    Left = 240
+    Top = 56
+  end
 end

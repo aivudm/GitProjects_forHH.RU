@@ -334,7 +334,65 @@ var
   tmpWord: word;
   tmpBool: Boolean;
   tmpWideString: WideString;
+//-------------------------------------------------------------------------------
+function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
+var
+  tmpMaskPart: WideString;
+  tmpMaskParts: array of WideString;
+  tmpMaskPartsCount: word;
+  tmpBool: boolean;
+  tmpInt: integer;
+  tmpWord: word;
+  tmpIsDelemiterFirst,
+  tmpIsDelemiterLast: boolean;
+begin
+ Result:= false;
+ try
+ //--- Счётчик частей маски (часть - всё что между "*")
+  tmpMaskPartsCount:= 0;
+//--- Зафиксируем присутствие разделителей частей в начале и конце маски
+  tmpIsDelemiterFirst:= (IndexInString(wsPartMaskDelemiter, inputMask, 1) = 1);
+  tmpIsDelemiterLast:= (IndexInString(wsPartMaskDelemiter, inputMask, length(inputMask) - 1) = 1);
+  repeat
+//--- Копируем до разделителя частей масок
+   tmpMaskPart:= GetSubStr(inputMask, 1, (length(inputMask) - (length(inputMask) - pos(wsPartMaskDelemiter, inputMask, 1)) - 1));
+   if length(tmpMaskPart) > 0 then
+   begin
+    inc(tmpMaskPartsCount);
+    setlength(tmpMaskParts, tmpMaskPartsCount);
+    tmpMaskParts[tmpMaskPartsCount - 1]:= tmpMaskPart;
+//--- Вырезаем скопированную масок
+    delete(inputMask, 1, Length(tmpMaskPart) + 1); //--- удалим прочтённую запись и разделитель частей масок
+   end
+   else  //--- значит первый символ в маске это разделитель частей "*", удаляем его
+    delete(inputMask, 1, Length(wsPartMaskDelemiter)); //--- удалим прочтённую запись и разделитель частей масок
 
+  until (pos(wsPartMaskDelemiter, inputMask, 1) = 0) and (length(inputMask) = 0);
+
+  tmpBool:= true; //--- Признак соответствия имени маски (всем частям маски), при первом несоответсвие станет false и выходим из цикла
+  repeat
+//--- Проход по всем выделенным частям маски
+   for tmpInt:= 0 to (tmpMaskPartsCount - 1) do
+   begin
+    tmpWord:= IndexInString(tmpMaskParts[tmpWord], inputFileName, 1);
+    tmpBool:= (tmpWord > 0)
+              and (not ((tmpWord = 0) and (not tmpIsDelemiterFirst) and (length(inputFileName) > length(tmpMaskParts[tmpWord]))))  //--- исключаем ситуацию: первая часть маски начинается не с разделителя
+              and (not ((tmpWord = (tmpMaskPartsCount - 1)) and (not tmpIsDelemiterLast) and (tmpWord <> (length(inputFileName) - length(tmpMaskParts[tmpWord]) + 1))));
+    if not tmpBool then
+     break;
+//--- Вырезаем часть до, найденной части маски, включая текущую часть маски, из имени файла.
+    delete(inputFileName, 1, Length(tmpMaskPart)); //--- удалим прочтённую запись и разделитель частей масок
+   end;
+  until (not tmpBool) or (length(inputMask) = 0);
+
+  Result:= tmpBool;
+ finally
+
+ end;
+
+end;
+
+//------------------------------------------------------------------------------
 begin
 try
 //--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
@@ -389,7 +447,7 @@ try
 
 
 //--- Извлечение элементов-масок из входящей строки (inputParam1)
-   GetItemsFromString(inputParam1, tmpMaskItems, tmpMaskCount);
+   GetPatternsFromString(inputParam1, tmpMaskItems, tmpMaskCount);
 //--- Цикл перебора и сравнения с масками всех файлов в целевой директории
    outTask1_Result.dwEqualsCount:= 0; //--- Счётчик совпадений
 
@@ -398,9 +456,9 @@ try
         begin
 //          sleep(500); //--- Для отработки (для замедления процесса)
          tmpBool:= false;
-         for tmpWord:= 0 to tmpMaskCount do
+         for tmpWord:= 0 to (tmpMaskCount - 1) do
          begin
-          if (TPath.GetExtension(tmpTargetFile) = tmpMaskItems[tmpWord]) and (not tmpBool) then
+          if (IsNameAccordedByMask(tmpTargetFile, tmpMaskItems[tmpWord])) and (not tmpBool) then
           begin
            inc(outTask1_Result.dwEqualsCount);
            tmpBool:= true;

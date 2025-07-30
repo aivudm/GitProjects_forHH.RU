@@ -23,6 +23,7 @@ type
     lbLibraryList: TListBox;
     odGetLibrary: TOpenDialog;
     Button1: TButton;
+    tmLogUpdate: TTimer;
     procedure miExitClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure btnNewThreadClick(Sender: TObject);
@@ -33,6 +34,7 @@ type
     procedure lbLibraryListClick(Sender: TObject);
     procedure SaveSettingsformTools(Sender: TObject);
     procedure Button1Click(Sender: TObject);
+    procedure tmLogUpdateTimer(Sender: TObject);
   private
     { Private declarations }
     procedure WMWINDOWPOSCHANGING(var Msg: TWMWINDOWPOSCHANGING); message WM_WINDOWPOSCHANGING;
@@ -329,6 +331,11 @@ try
 finally
  FreeAndNil(tmpStrings);
 end;
+end;
+
+procedure TformTools.tmLogUpdateTimer(Sender: TObject);
+begin
+ PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
 end;
 
 //--- Подпрограммы вне классов -------------------------------------------------

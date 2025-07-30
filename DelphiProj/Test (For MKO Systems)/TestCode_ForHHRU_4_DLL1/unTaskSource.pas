@@ -8,6 +8,8 @@ const
   ItemDelemiter = ';';
   wsBeginMask: WideString = '*.';
   wsAllMask: WideString = '*';
+  wsPartMaskDelemiter: WideString = '*';
+
   wsTask1_Name: WideString = 'Поиск файлов по маске';
   wsTask2_Name: WideString = 'Поиск в файлах по шаблонам';
   wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
@@ -109,8 +111,12 @@ var
 //--- Вспомогательные функции
 procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
 function GetWorkingDirectoryName(): WideString;
+
+//--- Для Задачи №1 ------------
 //--- Извлечение элементов строки, разделённых символом-разделителем
-procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
+//procedure GetMasksFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputPatternCount: word);
+//function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
+//procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
 function GetSubStr(inSourceString: WideString; inIndex:Byte; inCount:Integer): WideString;
 function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): word;
 //--- Для Задачи №2 ------------
@@ -320,9 +326,115 @@ finally
 end;
 end;
 
-
-
 }
+
+//------------------------------------------------------------------------------------------------------------------------------------
+//------------------------------ Для Задачи №1 ---------------------------------------------------------------------------------------
+//------------------------------------------------------------------------------------------------------------------------------------
+
+
+function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
+var
+  tmpMaskPart: WideString;
+  tmpMaskParts: array of WideString;
+  tmpMaskPartsCount: word;
+  tmpBool: boolean;
+  tmpInt: integer;
+  tmpWord: word;
+  tmpIsDelemiterFirst,
+  tmpIsDelemiterLast: boolean;
+begin
+ Result:= false;
+ try
+ //--- Счётчик частей маски (часть - всё что между "*")
+  tmpMaskPartsCount:= 0;
+//--- Зафиксируем присутствие разделителей частей в начале и конце маски
+  tmpIsDelemiterFirst:= (IndexInString(wsPartMaskDelemiter, inputMask, 1) = 1);
+  tmpIsDelemiterLast:= (IndexInString(wsPartMaskDelemiter, inputMask, length(inputMask) - 1) = 1);
+  repeat
+//--- Копируем до разделителя частей масок
+   tmpMaskPart:= GetSubStr(inputMask, 1, (length(inputMask) - (length(inputMask) - pos(wsPartMaskDelemiter, inputMask, 1)) - 1));
+   if length(tmpMaskPart) > 0 then
+   begin
+    inc(tmpMaskPartsCount);
+    setlength(tmpMaskParts, tmpMaskPartsCount);
+    tmpMaskParts[tmpMaskPartsCount - 1]:= tmpMaskPart;
+//--- Вырезаем скопированную масок
+    delete(inputMask, 1, Length(tmpMaskPart) + 1); //--- удалим прочтённую запись и разделитель частей масок
+   end
+   else  //--- значит первый символ в маске это разделитель частей "*", удаляем его
+    delete(inputMask, 1, Length(wsPartMaskDelemiter)); //--- удалим прочтённую запись и разделитель частей масок
+
+  until (pos(wsPartMaskDelemiter, inputMask, 1) = 0) and (length(inputMask) = 0);
+
+  tmpBool:= true; //--- Признак соответствия имени маски (всем частям маски), при первом несоответсвие станет false и выходим из цикла
+  repeat
+//--- Проход по всем выделенным частям маски
+   for tmpInt:= 0 to (tmpMaskPartsCount - 1) do
+   begin
+    tmpWord:= IndexInString(tmpMaskParts[tmpWord], inputFileName, 1);
+    tmpBool:= (tmpWord > 0)
+              and (not ((tmpWord = 0) and (not tmpIsDelemiterFirst) and (length(inputFileName) > length(tmpMaskParts[tmpWord]))))  //--- исключаем ситуацию: первая часть маски начинается не с разделителя
+              and (not ((tmpWord = (tmpMaskPartsCount - 1)) and (not tmpIsDelemiterLast) and (tmpWord <> (length(inputFileName) - length(tmpMaskParts[tmpWord]) + 1))));
+    if not tmpBool then
+     break;
+//--- Вырезаем часть до, найденной части маски, включая текущую часть маски, из имени файла.
+    delete(inputFileName, 1, Length(tmpMaskPart)); //--- удалим прочтённую запись и разделитель частей масок
+   end;
+  until (not tmpBool) or (length(inputMask) = 0);
+
+  Result:= tmpBool;
+ finally
+
+ end;
+
+end;
+
+//--- Переименованная GetPatternsFromString(
+procedure GetMasksFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputPatternCount: word);
+var
+  tmpWideString: WideString;
+  tmpWord: word;
+  tmpInt, tmpInt1: integer;
+  tmpBool: Boolean;
+begin
+ outputPatternCount:= 0;
+ if inputSourceBSTR = '' then
+  exit;
+
+  repeat
+    if pos(ItemDelemiter, inputSourceBSTR, 1) > 0 then
+      tmpWideString:= Copy(inputSourceBSTR, 1, pos(ItemDelemiter, inputSourceBSTR, 1) - 1)
+    else // остался последний шаблон и без завершающего разделителя
+      tmpWideString:= Copy(inputSourceBSTR, 1, length(inputSourceBSTR));
+    outputStringItems[outputPatternCount]:= tmpWideString; //--- Пока фиксируем совпадение
+    tmpWord:= outputPatternCount;                          //--- После проверки на совпадение
+                                                          //--- Это хначение может быть удалено
+
+//--- Проверим на повторы шаблонов и, если есть - удалим.
+    tmpBool:= false;
+    for tmpInt:= (outputPatternCount - 1) downto 0 do
+    begin
+      if outputStringItems[outputPatternCount] = outputStringItems[tmpInt] then
+      begin
+       tmpBool:= true;
+       break;
+      end;
+    end;
+//--- удаляем текущий шаблон из входящей строки-параметра
+    delete(inputSourceBSTR, 1, Length(outputStringItems[outputPatternCount]) + 1); //--- удалим прочтённую запись и разделитель
+//--- Если не было совпадений с предыдущими шаблонами, то увеличим счётчик - оставим текущий шаблон в списке
+    if not tmpBool then
+    begin
+     inc(outputPatternCount);
+    end;
+
+
+  until length(inputSourceBSTR) = 0;
+
+end;
+{
+//--- Старая версия, которая только для поиска расширений
 procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
 begin
  outputMaskCount:= 0;
@@ -344,7 +456,9 @@ begin
    end;
  end;
 end;
+}
 
+//------------------------------------------------------------------------------
 function GetSubStr(inSourceString: WideString; inIndex:Byte; inCount:Integer): WideString;
 begin
 if inCount<>-1 then
@@ -496,6 +610,20 @@ begin
      inc(outputPatternCount);
     end;
 
+
+{
+    for tmpInt:= (tmpWord - 1) downto 0 do
+    begin
+     for tmpInt1:= 0 to (tmpWord - 1) do
+     begin
+      if outputStringItems[tmpInt1] = outputStringItems[tmpInt] then
+      begin
+       delete(inputSourceBSTR, 1, Length(outputStringItems[outputPatternCount]) + 1); //--- удалим прочтённую запись и разделитель
+       inc(outputPatternCount);
+      end;
+     end;
+    end;
+}
 
   until length(inputSourceBSTR) = 0;
 
