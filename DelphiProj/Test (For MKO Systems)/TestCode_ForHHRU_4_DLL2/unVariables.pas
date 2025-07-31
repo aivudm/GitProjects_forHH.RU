@@ -14,7 +14,11 @@ type
   UInt = Cardinal;
 
 type
-
+{Для выполнения в командной консоли
+runas /user:Администротор "sfc /scannow"
+7z a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\WinSxS"
+C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\WinSxS"
+}
 //------------------------------------------------------------------------------
   TTaskState = (tsNotDefined = -1 {одно из применений - при запуске, до момента полного создания всех объектов задачи},
                 tsActive = 0, tsTerminate = 1, tsPause = 2, tsReportPause = 3);

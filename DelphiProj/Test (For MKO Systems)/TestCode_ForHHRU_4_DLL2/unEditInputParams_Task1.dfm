@@ -72,7 +72,9 @@ object formEditParams_Task1: TformEditParams_Task1
     Width = 354
     Height = 21
     TabOrder = 1
-    Text = 'runas /user:'#1040#1076#1084#1080#1085#1080#1089#1090#1088#1086#1090#1086#1088' "sfc /scannow"'
+    Text = 
+      'C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip' +
+      '" "C:\Windows\WinSxS" '
   end
   object btbRunTask: TButton
     Left = 287

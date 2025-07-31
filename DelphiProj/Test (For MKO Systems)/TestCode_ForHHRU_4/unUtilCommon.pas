@@ -125,7 +125,7 @@ var
   tmpCardinal: Cardinal;
 begin
  CriticalSection.Enter;
-  tmpWideString:= '--------------- Главный модуль ------------------------------'
+  tmpWideString:= '---- Главный модуль ------------------------------'
                 + #13#10
                 + DatetimeToStr(today())
                 + #13#10
@@ -133,7 +133,7 @@ begin
                 + #13#10
                 + E_source1
                 + #13#10
-                + '-------------------------------------------------------------';
+                + '--------------------------------------------------';
   logFileStringStream.WriteString(tmpWideString);
 //--- Обновить информацию в ТМемо (с журналом работы)
   PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);

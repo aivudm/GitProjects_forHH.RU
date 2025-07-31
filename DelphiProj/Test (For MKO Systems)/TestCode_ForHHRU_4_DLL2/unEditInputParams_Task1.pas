@@ -85,8 +85,9 @@ try
 //   iniFile.WriteString(wsIniFileTitle1, wsIniFileParam1, edTargetCommand.Text);
 //   iniFile.WriteString(wsIniFileTitle1, wsIniFileParam1, edResultFile.Text);
   except
-//   on E: EIniFileException do
-
+   on E: EIniFileException do
+      WriteDataToLog(E.ClassName + '. ' + E.Message,
+                        'TformEditParams_Task1.FormClose', 'unformEditParams_Task1');
   end;
  end;
 finally
@@ -100,13 +101,13 @@ var
    tmpStr: WideString;
 begin
 try
- tmpStr:= GetEnvironmentVariable('APPDATA') + '\' + wsIniFileName;
+ tmpStr:= GetEnvironmentVariable('APPDATA') + '\' + ExtractFileName(ChangeFileExt(wsIniFileName, '')) + '\' + wsIniFileName;
 // tmpStr:= wsIniFileName;
  if not TDirectory.Exists(tmpStr) then
   TDirectory.CreateDirectory(tmpStr);
  iniFile:= TIniFile.Create(tmpStr);
 except
- FreeAndNil(iniFile);
+// FreeAndNil(iniFile);
 end;
 end;
 

@@ -433,12 +433,11 @@ repeat
            begin
             if Win32Check(Assigned(self.FTaskSource)) then
              self.FInfoFromTask:= wsResultPartDll2Task0_InfoFromTask;
-//            self.FStringStream.LoadFromStream(self.FStream);
            end;
          end;
       end;
       end;
-//--- Прокрутить ТМемо с информацией от задач на последнюю строку
+//--- Отправим ТМемо сигнал к обновлению
 //--- Обновление результирующей информации, получаемой от задачи
      if (TaskState = tsActive) or (TaskState = tsDone) then
       if OutInfo_ForViewing.CurrentViewingTask = self.FTaskNumInList then
@@ -462,14 +461,7 @@ repeat
     tmpInt64:= GetTickCount;
    end;
 
-
-//  while (TaskState = tsPause) and (TaskState <> tsTerminate) do
-//   begin
-//    self.FTaskCore.Suspended:= true; //--- Пережидаем паузу
-//    self.Priority:= tpIdle;
-//   end;
-
-  sleep(round(FCycleTimeValue*(iCycleTimeValue*(1 - iTaskBoreHole)))); // 15мс - время выполнениея кода (ниже) и sleep
+ sleep(round(FCycleTimeValue*(iCycleTimeValue*(1 - iTaskBoreHole)))); // 15мс - время выполнениея кода (ниже) и sleep
                                      // это эмуляция квантованного предоставления времени выполнения потока
  until (self.TaskState = tsTerminate);
 
@@ -479,7 +471,7 @@ repeat
  //--- Освобождение памяти не делаем, так как при создании поставили FreeOnTerminate
  TaskList[self.FTaskNumInList].Terminate;
  //--- Удаление задачи из списка объектов "задача" (информацию на компоненте отображения оставляем в окне просмотра...)
-// TaskList[self.FTaskNum].Destroy;
+ TaskList[self.FTaskNumInList].Free;
  //--- Удаление задачи из списка "задач" (информацию на компоненте отображения оставляем в окне просмотра...)
 
 finally

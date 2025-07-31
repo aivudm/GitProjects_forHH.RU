@@ -61,7 +61,7 @@ object formEditParams_Task1: TformEditParams_Task1
     Height = 21
     Hint = #1056#1072#1079#1076#1077#1083#1080#1090#1077#1083#1100' '#1084#1072#1089#1086#1082': ";"'
     TabOrder = 0
-    Text = '*.txt'
+    Text = '*.txt;*4*14*;*3*1'
   end
   object edTargetDirectory: TEdit
     Left = 8

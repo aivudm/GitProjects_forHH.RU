@@ -400,7 +400,7 @@ try
    for tmpWord:= 0 to tmpMaskCount - 1 do
    begin
     inoutTask1_Results[tmpWord].dwEqualsCount:= 0; //--- Счётчик совпадений
-    inoutTask1_Results[tmpWord].SearchPatternWS:= tmpMaskItems[tmpWord];
+//    inoutTask1_Results[tmpWord].SearchPatternWS:= tmpMaskItems[tmpWord];
    end;
 //--- Цикл перебора и сравнения с масками всех файлов в целевой директории
        inoutTask1_Result.dwEqualsCount:= 0;
@@ -419,6 +419,7 @@ try
           if (IsNameAccordedByMask(tmpTargetFile, tmpMaskItems[tmpWord])) then
           begin
            inc(inoutTask1_Results[tmpWord].dwEqualsCount);
+           inoutTask1_Results[tmpWord].SearchPatternWS:= tmpMaskItems[tmpWord];
            tmpMaskItemsBool[tmpWord]:= true;
           end;
          end;
@@ -426,6 +427,7 @@ try
 //--- Проверяем было ли соответствие маскам и если было, то выводим результат по текущему файлу и маскам, которым он соответствует
          if IsAccorded(tmpMaskItemsBool, tmpMaskCount) then
          begin
+//--- Фиксируем совпадение имени маске в общем счётчике
           inc(inoutTask1_Result.dwEqualsCount);
  {
            tmpStreamWriter.WriteLine(tmpTargetFile + ', ');  //--- пока отработка - запись в файл будет всегда
@@ -444,14 +446,21 @@ try
            if tmpMaskItemsBool[tmpWord] then
             tmpWideString:= tmpWideString + tmpMaskItems[tmpWord] + ItemDelemiter;
           end;
-          tmpWideString1:= format(wsTask1_Result_TemplateView, [tmpWideString, tmpTargetFile]);
-//             tmpWideString:= wsTask2_Result_TemplateView_Part1 + ByteToWS(inputSearchPatternSet[tmpWord].Pattern, inputSearchPatternSet[tmpWord].PatternSize)
-//                             + wsTask2_Result_TemplateView_Part2 + inttostr(inputSearchPatternSet[tmpWord].LastPosBeginSearch) + wsCRLF;;
+          tmpWideString1:= format(wsTask1_Result_CurrentAccorded, [tmpWideString, tmpTargetFile]);
           tmpStreamWriter.WriteLine(tmpWideString1); //--- пока отработка - запись в файл будет всегда
           if inputParam4 then
           begin
-//           inputStreamWriter.WriteLine(format(wsTask1_Result_TemplateView, [tmpWideString]));
-//             FStringStream.WriteString(tmpWideString);
+{
+          tmpWideString:= ''; //wsTask1_Result_CurrentAccorded;
+          for tmpWord:= 0 to (tmpMaskCount - 1) do
+          begin
+           if tmpMaskItemsBool[tmpWord] then
+            tmpWideString:= tmpWideString + tmpMaskItems[tmpWord] + ItemDelemiter;
+          end;
+          tmpWideString1:= format(wsTask1_Result_TemplateView, [tmpWideString, tmpTargetFile]);
+          tmpStreamWriter.WriteLine(tmpWideString1); //--- пока отработка - запись в файл будет всегда
+
+}
           end
           else //--- Результат через память
           begin
@@ -461,7 +470,7 @@ try
             if tmpMaskItemsBool[tmpWord] then
              tmpWideString:= tmpWideString + tmpMaskItems[tmpWord] + ItemDelemiter;
            end;
-           tmpWideString:= format(wsTask1_Result_TemplateView, [tmpWideString, tmpTargetFile]) + wsCRLF;
+           tmpWideString:= format(wsTask1_Result_CurrentAccorded, [tmpWideString, tmpTargetFile]) + wsCRLF;
            FStringStream.WriteString(tmpWideString);
           end;
 
@@ -469,15 +478,14 @@ try
 
 
         end;
-
 //--- Вывод на печать общего результата по всем файлам
         tmpWideString:= wsCRLF + format(wsTask1_TotalResult_TemplateView, [inoutTask1_Result.dwEqualsCount]) + wsCRLF;
         tmpStreamWriter.WriteLine(tmpWideString); //--- пока отработка - запись в файл будет всегда
         for tmpWord:= 0 to (tmpMaskCount - 1) do
         begin
-         if tmpMaskItemsBool[tmpWord] then
-          tmpWideString:= format(wsTask1_TotalResultByMask_TemplateView, [tmpMaskItems[tmpWord], inoutTask1_Results[tmpWord].dwEqualsCount]);
-          tmpStreamWriter.WriteLine(tmpWideString); //--- пока отработка - запись в файл будет всегда
+         if inoutTask1_Results[tmpWord].dwEqualsCount >0 then
+          tmpWideString:= format(wsTask1_TotalResultByMask_TemplateView, [inoutTask1_Results[tmpWord].SearchPatternWS, inoutTask1_Results[tmpWord].dwEqualsCount]);
+         tmpStreamWriter.WriteLine(tmpWideString); //--- пока отработка - запись в файл будет всегда
         end;
 
         if inputParam4 then
@@ -498,9 +506,11 @@ try
          FStringStream.WriteString(tmpWideString);
          for tmpWord:= 0 to (tmpMaskCount - 1) do
          begin
-          if tmpMaskItemsBool[tmpWord] then
-           tmpWideString:= format(wsTask1_TotalResultByMask_TemplateView, [tmpMaskItems[tmpWord], inoutTask1_Results[tmpWord].dwEqualsCount]);
+          if inoutTask1_Results[tmpWord].dwEqualsCount >0 then
+          begin
+           tmpWideString:= format(wsTask1_TotalResultByMask_TemplateView, [inoutTask1_Results[tmpWord].SearchPatternWS, inoutTask1_Results[tmpWord].dwEqualsCount]);
            FStringStream.WriteString(tmpWideString); //--- пока отработка - запись в файл будет всегда
+          end;
          end;
         end;
 
