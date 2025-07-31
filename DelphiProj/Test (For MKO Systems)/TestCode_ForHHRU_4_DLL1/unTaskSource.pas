@@ -10,14 +10,17 @@ const
   wsAllMask: WideString = '*';
   wsPartMaskDelemiter: WideString = '*';
 
+  wsCRLF = #13#10;
   wsTask1_Name: WideString = 'Поиск файлов по маске';
   wsTask2_Name: WideString = 'Поиск в файлах по шаблонам';
   wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
+  wsTask1_Result_TemplateView: WideString = 'Маски файлов: %s, ' + wsCRLF + ' файл: %s';
+  wsTask1_TotalResultByMask_TemplateView = 'Маска файлов: %s: %d' + wsCRLF;
+  wsTask1_TotalResult_TemplateView: WideString = 'Всего найдено соответствий: %d';
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
   wsTask2_Result_TemplateView: WideString = 'Шаблон: %12s, Позиция в файле: %d';
   wsTask2_TotalResult_TemplateView: WideString = 'Шаблон: %12s, Всего совпадений: %d';
   wsResultStreamTitle: WideString = 'Библиотека №%d, Задача №%d';
-  wsCRLF = #13#10;
 
 //--- Для Задачи №2 ------------------------------------------------------------
 const
@@ -65,7 +68,9 @@ type
   TTask_Result = packed record
     dwEqualsCount: DWORD;
     SearchPattern: TSearchPattern;
+    SearchPatternWS: WideString;
   end;
+
 
 
 //------------------------------------------------------------------------------
@@ -115,7 +120,8 @@ function GetWorkingDirectoryName(): WideString;
 //--- Для Задачи №1 ------------
 //--- Извлечение элементов строки, разделённых символом-разделителем
 //procedure GetMasksFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputPatternCount: word);
-//function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
+function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
+function IsAccorded(inputMaskBool: TArray<boolean>; inputMaskCount: word): boolean;
 //procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
 function GetSubStr(inSourceString: WideString; inIndex:Byte; inCount:Integer): WideString;
 function IndexInString(inSubStr, inSourceString: WideString; inPosBegin: word): word;
@@ -333,6 +339,7 @@ end;
 //------------------------------------------------------------------------------------------------------------------------------------
 
 
+//-------------------------------------------------------------------------------
 function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
 var
   tmpMaskPart: WideString;
@@ -350,7 +357,7 @@ begin
   tmpMaskPartsCount:= 0;
 //--- Зафиксируем присутствие разделителей частей в начале и конце маски
   tmpIsDelemiterFirst:= (IndexInString(wsPartMaskDelemiter, inputMask, 1) = 1);
-  tmpIsDelemiterLast:= (IndexInString(wsPartMaskDelemiter, inputMask, length(inputMask) - 1) = 1);
+  tmpIsDelemiterLast:= (IndexInString(wsPartMaskDelemiter, inputMask, length(inputMask)) = 1);
   repeat
 //--- Копируем до разделителя частей масок
    tmpMaskPart:= GetSubStr(inputMask, 1, (length(inputMask) - (length(inputMask) - pos(wsPartMaskDelemiter, inputMask, 1)) - 1));
@@ -372,10 +379,10 @@ begin
 //--- Проход по всем выделенным частям маски
    for tmpInt:= 0 to (tmpMaskPartsCount - 1) do
    begin
-    tmpWord:= IndexInString(tmpMaskParts[tmpWord], inputFileName, 1);
+    tmpWord:= IndexInString(tmpMaskParts[tmpInt], inputFileName, 1);
     tmpBool:= (tmpWord > 0)
               and (not ((tmpWord = 0) and (not tmpIsDelemiterFirst) and (length(inputFileName) > length(tmpMaskParts[tmpWord]))))  //--- исключаем ситуацию: первая часть маски начинается не с разделителя
-              and (not ((tmpWord = (tmpMaskPartsCount - 1)) and (not tmpIsDelemiterLast) and (tmpWord <> (length(inputFileName) - length(tmpMaskParts[tmpWord]) + 1))));
+              and (not ((tmpWord = (tmpMaskPartsCount - 1)) and (not tmpIsDelemiterLast) and (tmpWord <> (length(inputFileName) - length(tmpMaskParts[tmpInt]) + 1))));
     if not tmpBool then
      break;
 //--- Вырезаем часть до, найденной части маски, включая текущую часть маски, из имени файла.
@@ -389,6 +396,26 @@ begin
  end;
 
 end;
+
+//------------------------------------------------------------------------------
+function IsAccorded(inputMaskBool: TArray<boolean>; inputMaskCount: word): boolean;
+var
+  tmpWord: word;
+begin
+  Result:= false;
+  try
+    for tmpWord:= 0 to (inputMaskCount - 1) do
+    begin
+     Result:= Result or inputMaskBool[tmpWord];
+    end;
+
+  finally
+
+  end;
+
+end;
+
+
 
 //--- Переименованная GetPatternsFromString(
 procedure GetMasksFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputPatternCount: word);
