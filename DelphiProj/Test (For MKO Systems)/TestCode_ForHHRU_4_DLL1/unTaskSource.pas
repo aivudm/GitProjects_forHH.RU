@@ -14,7 +14,8 @@ const
   wsTask1_Name: WideString = 'Поиск файлов по маске';
   wsTask2_Name: WideString = 'Поиск в файлах по шаблонам';
   wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
-  wsTask1_Result_TemplateView: WideString = 'Маски файлов: %s, ' + wsCRLF + ' файл: %s';
+  wsTask1_Result_CurrentAccorded: WideString = 'Маски файлов: ';
+  wsTask1_Result_TemplateView: WideString = 'Соответствие маскам: %s, ' + wsCRLF + ' файл: %s';
   wsTask1_TotalResultByMask_TemplateView = 'Маска файлов: %s: %d' + wsCRLF;
   wsTask1_TotalResult_TemplateView: WideString = 'Всего найдено соответствий: %d';
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';

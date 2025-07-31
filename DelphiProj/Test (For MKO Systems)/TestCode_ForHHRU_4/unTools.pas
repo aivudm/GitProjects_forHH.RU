@@ -334,8 +334,31 @@ end;
 end;
 
 procedure TformTools.tmLogUpdateTimer(Sender: TObject);
+var
+  tmpInt: integer;
 begin
- PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+try
+//--- Проверка на новые данные от потоков библиотек
+ if Assigned(LibraryList) then
+  for tmpInt:= 0 to (LibraryList.Count - 1) do
+  begin
+   if Assigned(LibraryList[tmpInt].Stream) then
+    if LibraryList[tmpInt].Stream.Position > LibraryList[tmpInt].Stream_LastPos then
+    begin
+     PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+     exit;
+    end;
+  end;
+
+//--- Проверка на новые данные от потока главного модуля
+   if logFileStream_LastPos < logFileStringStream.Position then
+   begin
+     PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+   end;
+
+finally
+
+end;
 end;
 
 //--- Подпрограммы вне классов -------------------------------------------------

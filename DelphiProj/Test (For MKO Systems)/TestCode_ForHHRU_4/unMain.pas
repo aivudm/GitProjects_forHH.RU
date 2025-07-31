@@ -166,6 +166,7 @@ begin
    begin
     logFileStringList.LoadFromStream(logFileStringStream);
     memLogInfo_2.Lines.AddStrings(logFileStringList);
+    logFileStream_LastPos:= logFileStringStream.Position;
    end;
 
   finally

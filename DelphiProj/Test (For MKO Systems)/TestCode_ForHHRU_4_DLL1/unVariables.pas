@@ -334,66 +334,9 @@ var
   tmpMaskCount: word;
   tmpWord: word;
   tmpBool: Boolean;
-  tmpWideString: WideString;
+  tmpWideString, tmpWideString1: WideString;
 //-------------------------------------------------------------------------------
-{
-function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
-var
-  tmpMaskPart: WideString;
-  tmpMaskParts: array of WideString;
-  tmpMaskPartsCount: word;
-  tmpBool: boolean;
-  tmpInt: integer;
-  tmpWord: word;
-  tmpIsDelemiterFirst,
-  tmpIsDelemiterLast: boolean;
-begin
- Result:= false;
- try
- //--- Счётчик частей маски (часть - всё что между "*")
-  tmpMaskPartsCount:= 0;
-//--- Зафиксируем присутствие разделителей частей в начале и конце маски
-  tmpIsDelemiterFirst:= (IndexInString(wsPartMaskDelemiter, inputMask, 1) = 1);
-  tmpIsDelemiterLast:= (IndexInString(wsPartMaskDelemiter, inputMask, length(inputMask) - 1) = 1);
-  repeat
-//--- Копируем до разделителя частей масок
-   tmpMaskPart:= GetSubStr(inputMask, 1, (length(inputMask) - (length(inputMask) - pos(wsPartMaskDelemiter, inputMask, 1)) - 1));
-   if length(tmpMaskPart) > 0 then
-   begin
-    inc(tmpMaskPartsCount);
-    setlength(tmpMaskParts, tmpMaskPartsCount);
-    tmpMaskParts[tmpMaskPartsCount - 1]:= tmpMaskPart;
-//--- Вырезаем скопированную масок
-    delete(inputMask, 1, Length(tmpMaskPart) + 1); //--- удалим прочтённую запись и разделитель частей масок
-   end
-   else  //--- значит первый символ в маске это разделитель частей "*", удаляем его
-    delete(inputMask, 1, Length(wsPartMaskDelemiter)); //--- удалим прочтённую запись и разделитель частей масок
 
-  until (pos(wsPartMaskDelemiter, inputMask, 1) = 0) and (length(inputMask) = 0);
-
-  tmpBool:= true; //--- Признак соответствия имени маски (всем частям маски), при первом несоответсвие станет false и выходим из цикла
-  repeat
-//--- Проход по всем выделенным частям маски
-   for tmpInt:= 0 to (tmpMaskPartsCount - 1) do
-   begin
-    tmpWord:= IndexInString(tmpMaskParts[tmpWord], inputFileName, 1);
-    tmpBool:= (tmpWord > 0)
-              and (not ((tmpWord = 0) and (not tmpIsDelemiterFirst) and (length(inputFileName) > length(tmpMaskParts[tmpWord]))))  //--- исключаем ситуацию: первая часть маски начинается не с разделителя
-              and (not ((tmpWord = (tmpMaskPartsCount - 1)) and (not tmpIsDelemiterLast) and (tmpWord <> (length(inputFileName) - length(tmpMaskParts[tmpWord]) + 1))));
-    if not tmpBool then
-     break;
-//--- Вырезаем часть до, найденной части маски, включая текущую часть маски, из имени файла.
-    delete(inputFileName, 1, Length(tmpMaskPart)); //--- удалим прочтённую запись и разделитель частей масок
-   end;
-  until (not tmpBool) or (length(inputMask) = 0);
-
-  Result:= tmpBool;
- finally
-
- end;
-
-end;
-}
 //------------------------------------------------------------------------------
 begin
 try
@@ -495,16 +438,16 @@ try
             end;
  }
  //--- Вывод на печать результата по текущему (проверяемому) файлу
-          tmpWideString:= '';
+          tmpWideString:= ''; //wsTask1_Result_CurrentAccorded;
           for tmpWord:= 0 to (tmpMaskCount - 1) do
           begin
            if tmpMaskItemsBool[tmpWord] then
             tmpWideString:= tmpWideString + tmpMaskItems[tmpWord] + ItemDelemiter;
           end;
-          tmpWideString:= format(wsTask1_Result_TemplateView, [tmpWideString, tmpTargetFile]);
+          tmpWideString1:= format(wsTask1_Result_TemplateView, [tmpWideString, tmpTargetFile]);
 //             tmpWideString:= wsTask2_Result_TemplateView_Part1 + ByteToWS(inputSearchPatternSet[tmpWord].Pattern, inputSearchPatternSet[tmpWord].PatternSize)
 //                             + wsTask2_Result_TemplateView_Part2 + inttostr(inputSearchPatternSet[tmpWord].LastPosBeginSearch) + wsCRLF;;
-          tmpStreamWriter.WriteLine(tmpWideString); //--- пока отработка - запись в файл будет всегда
+          tmpStreamWriter.WriteLine(tmpWideString1); //--- пока отработка - запись в файл будет всегда
           if inputParam4 then
           begin
 //           inputStreamWriter.WriteLine(format(wsTask1_Result_TemplateView, [tmpWideString]));
@@ -512,6 +455,12 @@ try
           end
           else //--- Результат через память
           begin
+           tmpWideString:= '';
+           for tmpWord:= 0 to (tmpMaskCount - 1) do
+           begin
+            if tmpMaskItemsBool[tmpWord] then
+             tmpWideString:= tmpWideString + tmpMaskItems[tmpWord] + ItemDelemiter;
+           end;
            tmpWideString:= format(wsTask1_Result_TemplateView, [tmpWideString, tmpTargetFile]) + wsCRLF;
            FStringStream.WriteString(tmpWideString);
           end;
