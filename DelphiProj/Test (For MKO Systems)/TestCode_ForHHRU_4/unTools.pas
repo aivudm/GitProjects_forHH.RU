@@ -112,25 +112,31 @@ begin
    tmpIntrfTaskSource:= nil;
   end;
 
-//--- Запишем в лог событие - создание нового потока - Задачи
-  WriteDataToLog(format(wsEvent_ThreadCreated, [iTaskListNum]), 'formTools.btnNewThreadClick()', 'unTools');
 
 
-//--- 3. Добавляем "Новый Поток" в перечень потоков (комбобокс)
-  formMain.lbThreadList.Items.Add(format(wsHeaderThreadInfo + '%3d: %s',
+//--- 3. Добавляем "Новый Поток" в перечень потоков (листбокс)
+//  formMain.lbThreadList.Items.Add(format(wsHeaderThreadInfo + '%3d: %s',
+//                                                              [iTaskListNum,
+//                                                             TaskList[iTaskListNum].TaskName]));
+  formMain.lbThreadList.Items.AddObject(format(wsHeaderThreadInfo + '%3d: %s',
                                                               [iTaskListNum,
-                                                              TaskList[iTaskListNum].TaskName]));
+                                                             TaskList[iTaskListNum].TaskName]), TaskList[iTaskListNum]);
+
 
 //--- 4. Назначим объекты для отображения информации от задач (потоков)
-  TaskList[iTaskListNum].LineIndex_ForView:= formMain.hMemoThreadInfo_Main.Lines.Add(sWaitForThreadAnswer);
+  TaskList[iTaskListNum].LineIndex_ForView:= formMain.reThreadInfo_Main.Lines.Add(sWaitForThreadAnswer);
 
 //  TaskList[iTaskListNum].HandleWinForView:= formMain.memThreadInfo.Handle;
-  GetWindowThreadProcessId(formMain.hMemoThreadInfo_Main.Handle, @tmpDWord);
+  GetWindowThreadProcessId(formMain.reThreadInfo_Main.Handle, @tmpDWord);
   TaskList[iTaskListNum].ThreadIDWinForView:= tmpDWord;
 
 //--- Запускаем Задачу на выполнение
    TaskList[iTaskListNum].TaskState:= tsActive;
    TaskList[iTaskListNum].Suspended:= false;
+//--- Помещаем информацию о потоке Задачи т потоке ядра задачи в хранилице ThreadID
+//--- Для контроля ресурсов потоков
+  setlength(ThreadStorList, length(ThreadStorList) + 1);
+  ThreadStorList[iTaskListNum].cTask_ThreadId:= TaskList[iTaskListNum].ThreadID;
 
  finally
    FreeAndNil(tmpIntrfDllAPI);

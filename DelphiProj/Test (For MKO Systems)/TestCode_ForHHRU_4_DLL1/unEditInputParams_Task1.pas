@@ -43,7 +43,7 @@ begin
 try
  if (not TDirectory.Exists(edTargetDirectory.Text)) or (edTargetDirectory.Text = '') then
  begin
-  showmessage('Целевая директория не найдена.');
+  showmessage(wsTask1_TargetDirectoryNotFound);
   exit;
  end;
 //  GetMem(tmpPWideChar, tmpWord + 1);

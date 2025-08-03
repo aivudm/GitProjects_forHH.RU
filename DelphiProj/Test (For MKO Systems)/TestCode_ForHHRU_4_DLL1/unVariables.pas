@@ -47,12 +47,17 @@ type
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
    procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+   procedure AbortTaskSource; safecall;
+   procedure FreeTaskSource; safecall;
    function GetTaskLibraryIndex: word;
    function GetTask_Result: TTask_Result; safecall;
    function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
    function GetTask_TotalResult: DWORD; safecall;
    function GetTask_ResultStream: IStream; safecall;
+   function GetAbortExecutionState: boolean; safecall;
+   procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+   property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
    property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex;
@@ -70,9 +75,11 @@ type
     FTaskState: TTaskState;
     FTaskStringList: TStringList;
     FStringStream: TStringStream;
+    FStringStream_copy: TStringStream;
     FTaskResultStream: IStream;
    protected
     FTask_Result: TTask_Result;
+    FAbortExecution: boolean;
     procedure TaskProcedure(TaskLibraryIndex: word); safecall;
     function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out inoutTask1_Result: TTask_Result; out inoutTask1_Results: TTask_Results): HRESULT;
     function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
@@ -81,16 +88,20 @@ type
     FTask_TotalResult: DWORD;
     FTask_Results: TTask_Results;
     constructor Create(TaskLibraryIndex: word);
-    destructor Destroy(); overload;
+    procedure AbortTaskSource; safecall;
+    procedure FreeTaskSource; safecall;
     function GetTaskLibraryIndex: word;
     function GetTask_Result: TTask_Result; safecall;
     function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
     function GetTask_TotalResult: DWORD; safecall;
     function GetTask_ResultStream: IStream; safecall;
+    function GetAbortExecutionState: boolean; safecall;
+    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
     property TaskMainModuleIndex: WORD write FTaskMainModuleIndex;
     property TaskState: TTaskState read FTaskState write FTaskState;
+    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
     property Task_Result: TTask_Result read FTask_Result write FTask_Result;
     property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex; // write SetTask2_Result;
     property Task_TotalResult: DWORD read GetTask_TotalResult;
@@ -166,7 +177,6 @@ end;
 constructor TTaskSource.Create(TaskLibraryIndex: word);
 var
   tmpString: AnsiString;
-  tmpStringStream: TStringStream;
 
 begin
  inherited Create();
@@ -181,14 +191,55 @@ begin
 
 //--- Добавление созданного объекта Задачи в список Задач
 //   FTaskSourceList:= TaskSourceList.Add(self);
+  FAbortExecution:= false; //--- флаг для немедленного (без создания исключения) прекращения и удаления объекта TaskSource
 
 end;
 
-//------------------------------------------------------------------------------
-destructor TTaskSource.Destroy();
+procedure TTaskSource.AbortTaskSource;
+var
+  tmpPointer: pointer;
 begin
-  FreeAndNil(FTaskResultStream);
- inherited Destroy();
+//--- Вызывается из родительского потока главного модуля
+//--- Для немедленного завершения задачи формируется предпосылка для получения исключения типа AV
+//--- после этого будет передача исключения поэтапно в главный модуль
+{
+    tmpPointer:= @FTask_TotalResult;
+    asm
+     mov eax, tmpPointer
+     mov dword ptr [eax], 0
+    end;
+}
+//  self.FStringStream_copy:= self.FStringStream; //--- Сохраняем правильный адрес переменной перед созданием исключения
+//  self.FStringStream:= nil;
+  FAbortExecution:= true;
+end;
+
+procedure TTaskSource.FreeTaskSource; safecall;
+begin
+//--- Освобождение ресурсов объекта TaskSource (по запросу главного модуля)
+try
+ if Assigned(FTaskResultStream) then
+ begin
+  FTaskResultStream._Release;
+//  FreeAndNil(FTaskResultStream);
+ end;
+finally
+
+end;
+//--- Восстанавливаем правильное значение переменной объекта
+//  self.FStringStream:= self.FStringStream_copy;
+try
+ if Assigned(FStringStream) then
+ begin
+  FStringStream.Clear;
+  FreeAndNil(FStringStream);
+ end;
+finally
+
+end;
+
+ TaskSourceList.Extract(self);
+
 end;
 
 
@@ -246,6 +297,19 @@ end;
 end;
 
 //------------------------------------------------------------------------------
+function TTaskSource.GetAbortExecutionState: boolean; safecall;
+begin
+ Result:= self.FAbortExecution;
+end;
+
+//------------------------------------------------------------------------------
+procedure TTaskSource.SetAbortExecutionState(inputAbortState: boolean); safecall;
+begin
+ self.FAbortExecution:= inputAbortState;
+end;
+
+
+//------------------------------------------------------------------------------
 procedure TTaskSource.TaskProcedure(TaskLibraryIndex: word);
 var
   tmpWord: word;
@@ -255,6 +319,8 @@ var
   tmpArray_WideString: TArray_WideString;
   tmpTask1_Parameters: TTask1_Parameters;
   tmpTask2_Parameters: TTask2_Parameters;
+  tmpObject: TObject;
+
  begin
 try
  case self.FTaskLibraryIndex {TaskLibraryIndex} of
@@ -278,9 +344,14 @@ try
     tmpTask1_Parameters.inputParam5:= Task1_Parameters.inputParam5;
     CriticalSection.Leave;
 
-    self.Task1_FileFinderByMask(WideString(tmpTask1_Parameters.inputParam1), WideString(tmpTask1_Parameters.inputParam2),
-                                WideString(tmpTask1_Parameters.inputParam3), tmpTask1_Parameters.inputParam4,
-                                FTaskMainModuleIndex, self.FTask_Result, self.FTask_Results);
+    try
+     self.Task1_FileFinderByMask(WideString(tmpTask1_Parameters.inputParam1), WideString(tmpTask1_Parameters.inputParam2),
+                                 WideString(tmpTask1_Parameters.inputParam3), tmpTask1_Parameters.inputParam4,
+                                 FTaskMainModuleIndex, self.FTask_Result, self.FTask_Results);
+    except
+     tmpObject:= ExceptObject;
+//     raise;
+    end;
    end;
 
 
@@ -312,9 +383,16 @@ try
     tmpTask2_Parameters.inputParam5:= Task2_Parameters.inputParam5;
     CriticalSection.Leave;
 
-    self.Task2_FindInFilesByPattern(WideString(tmpTask2_Parameters.inputParam1), WideString(tmpTask2_Parameters.inputParam2),
-                                    WideString(tmpTask2_Parameters.inputParam3), tmpTask2_Parameters.inputParam4,
-                                    FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask_Results); //, nil, 0);
+    try
+     self.Task2_FindInFilesByPattern(WideString(tmpTask2_Parameters.inputParam1), WideString(tmpTask2_Parameters.inputParam2),
+                                     WideString(tmpTask2_Parameters.inputParam3), tmpTask2_Parameters.inputParam4,
+                                     FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask_Results); //, nil, 0);
+    except
+     tmpObject:= ExceptObject;
+//     tmpWideString:= Exception(tmpObject).Message;
+//     raise;
+    end;
+
 
    end;
 
@@ -339,7 +417,8 @@ var
 
 //------------------------------------------------------------------------------
 begin
-try
+try //
+ try
 //--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
 //--- Добавим к имени выходного файла информацию о номере задачи по порядку запуска потоков в главном модуле, иначе имена файлов в потоках совпадут
        if TPath.GetFileName(inputParam3) <> '' then
@@ -368,7 +447,7 @@ try
           CriticalSection.Enter;
            WriteDataToLog(E.ClassName + ', E.Message = ' + E.Message, 'Task1_FileFinderByMask', 'unVariables');
           CriticalSection.Leave;
-          raise;
+          exit;
          end;
         end;
 
@@ -407,7 +486,22 @@ try
        for tmpTargetFile in TDirectory.GetFiles(inputParam2, wsAllMask,
             TSearchOption.soAllDirectories) do
         begin
-//          sleep(500); //--- Для отработки (для замедления процесса)
+         if FAbortExecution then
+         begin
+//--- Удалить после тестирования
+          tmpStreamWriter.WriteLine(wsTask_AbortedOnRequest);
+//---
+          if inputParam4 then
+          begin
+//          tmpStreamWriter.WriteLine(wsTask_AbortedOnRequest);
+          end
+          else //--- Результат через память
+          begin
+           FStringStream.WriteString(wsCRLF + wsTask_AbortedOnRequest + wsCRLF);
+          end;
+          exit;
+         end;
+  sleep(500); //--- Для отработки (для замедления процесса)
 //--- Обнуляем признак сооьветствия маскам
          for tmpWord:= 0 to (tmpMaskCount - 1) do
          begin
@@ -515,13 +609,21 @@ try
         end;
 
 
-finally
- if Win32Check(Assigned(tmpStreamWriter)) then
- begin
-  tmpStreamWriter.Close;
-  freeandnil(tmpStreamWriter);
+ finally
+  if Win32Check(Assigned(tmpStreamWriter)) then
+  begin
+   tmpStreamWriter.Close;
+   freeandnil(tmpStreamWriter);
+//--- Данная операция необходима для повторного вызова исключения при экстренном завершении
+//   FStringStream.SetSize(FStringStream.Size);
+  end;
  end;
+
+except //--- сюда в основном попадаем при принудительном экстренном завершении
+// Abort;
+// raise;
 end;
+
 end;
 
 //------------------------------------------------------------------------------
@@ -567,8 +669,25 @@ try
 //--- Поиск в файле
        while (tmpFileStream.Position < tmpFileStream.Size) do
         begin
+//--- Немедленный выход по запросу главного модуля
+         if FAbortExecution then
+         begin
+//--- Удалить после тестирования
+          tmpStreamWriter.WriteLine(wsTask_AbortedOnRequest);
+//---
+          if inputParam4 then
+          begin
+//          tmpStreamWriter.WriteLine(wsTask_AbortedOnRequest);
+          end
+          else //--- Результат через память
+          begin
+           FStringStream.WriteString(wsCRLF + wsTask_AbortedOnRequest + wsCRLF + wsCRLF);
+          end;
+          exit;
+         end;
+
 //------------------------------------------------------------------------------
-//         sleep(5); //--- Для отработки (для замедления процесса)
+         sleep(5); //--- Для отработки (для замедления процесса)
 //------------------------------------------------------------------------------
 
          tmpBool:= false;
@@ -577,10 +696,10 @@ try
 //=== В цикле перебираем все шаблоны и выполняем поиск каждого (или одного, если режим многопоточности)
          for tmpWord:= 0 to inputPattenCount - 1 do //sizeof(inputSearchPatternSet) do
          begin
-//--- Проверка: поиск по жанному шаблону уже прогнан до конца файла...
+//--- Проверка: поиск по данному шаблону уже выполнен до конца файла...
           if inputSearchPatternSet[tmpWord].LastPosBeginSearch < iPatternNotFound then
           begin
-//--- Если, хотя бы раз выполняется условиек LastPosBeginSearch < iPatternNotFound, значит есть ещё шаблоны прогнанные не до конца файла
+//--- Если, хотя бы раз выполняется условиек LastPosBeginSearch < iPatternNotFound, значит есть ещё шаблоны проверенные не до конца файла
            tmpBool:= true;
            tmpFileStream.Position:= inputSearchPatternSet[tmpWord].LastPosBeginSearch;
            tmpDWord:= GetPosForPattern(Pointer(tmpTargetFileBuffer), tmpFileStream.Size,
@@ -625,7 +744,7 @@ try
           end;
          end;
 
-//--- Если все щаблоны проверены до конца файла, то ставим на конец файла и далее выходим из whilr
+//--- Если все щаблоны проверены до конца файла, то ставим на конец файла и далее выходим из while
          if not tmpBool then
           tmpFileStream.Position:= tmpFileStream.Size;
 

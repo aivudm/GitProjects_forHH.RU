@@ -60,7 +60,7 @@ try
  begin
   WriteDataToLog(format('Целевой файл: %s не найден.', [edTargetFile.Text]),
                         'TformEditParams_Task2.btbRunTaskClick', 'unformEditParams_Task2');
-  showmessage('Целевой файл не найден.');
+  showmessage(wsTask1_TargetFileNotFound);
   exit;
  end;
 

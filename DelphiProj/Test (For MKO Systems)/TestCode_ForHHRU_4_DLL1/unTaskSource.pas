@@ -18,10 +18,13 @@ const
 //  wsTask1_Result_TemplateView: WideString = 'Соответствие маскам: %s, ' + wsCRLF + ' файл: %s';
   wsTask1_TotalResultByMask_TemplateView = 'Маска файлов: [%s]: %d' + wsCRLF;
   wsTask1_TotalResult_TemplateView: WideString = 'Всего найдено соответствий: %d';
+  wsTask1_TargetDirectoryNotFound: WideString = 'Целевая директория не найдена.';
+  wsTask1_TargetFileNotFound: WideString = 'Целевой файл не найден.';
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
   wsTask2_Result_TemplateView: WideString = 'Шаблон: %12s, Позиция в файле: %d';
   wsTask2_TotalResult_TemplateView: WideString = 'Шаблон: %12s, Всего совпадений: %d';
   wsResultStreamTitle: WideString = 'Библиотека №%d, Задача №%d';
+  wsTask_AbortedOnRequest: WideString = 'Выполнение прервано по запросу главного модуля';
 
 //--- Для Задачи №2 ------------------------------------------------------------
 const

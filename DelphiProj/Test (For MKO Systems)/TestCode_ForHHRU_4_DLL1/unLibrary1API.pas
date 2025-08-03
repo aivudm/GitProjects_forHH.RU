@@ -94,9 +94,9 @@ try
  if bDllInitExecuted then
     exit;
 
- if Assigned(TaskSourceList) then
+ if not Assigned(TaskSourceList) then
  begin
-   TaskSourceList:= TTaskSourceList.Create();
+   TaskSourceList:= TTaskSourceList.Create(false); //---
    TaskSourceList.Clear;
  end;
  if not Assigned(CriticalSection) then
@@ -115,19 +115,13 @@ procedure TLibraryAPI.FinalizeDLL;
 var
   tmpWord: word;
 begin
- if Assigned(TaskSourceList) then
+  TaskSourceList.Clear;
   freeandnil(TaskSourceList);
+
  if Assigned(CriticalSection) then
   freeandnil(CriticalSection);
  if Assigned(LibraryLog) then
   freeandnil(LibraryLog);
-
-{ if Win32Check(Assigned(TaskSourceList)) then
- begin
-  TaskSourceList.Clear;
-  freeandnil(TaskSourceList);
- end;
-}
 
 //--- Память выделялась через SysReAllocStringLen
 //--- для получения строк из визуальных компонентов
@@ -161,9 +155,16 @@ end;
 function TLibraryAPI.NewTaskSource(TaskLibraryIndex: word): ITaskSource;
 var
   tmpTaskSource: TTaskSource;
+  tmpWord: word;
 begin
+  tmpWord:= TaskSourceList.Add(TTaskSource.Create(TaskLibraryIndex));
+  Result:= TaskSourceList[tmpWord];
+
+{
   tmpTaskSource:= TTaskSource.Create(TaskLibraryIndex);
+  TaskSourceList.Add(tmpTaskSource);
   Result:= tmpTaskSource;
+}
 end;
 
 function TLibraryAPI.GetStream: IStream; safecall;

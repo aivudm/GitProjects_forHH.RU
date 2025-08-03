@@ -3,7 +3,7 @@ object formMain: TformMain
   Top = 0
   Caption = #1043#1083#1072#1074#1085#1086#1077' '#1086#1082#1085#1086' ('#1086#1089#1085#1086#1074#1085#1086#1081' '#1087#1086#1090#1086#1082')'
   ClientHeight = 396
-  ClientWidth = 998
+  ClientWidth = 1004
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,7 +19,7 @@ object formMain: TformMain
   PixelsPerInch = 96
   TextHeight = 13
   object GroupBox1: TGroupBox
-    Left = 3
+    Left = 8
     Top = 8
     Width = 992
     Height = 353
@@ -41,7 +41,7 @@ object formMain: TformMain
     end
     object memThreadInfo_1: TMemo
       Left = 5
-      Top = 259
+      Top = 261
       Width = 595
       Height = 89
       HideSelection = False
@@ -59,11 +59,9 @@ object formMain: TformMain
       ItemHeight = 13
       TabOrder = 1
       OnClick = lbThreadListClick
-      OnKeyPress = lbThreadListKeyPress
-      OnMouseUp = lbThreadListMouseUp
     end
     object bThreadPause: TButton
-      Left = 424
+      Left = 391
       Top = 23
       Width = 105
       Height = 25
@@ -71,27 +69,25 @@ object formMain: TformMain
       TabOrder = 2
       OnClick = bThreadPauseClick
     end
-    object bStop: TButton
-      Left = 424
+    object bThreadStop: TButton
+      Left = 391
       Top = 54
       Width = 105
       Height = 25
       Caption = #1054#1089#1090#1072#1085#1086#1074#1080#1090#1100
       TabOrder = 3
-      OnClick = bStopClick
+      OnClick = bThreadStopClick
     end
-    object hMemoThreadInfo_Main: TRichEdit
-      Left = 0
+    object reThreadInfo_Main1: TRichEdit
+      Left = 936
       Top = 85
-      Width = 989
+      Width = 53
       Height = 156
       Font.Charset = RUSSIAN_CHARSET
       Font.Color = clWindowText
       Font.Height = -11
       Font.Name = 'Tahoma'
       Font.Style = []
-      Lines.Strings = (
-        '')
       ParentFont = False
       ScrollBars = ssBoth
       TabOrder = 4
@@ -105,11 +101,27 @@ object formMain: TformMain
       ScrollBars = ssBoth
       TabOrder = 5
     end
+    object bThreadDelete: TButton
+      Left = 502
+      Top = 54
+      Width = 105
+      Height = 25
+      Caption = #1059#1076#1072#1083#1080#1090#1100
+      TabOrder = 6
+      OnClick = bThreadDeleteClick
+    end
+    object reThreadInfo_Main: TMemo
+      Left = 3
+      Top = 85
+      Width = 927
+      Height = 156
+      TabOrder = 7
+    end
   end
   object sbMain: TStatusBar
     Left = 0
     Top = 377
-    Width = 998
+    Width = 1004
     Height = 19
     Panels = <
       item
@@ -123,7 +135,7 @@ object formMain: TformMain
       end>
   end
   object MainMenu1: TMainMenu
-    Left = 400
+    Left = 312
     Top = 65528
     object miFile: TMenuItem
       Caption = #1060#1072#1081#1083
@@ -141,6 +153,10 @@ object formMain: TformMain
       object N1: TMenuItem
         Caption = #1057#1087#1080#1089#1086#1082' '#1084#1086#1076#1091#1083#1077#1081' '#1087#1088#1086#1094#1077#1089#1089#1072
         OnClick = N1Click
+      end
+      object N2: TMenuItem
+        Caption = #1057#1087#1080#1089#1086#1082' '#1072#1082#1090#1080#1074#1085#1099#1093' '#1087#1086#1090#1086#1082#1086#1074' '#1075#1083#1072#1074#1085#1086#1075#1086' '#1084#1086#1076#1091#1083#1103
+        OnClick = N2Click
       end
     end
     object miAbout: TMenuItem

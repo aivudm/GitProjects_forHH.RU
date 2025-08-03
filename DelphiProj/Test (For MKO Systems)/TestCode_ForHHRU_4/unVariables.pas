@@ -62,12 +62,17 @@ type
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
    procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+   procedure AbortTaskSource; safecall;
+   procedure FreeTaskSource; safecall;
    function GetTaskLibraryIndex: word;
    function GetTask_Result: TTask_Result; safecall;
    function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
    function GetTask_TotalResult: DWORD; safecall;
    function GetTask_ResultStream: IStream; safecall;
+   function GetAbortExecutionState: boolean; safecall;
+   procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+   property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
    property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex;
@@ -105,6 +110,7 @@ type
     FTaskTemplateName: TArray_WideString; //--- заполняется после подключения Dll
     FLibraryAPI: ILibraryAPI; //--- заполняется после подключения Dll
     FLibraryFileName: WideString;
+    FLibraryHandle: THandle;
     FStream: TStream;
     FStream_LastPos: Cardinal;
 
@@ -123,6 +129,7 @@ type
     property LibraryId: DWORD read FLibraryId write FLibraryId;
     property LibraryName: WideString read FLibraryName write FLibraryName;
     property LibraryFileName: WideString read FLibraryFileName write SetLibraryFileName;
+    property LibraryHandle: HModule read FLibraryHandle write FLibraryHandle;
     property TaskCount: Byte read FTaskCount write FTaskCount;
     property TaskTemplateName[Index: integer]: WideString read GetItemName write SetItemName;
     property Stream: TStream read FStream write FStream;
@@ -205,10 +212,21 @@ type
 //------------------------------------------------------------------------------
   TFileBuffer = array of byte;
 //------------------------------------------------------------------------------
+  TConfirmResult = (YesResult = 1, NoResult = 2, CancelResult = 3);
+//------------------------------------------------------------------------------
+  TTaskThread = record
+    cTask_ThreadId: cardinal;
+    cTaskCore__ThreadId: cardinal;
+  end;
+
+  TThreadStorList = TArray<TTaskThread>;
+//------------------------------------------------------------------------------
+
+
 
 var
   intrfDllAPI: ILibraryAPI;
-  hTaskLibrary: THandle;  //--- он же HMODULE
+  hTaskLibrary: THandle;
   iniFile: TIniFile;
   logFileName: WideString;
   logFileBuffer: TFileBuffer;
@@ -234,6 +252,8 @@ var
   LibraryTask: TLibraryTask;
   LibraryList: TLibraryList; //TObjectList<TLibraryTaskInfo>;
   CriticalSection: TCriticalSection;
+  ThreadStorList: TThreadStorList;
+  ThreadList1, ThreadList2: TArray<WideString>;
 
 
 

@@ -1,7 +1,10 @@
 program Primer_MT_4;
 
 uses
-  Windows, Vcl.Forms, SysUtils, Dialogs,
+  Windows,
+  Vcl.Forms,
+  SysUtils,
+  Dialogs,
   unTools in 'unTools.pas' {formTools},
   unTasks in 'unTasks.pas',
   unConst in 'unConst.pas',
@@ -10,7 +13,8 @@ uses
   unInfoWindow in 'unInfoWindow.pas' {formInfo},
   unDM in 'unDM.pas' {DataModule1: TDataModule},
   unUtilCommon in 'unUtilCommon.pas',
-  unUtils in 'unUtils.pas';
+  unUtils in 'unUtils.pas',
+  unConfirmDlg in 'unConfirmDlg.pas' {formConfirmDlg};
 
 {$R *.res}
 
@@ -41,5 +45,6 @@ begin
   Application.MainFormOnTaskbar := True;
   Application.CreateForm(TformMain, formMain);
   Application.CreateForm(TDataModule1, DM);
+  Application.CreateForm(TformConfirmDlg, formConfirmDlg);
   Application.Run;
 end.

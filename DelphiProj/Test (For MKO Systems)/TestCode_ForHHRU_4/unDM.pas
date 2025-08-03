@@ -72,10 +72,10 @@ begin
  tmpString:= BytesToString(AData, IndyTextEncoding_UTF8);
  tmpWord:= StrToInt(GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1, IndexInString(sDelimiterNumTask, tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1) - 1));
  tmpString:= GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 2) + 2, - 1);
- if tmpWord > formMain.hMemoThreadInfo_Main.Lines.Count  then
-  formMain.hMemoThreadInfo_Main.Lines.Add(tmpString)
+ if tmpWord > formMain.reThreadInfo_Main.Lines.Count  then
+  formMain.reThreadInfo_Main.Lines.Add(tmpString)
  else
-  formMain.hMemoThreadInfo_Main.Lines[tmpWord]:= tmpString;
+  formMain.reThreadInfo_Main.Lines[tmpWord]:= tmpString;
 end;
 
 end.

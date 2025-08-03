@@ -12,12 +12,13 @@ const
   wm_data_update = WM_APP + UserOffset;
   CMD_SetMemoLine = 1; //--- Наш код для записи информации из сообщения в Мемо
   CMD_SetMemoStreamUpd = 2; //--- Наш код для обновления данных от потока в Мемо
+  CMD_DeleteTaskItem = 3; //--- Наш код для удаления строки
 //------------------------------------------------------------------------------
   iMaxPixelCount_difference = 5;
 //------------------------------------------------------------------------------
   wsUncknownVersionOS = 'Не допустимая версия ОС. #13#10 Завершение работы приложения.';
   wsHeaderThreadInfo = 'Задача (поток) №';
-  wsEvent_ThreadCreated = wsHeaderThreadInfo + '%3d создан успешно.';
+  wsEvent_ThreadCreated = wsHeaderThreadInfo + '%3d создан успешно. ThreadId (задача/ядро задачи)= %d/%d';
   sWaitForThreadAnswer = 'Ожидание ответа от потока...';
   sWaitForAppClosing = 'Ожидание завершения задач (потоков)...';
   sThreadInfoForView = wsHeaderThreadInfo + ' %4d : %s, %s TreadId: %4d | Время работы: %d | %s ||| [сост. - %s]';
@@ -33,6 +34,10 @@ const
   wsResultPartDll1Task0_InfoFromTask = 'Кол-во файлов по маскам: %3d';
   wsResultPartDll1Task1_InfoFromTask = 'Общ. кол-во соотв. шаблонам: %3d';
   wsResultPartDll2Task0_InfoFromTask = '';
+  wsInfo_TaskUnnableToTerminate = 'Задача уже не может быть прервана.';
+  wsConfirm_TaskTerminate1 = 'Вы действительно хотите прервать выполнение задачи?';
+  wsConfirm_TaskDelete1 = 'Вы действительно хотите полностью удалить задачу?';
+  wsConfirm_TaskDelete2 = 'Вы действительно хотите прервать и полностью удалить задачу?';
 
   ServerUDPPort = 8048;
   serverUDPName = '127.0.0.1';

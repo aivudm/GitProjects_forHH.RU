@@ -1,43 +1,53 @@
 ﻿[Closed Files]
-File_0=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Controls.pas',0,1,7346,1,7366,0,0,,
-File_1=TSourceModule,'c:\embarcadero\studio\17.0\source\rtl\common\System.Classes.pas',0,1,7116,1,7136,0,0,,
-File_2=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\RTL\SYS\System.pas',0,1,16235,1,16255,0,0,,
+File_0=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Forms.pas',0,1,3623,1,3643,0,0,{{1729,4}
+File_1=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\RTL\SYS\System.pas',0,1,19902,1,19923,0,0,,
+File_2=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Controls.pas',0,1,7346,1,7366,0,0,,
 File_3=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.StdCtrls.pas',0,1,7153,1,7173,0,0,{{1651,4}
-File_4=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Forms.pas',0,1,3743,1,3764,0,0,{{1729,4}
-File_5=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\RTL\SYS\System.SysUtils.pas',0,1,24593,12,24601,0,0,,
-File_6=TSourceModule,'D:\DelphiProj\TestCode_ForHHRU_4\unLibrary1API.pas',0,1,1,26,24,0,0,,
-File_7=TSourceModule,'c:\embarcadero\studio\17.0\source\rtl\common\System.Generics.Collections.pas',0,1,1123,1,1143,0,0,,
-File_8=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Dialogs.pas',0,1,2134,1,2155,0,0,,
-File_9=TSourceModule,'D:\DelphiProj\TestCode_ForHHRU_4\DSiWin32.pas',0,1,1,1,1,0,0,,
-File_10=TSourceModule,'D:\DelphiProj\TestCode_ForHHRU_4\unThread.pas',0,1,16,1,1,0,0,,
-File_11=TSourceModule,'D:\DelphiProj\TestCode_ForHHRU_4\unTaskSource.pas',0,1,1,1,1,0,0,,
-File_12=TSourceModule,'D:\DelphiProj\ExampleCode_ForHHRU_3\unInfoWindow.pas',0,1,1,1,1,0,0,,
-File_13=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Menus.pas',0,1,3440,1,3464,0,0,,
-File_14=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.ExtCtrls.pas',0,1,3038,1,3060,0,0,,
+File_4=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\RTL\SYS\System.SysUtils.pas',0,1,24593,12,24601,0,0,,
+File_5=TSourceModule,'D:\DelphiProj\TestCode_ForHHRU_4\unLibrary1API.pas',0,1,1,26,24,0,0,,
+File_6=TSourceModule,'c:\embarcadero\studio\17.0\source\rtl\common\System.Generics.Collections.pas',0,1,1123,1,1143,0,0,,
+File_7=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Dialogs.pas',0,1,2134,1,2155,0,0,,
+File_8=TSourceModule,'D:\DelphiProj\TestCode_ForHHRU_4\DSiWin32.pas',0,1,1,1,1,0,0,,
+File_9=TSourceModule,'D:\DelphiProj\TestCode_ForHHRU_4\unThread.pas',0,1,16,1,1,0,0,,
+File_10=TSourceModule,'D:\DelphiProj\TestCode_ForHHRU_4\unTaskSource.pas',0,1,1,1,1,0,0,,
+File_11=TSourceModule,'D:\DelphiProj\ExampleCode_ForHHRU_3\unInfoWindow.pas',0,1,1,1,1,0,0,,
+File_12=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Menus.pas',0,1,3440,1,3464,0,0,,
+File_13=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.ExtCtrls.pas',0,1,3038,1,3060,0,0,,
 
 [Modules]
-Module0=D:\DelphiProj\TestCode_ForHHRU_4\unTools.pas
-Module1=D:\DelphiProj\TestCode_ForHHRU_4\Primer_MT_4.dproj
+Module0=D:\DelphiProj\TestCode_ForHHRU_4\Primer_MT_4.dproj
+Module1=c:\embarcadero\studio\17.0\source\rtl\common\System.Classes.pas
 Module2=D:\DelphiProj\TestCode_ForHHRU_4\unMain.pas
-Module3=D:\DelphiProj\TestCode_ForHHRU_4\unTasks.pas
-Module4=D:\DelphiProj\TestCode_ForHHRU_4\unVariables.pas
-Module5=D:\DelphiProj\TestCode_ForHHRU_4\unUtils.pas
-Module6=D:\DelphiProj\TestCode_ForHHRU_4\unDM.pas
-Module7=D:\DelphiProj\TestCode_ForHHRU_4\unUtilCommon.pas
-Module8=D:\DelphiProj\TestCode_ForHHRU_4\unInfoWindow.pas
-Module9=D:\DelphiProj\TestCode_ForHHRU_4\unConst.pas
-Count=10
+Module3=D:\DelphiProj\TestCode_ForHHRU_4\unUtils.pas
+Module4=D:\DelphiProj\TestCode_ForHHRU_4\unTools.pas
+Module5=D:\DelphiProj\TestCode_ForHHRU_4\unTasks.pas
+Module6=D:\DelphiProj\TestCode_ForHHRU_4\unVariables.pas
+Module7=D:\DelphiProj\TestCode_ForHHRU_4\unDM.pas
+Module8=D:\DelphiProj\TestCode_ForHHRU_4\unUtilCommon.pas
+Module9=D:\DelphiProj\TestCode_ForHHRU_4\unInfoWindow.pas
+Module10=D:\DelphiProj\TestCode_ForHHRU_4\unConst.pas
+Count=11
 EditWindowCount=1
-
-[D:\DelphiProj\TestCode_ForHHRU_4\unTools.pas]
-ModuleType=TSourceModule
-FormState=1
-FormOnTop=1
 
 [D:\DelphiProj\TestCode_ForHHRU_4\Primer_MT_4.dproj]
 ModuleType=TBaseProject
 
+[c:\embarcadero\studio\17.0\source\rtl\common\System.Classes.pas]
+ModuleType=TSourceModule
+FormState=0
+FormOnTop=0
+
 [D:\DelphiProj\TestCode_ForHHRU_4\unMain.pas]
+ModuleType=TSourceModule
+FormState=1
+FormOnTop=0
+
+[D:\DelphiProj\TestCode_ForHHRU_4\unUtils.pas]
+ModuleType=TSourceModule
+FormState=0
+FormOnTop=0
+
+[D:\DelphiProj\TestCode_ForHHRU_4\unTools.pas]
 ModuleType=TSourceModule
 FormState=1
 FormOnTop=0
@@ -48,11 +58,6 @@ FormState=0
 FormOnTop=0
 
 [D:\DelphiProj\TestCode_ForHHRU_4\unVariables.pas]
-ModuleType=TSourceModule
-FormState=0
-FormOnTop=0
-
-[D:\DelphiProj\TestCode_ForHHRU_4\unUtils.pas]
 ModuleType=TSourceModule
 FormState=0
 FormOnTop=0
@@ -78,8 +83,8 @@ FormState=0
 FormOnTop=0
 
 [EditWindow0]
-ViewCount=10
-CurrentEditView=D:\DelphiProj\TestCode_ForHHRU_4\unTools.pas
+ViewCount=11
+CurrentView=-1
 View0=0
 View1=1
 View2=2
@@ -90,6 +95,7 @@ View6=6
 View7=7
 View8=8
 View9=9
+View10=10
 PercentageSizes=1
 Create=1
 Visible=1
@@ -123,8 +129,8 @@ BottomMiddelPanelData=0000080001020200000009000000446F636B5369746530100000004772
 CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4\unMain.pas
 CursorX=1
-CursorY=149
-TopLine=129
+CursorY=194
+TopLine=181
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -177,15 +183,26 @@ EditViewName=D:\DelphiProj\TestCode_ForHHRU_4\unTasks.pas
 [View5]
 CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4\unUtils.pas
-CursorX=39
-CursorY=185
-TopLine=160
+CursorX=1
+CursorY=204
+TopLine=181
 LeftCol=1
 Elisions=
 Bookmarks=
 EditViewName=D:\DelphiProj\TestCode_ForHHRU_4\unUtils.pas
 
 [View6]
+CustomEditViewType=TEditView
+Module=c:\embarcadero\studio\17.0\source\rtl\common\System.Classes.pas
+CursorX=1
+CursorY=4503
+TopLine=4483
+LeftCol=1
+Elisions=
+Bookmarks=
+EditViewName=c:\embarcadero\studio\17.0\source\rtl\common\System.Classes.pas
+
+[View7]
 CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4\unUtilCommon.pas
 CursorX=32
@@ -196,7 +213,7 @@ Elisions=
 Bookmarks=
 EditViewName=D:\DelphiProj\TestCode_ForHHRU_4\unUtilCommon.pas
 
-[View7]
+[View8]
 CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4\unInfoWindow.pas
 CursorX=1
@@ -207,7 +224,7 @@ Elisions=
 Bookmarks=
 EditViewName=Borland.FormDesignerView
 
-[View8]
+[View9]
 CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4\unConst.pas
 CursorX=3
@@ -218,7 +235,7 @@ Elisions=
 Bookmarks=
 EditViewName=D:\DelphiProj\TestCode_ForHHRU_4\unConst.pas
 
-[View9]
+[View10]
 CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4\unVariables.pas
 CursorX=20
@@ -254,13 +271,16 @@ Dockable=1
 StayOnTop=0
 
 [Breakpoints]
-Count=6
+Count=9
 Breakpoint0='D:\DelphiProj\ExampleCode_ForHHRU_3\DSiWin32.pas',4543,'',0,1,'',1,0,0,'',1,'','','',0,''
 Breakpoint1='D:\DelphiProj\ExampleCode_ForHHRU_3\unMain.pas',76,'',0,1,'',1,0,0,'',1,'','','',0,''
 Breakpoint2='D:\DelphiProj\ExampleCode_ForHHRU_3\unMain.pas',226,'',0,1,'',1,0,0,'',1,'','','',0,''
 Breakpoint3='D:\DelphiProj\ExampleCode_ForHHRU_3\unTasks.pas',787,'',0,1,'',1,0,0,'',1,'','','',0,''
 Breakpoint4='D:\DelphiProj\TestCode_ForHHRU_4\unMain.pas',76,'',0,1,'',1,0,0,'',1,'','','',0,''
 Breakpoint5='D:\DelphiProj\TestCode_ForHHRU_4\unMain.pas',265,'',0,1,'',1,0,0,'',1,'','','',0,''
+Breakpoint6='D:\DelphiProj\TestCode_ForHHRU_4\unUtils.pas',204,'',0,1,'',1,0,0,'',1,'','','',0,''
+Breakpoint7='D:\DelphiProj\TestCode_ForHHRU_4\unMain.pas',380,'',0,1,'',1,0,0,'',1,'','','',0,''
+Breakpoint8='D:\DelphiProj\TestCode_ForHHRU_4\unMain.pas',192,'',0,1,'',1,0,0,'',1,'','','',0,''
 
 [EmbarcaderoWin32Debugger_AddressBreakpoints]
 Count=0
@@ -436,11 +456,6 @@ LRDockWidth=1896
 Dockable=1
 StayOnTop=0
 SplitPos=111
-
-[PropInspDesignerSelection]
-ArrangeBy=Name
-SelectedItem=Action,
-ExpandedItems=Anchors=0,BorderIcons=0,Constraints=0
 
 [DebugLogView]
 PercentageSizes=1

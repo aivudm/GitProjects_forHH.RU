@@ -1,7 +1,7 @@
 unit unUtils;
 
 interface
-uses Vcl.Forms, System.Classes, System.SysUtils, Winapi.Windows, Winapi.Messages, IOUtils,
+uses Vcl.Forms, System.Classes, System.SysUtils, Winapi.Windows, Winapi.Messages, Vcl.StdCtrls, IOUtils,
      Vcl.AxCtrls, TlHelp32, ImageHlp, {PsAPI,}
      unVariables;
 
@@ -14,6 +14,9 @@ procedure GetItemsFromString(SourceBSTR: WideString; var outputStringItems: TArr
 procedure FinalizeLibraryes;
 function LoadAnyLibrary(const LibraryFileName: WideString): HMODULE;
 function GetPIDByName(const name: PWideChar): Cardinal;
+function GetThreadsInfo(PID: Cardinal; var ThreadList: TArray<WideString>): Boolean;
+function GetThreadsInfoBySubThread(PID: Cardinal; var memViewer: TMemo; memViewerLine: word): Boolean;
+
 
 implementation
 uses unConst, unUtilCommon;
@@ -180,6 +183,7 @@ GetItemsFromString(tmpBSTR, TaskDllProcName);
   tmpIntrfDllAPI:= nil;
 
   LibraryList[inputLibraryNum].SetLibraryFileName(inputDllFileName);
+  LibraryList[inputLibraryNum].LibraryHandle:= tmp_hTaskLibrary;
 //--- Настройка потока передачи результатов из библиотек в главный модуль
    LibraryList[inputLibraryNum].Stream:= TOleStream.Create(LibraryList[inputLibraryNum].LibraryAPI.GetStream);
    LibraryList[inputLibraryNum].Stream.Position:= 0;
@@ -189,29 +193,63 @@ GetItemsFromString(tmpBSTR, TaskDllProcName);
 finally
  if tmpintrfDllAPI <> nil then
  begin
+//--- Уменьшим _RefCount для интерфейса бмблиотек
+//--- Доступ к интерфейсу библиотек теперь только через LibraryList[inputLibraryNum.LibraryAPI
   tmpintrfDllAPI:= nil;
  end;
- if tmp_hTaskLibrary <> 0 then
-//  FreeLibrary(tmp_hTaskLibrary);
 end;
 end;
 
 procedure FinalizeLibraryes;
+var
+  tmpWord: word;
 begin
-  if intrfDllAPI <> nil then
+ for tmpWord:= 0 to (LibraryList.Count - 1) do
+ begin
+  if LibraryList[tmpWord].LibraryAPI <> nil then
   begin
-    intrfDllAPI.FinalizeDLL;         //--- Здесь вылетала ошибка
-    intrfDllAPI := nil;
+    LibraryList[tmpWord].LibraryAPI.FinalizeDLL;         //--- Здесь вылетала ошибка
+    LibraryList[tmpWord].LibraryAPI:= nil;
   end;
-  if hTaskLibrary <> 0 then
+  if LibraryList[tmpWord].LibraryHandle <> 0 then
   begin
-    FreeLibrary(hTaskLibrary);
-    hTaskLibrary := 0;
+    FreeLibrary(LibraryList[tmpWord].LibraryHandle);
+    LibraryList[tmpWord].LibraryHandle := 0;
   end;
+ end;
 end;
 
 
-function GetThreadsInfo(PID: Cardinal): Boolean;
+function GetThreadsInfo(PID: Cardinal; var ThreadList: TArray<WideString>): Boolean;
+  var
+    SnapProcHandle: THandle;
+    NextProc      : Boolean;
+    ThreadEntry  : TThreadEntry32;
+  begin
+    SnapProcHandle := CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0); //Создаем снэпшот всех существующих потоков
+    Result := (SnapProcHandle <> INVALID_HANDLE_VALUE);
+    if Result then
+      try
+        ThreadEntry.dwSize := SizeOf(ThreadEntry);
+        NextProc := Thread32First(SnapProcHandle, ThreadEntry);//получаем первый поток
+        while NextProc do begin
+          if ThreadEntry.th32OwnerProcessID = PID then
+          begin //проверка на принадлежность к процессу
+           setlength(ThreadList, length(ThreadList) + 1);
+           ThreadList[length(ThreadList) - 1]:= inttostr(ThreadEntry.th32ThreadID);
+//              Writeln('base priority  ' + inttostr(ThreadEntry.tpBasePri));
+//              Writeln('delta priority ' + inttostr(ThreadEntry.tpBasePri));
+//              Writeln('');
+          end;
+          NextProc := Thread32Next(SnapProcHandle, ThreadEntry);//получаем следующий поток
+        end;
+      finally
+        CloseHandle(SnapProcHandle);//освобождаем снэпшот
+      end;
+  end;
+
+
+function GetThreadsInfoBySubThread(PID: Cardinal; var memViewer: TMemo; memViewerLine: word): Boolean;
   var
     SnapProcHandle: THandle;
     NextProc      : Boolean;
@@ -225,10 +263,10 @@ function GetThreadsInfo(PID: Cardinal): Boolean;
         NextProc := Thread32First(SnapProcHandle, ThreadEntry);//получаем первый поток
         while NextProc do begin
           if ThreadEntry.th32OwnerProcessID = PID then begin //проверка на принадлежность к процессу
-              Writeln('Thread ID      ' + inttohex(ThreadEntry.th32ThreadID, 8));
-              Writeln('base priority  ' + inttostr(ThreadEntry.tpBasePri));
-              Writeln('delta priority ' + inttostr(ThreadEntry.tpBasePri));
-              Writeln('');
+              memViewer.Lines[memViewerLine]:= memViewer.Lines[memViewerLine] + 'Thread ID ' + inttostr(ThreadEntry.th32ThreadID) + '; ';
+//              Writeln('base priority  ' + inttostr(ThreadEntry.tpBasePri));
+//              Writeln('delta priority ' + inttostr(ThreadEntry.tpBasePri));
+//              Writeln('');
           end;
           NextProc := Thread32Next(SnapProcHandle, ThreadEntry);//получаем следующий поток
         end;
@@ -236,6 +274,7 @@ function GetThreadsInfo(PID: Cardinal): Boolean;
         CloseHandle(SnapProcHandle);//освобождаем снэпшот
       end;
   end;
+
 
 function GetPIDByName(const name: PWideChar): Cardinal;
 var
