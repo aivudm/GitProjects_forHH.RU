@@ -21,10 +21,12 @@ type
     function GetVersion: BSTR; safecall;
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
-    function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
+    function GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
     function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
+    procedure FreeTaskSource(var MainModuleTaskIndex: word); safecall;
 
     property Name: BSTR read GetName;
     property Version: BSTR read GetVersion;
@@ -43,10 +45,12 @@ type
     function GetVersion: BSTR; safecall;
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
-    function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
+    function GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
     function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
+    procedure FreeTaskSource(var MainModuleTaskIndex: word); safecall;
   public
     constructor Create;
   end;
@@ -152,12 +156,14 @@ begin
   Result := TBSTRItems.Create(tmpInfoRecordData);
 end;
 
-function TLibraryAPI.NewTaskSource(TaskLibraryIndex: word): ITaskSource;
+function TLibraryAPI.NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
 var
   tmpTaskSource: TTaskSource;
   tmpWord: word;
 begin
-  tmpWord:= TaskSourceList.Add(TTaskSource.Create(TaskLibraryIndex));
+  Result:= nil;
+  tmpWord:= TaskSourceList.Add(TTaskSource.Create(LibraryTaskIndex));
+  TaskSourceList[tmpWord].TaskMainModuleIndex:= MainModuleTaskIndex;
   Result:= TaskSourceList[tmpWord];
 
 {
@@ -167,6 +173,33 @@ begin
 }
 end;
 
+//------------------------------------------------------------------------------
+function TLibraryAPI.GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
+var
+  tmpTaskSource: TTaskSource;
+  tmpWord: word;
+begin
+  Result:= nil;
+  for tmpWord:= 0 to (TaskSourceList.Count - 1) do
+   if TaskSourceList[tmpWord].TaskMainModuleIndex = MainModuleTaskIndex then
+    Result:= TaskSourceList[tmpWord];
+end;
+
+//------------------------------------------------------------------------------
+procedure TLibraryAPI.FreeTaskSource(var MainModuleTaskIndex: word); safecall;
+var
+  tmpTaskSource: TTaskSource;
+  tmpWord: word;
+begin
+  for tmpWord:= 0 to (TaskSourceList.Count - 1) do
+   if TaskSourceList[tmpWord].TaskMainModuleIndex = MainModuleTaskIndex then
+   begin
+    TaskSourceList.Remove(TaskSourceList[tmpWord]);
+   end;
+end;
+
+
+//------------------------------------------------------------------------------
 function TLibraryAPI.GetStream: IStream; safecall;
 begin
   Result:= LibraryLog.GetStream;

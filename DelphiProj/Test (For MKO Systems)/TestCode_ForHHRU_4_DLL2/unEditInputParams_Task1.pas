@@ -47,9 +47,9 @@ begin
 try
  if not TFile.Exists(edShellCommander.Text) then
  begin
-  WriteDataToLog(format('Целевой файл: %s не найден.', [edShellCommander.Text]),
+  WriteDataToLog(format(wsTask1_TargetFileNotFound, [edShellCommander.Text]),
                         'TformEditParams_Task1.btbRunTaskClick', 'unformEditParams_Task1');
-  showmessage('Целевой файл не найден.');
+  showmessage(format(wsTask1_TargetFileNotFound, [edShellCommander.Text]));
   exit;
  end;
   tmpWord:= edShellCommander.GetTextLen + 1;

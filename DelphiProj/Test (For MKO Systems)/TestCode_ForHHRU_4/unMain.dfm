@@ -42,7 +42,7 @@ object formMain: TformMain
     object memThreadInfo_1: TMemo
       Left = 5
       Top = 261
-      Width = 595
+      Width = 516
       Height = 89
       HideSelection = False
       ScrollBars = ssBoth
@@ -78,28 +78,13 @@ object formMain: TformMain
       TabOrder = 3
       OnClick = bThreadStopClick
     end
-    object reThreadInfo_Main1: TRichEdit
-      Left = 936
-      Top = 85
-      Width = 53
-      Height = 156
-      Font.Charset = RUSSIAN_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'Tahoma'
-      Font.Style = []
-      ParentFont = False
-      ScrollBars = ssBoth
-      TabOrder = 4
-      Zoom = 100
-    end
     object memLogInfo_2: TMemo
-      Left = 606
+      Left = 527
       Top = 259
-      Width = 383
+      Width = 462
       Height = 89
       ScrollBars = ssBoth
-      TabOrder = 5
+      TabOrder = 4
     end
     object bThreadDelete: TButton
       Left = 502
@@ -107,15 +92,16 @@ object formMain: TformMain
       Width = 105
       Height = 25
       Caption = #1059#1076#1072#1083#1080#1090#1100
-      TabOrder = 6
+      TabOrder = 5
       OnClick = bThreadDeleteClick
     end
-    object reThreadInfo_Main: TMemo
+    object reThreadInfo_Main: TListBox
       Left = 3
       Top = 85
-      Width = 927
+      Width = 986
       Height = 156
-      TabOrder = 7
+      ItemHeight = 13
+      TabOrder = 6
     end
   end
   object sbMain: TStatusBar

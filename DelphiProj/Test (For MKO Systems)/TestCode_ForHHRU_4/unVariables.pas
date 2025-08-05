@@ -45,10 +45,12 @@ type
     function GetVersion: BSTR; safecall;
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
-    function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
+    function GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
     function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
+    procedure FreeTaskSource(var MainModuleTaskIndex: word); safecall;
 
     property Name: BSTR read GetName;
     property Version: BSTR read GetVersion;
@@ -58,20 +60,18 @@ type
 
 
 //------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
-   procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+   procedure TaskProcedure; safecall;
    procedure AbortTaskSource; safecall;
-   procedure FreeTaskSource; safecall;
-   function GetTaskLibraryIndex: word;
+   function GetTaskLibraryIndex: word; safecall;
    function GetTask_Result: TTask_Result; safecall;
    function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
    function GetTask_TotalResult: DWORD; safecall;
    function GetTask_ResultStream: IStream; safecall;
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
-   procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+   procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
@@ -95,7 +95,7 @@ type
 //--- FileFinderByPattern
 
   TArray_WideString = TArray<WideString>;
-  TArray_Cardinal = array [0..High(Byte)] of Cardinal;
+  TArray_Cardinal = TArray<Cardinal>;
 
 type
 //------------------------------------------------------------------------------
@@ -200,12 +200,13 @@ type
   end;
 //------------------------------------------------------------------------------
 
-  TOutInfo_ForViewing = packed record
+  TInfo_ForViewing = packed record
     IndexInViewComponent: integer;
-    TextForViewComponent: ansistring;
+    TextForViewComponent: AnsiString;
     hMemoThreadInfo_Main: HWND;  //--- для журнала
     hMemoThreadInfo_1: HWND;  //--- для информации от потоков
     hMemoLogInfo_2: HWND;  //--- для журнала
+
     CurrentViewingTask: word;
   end;
 
@@ -243,7 +244,7 @@ var
   aResultArraySimple: TArray<Int64>;
   FileList: TFileList; //StreamWriter: TStreamWriter;
 
-  OutInfo_ForViewing: TOutInfo_ForViewing;
+  Info_ForViewing: TInfo_ForViewing; //--- Глобальная переменная (у каждого потока будет своя копия)
   CallingDLLProc: TCallingDLLProc;
   hDllTask: THandle;
   sWorkDirectory: WideString = '';

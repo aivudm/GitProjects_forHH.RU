@@ -2,8 +2,8 @@ object formTools: TformTools
   Left = 0
   Top = 0
   Caption = #1053#1072#1089#1090#1088#1086#1081#1082#1072
-  ClientHeight = 376
-  ClientWidth = 286
+  ClientHeight = 408
+  ClientWidth = 288
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText

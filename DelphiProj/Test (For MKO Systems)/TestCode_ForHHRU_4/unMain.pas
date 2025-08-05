@@ -29,13 +29,12 @@ type
     bThreadStop: TButton;
     sbMain: TStatusBar;
     N1: TMenuItem;
-    reThreadInfo_Main1: TRichEdit;
     Label1: TLabel;
     Label2: TLabel;
     memLogInfo_2: TMemo;
     bThreadDelete: TButton;
     N2: TMenuItem;
-    reThreadInfo_Main: TMemo;
+    reThreadInfo_Main: TListBox;
     procedure miToolsClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure lbThreadListMouseUp(Sender: TObject; Button: TMouseButton;
@@ -86,10 +85,10 @@ begin
   tmpString:= PWChar(MessageData.CopyDataStruct.lpData);
    tmpWord:= StrToInt(GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1, IndexInString(sDelimiterNumTask, tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1) - 1));
    tmpString:= GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 2) + 2, - 1);
-   if tmpWord > formMain.reThreadInfo_Main.Lines.Count  then
-    formMain.reThreadInfo_Main.Lines.Add(tmpString)
+   if tmpWord > formMain.reThreadInfo_Main.Items.Count  then
+    formMain.reThreadInfo_Main.Items.Add(tmpString)
    else
-    formMain.reThreadInfo_Main.Lines[tmpWord]:= tmpString;
+    formMain.reThreadInfo_Main.Items[tmpWord]:= tmpString;
 
     MessageData.Result := 1;
   end
@@ -119,7 +118,7 @@ begin
  tmpBool:= true;
  if (Message.Msg = WM_Data_Update) and (Message.LParam = CMD_DeleteTaskItem) then
  begin
-{
+
    lbThreadList.ItemIndex:= Message.WParam;
    tmpTaskItem:= lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem;
 //--- Передвинем номера строк в Мемо для всех задач, номера которых после удаляемой строки
@@ -130,11 +129,11 @@ begin
 //   reThreadInfo_Main.Lines.Delete(TaskList[Message.WParam].LineIndex_ForView);
 //--- После сдвига номеров строк в Мемо для всех задач, удаляем последнюю строку Мемо
 //--- Отображение оставшихся задач автоматически сдвинется вверх по строкам мемо в процессе получения отчётов от задач
-   reThreadInfo_Main.Lines.Delete(reThreadInfo_Main.Lines.Count - 1);
+   reThreadInfo_Main.Items.Delete(reThreadInfo_Main.Items.Count - 1);
    lbThreadList.DeleteSelected;
 
    tmpBool:= false;
-}
+
  end;
 
  if Assigned(memThreadInfo_1_WndProc_Original) and tmpBool then
@@ -149,7 +148,7 @@ begin
 // if (Message.Msg = EM_LINESCROLL) or ((Message.Msg = WM_VSCROLL)) then
  if (Message.Msg = WM_Data_Update) and (Message.LParam = CMD_SetMemoStreamUpd) then
  begin
-  if Message.WParam = OutInfo_ForViewing.CurrentViewingTask then
+  if Message.WParam = Info_ForViewing.CurrentViewingTask then
   begin
    if TaskList[Message.WParam].StringStream.Position < TaskList[Message.WParam].Stream.Position then
    begin
@@ -232,6 +231,7 @@ begin
 end;
 }
 
+//------------------------------------------------------------------------------
 procedure TformMain.bThreadStopClick(Sender: TObject);
 var
   tmpInt: integer;
@@ -250,7 +250,7 @@ try
   tmpTaskState:= TaskList[tmpInt].TaskState;
   TaskList[tmpInt].TaskState:= tsPause;
 //--- Обновим отображаемую информацию по текущей задаче перед показом диалогового окна
-  PostMessage(OutInfo_ForViewing.hMemoThreadInfo_1, WM_Data_Update, TaskList[tmpInt].TaskNum, CMD_SetMemoStreamUpd)
+  PostMessage(Info_ForViewing.hMemoThreadInfo_1, WM_Data_Update, TaskList[tmpInt].TaskNum, CMD_SetMemoStreamUpd)
  end
  else
  begin
@@ -273,9 +273,9 @@ try
 //--- Действия по остановке (прерванное выполнение).
 //--- Сначала переключаем задачу в состояние Выполнение, чтобы библиотека смогла принять сигнал останова
 //--- затем, ядро задачи переведёт солстояние в Остановлено (tsAbortedDone).
- TaskList[tmpInt].TaskState:= tsActive;
  try
-  TaskList[tmpInt].TaskSource.AbortTaskSource;
+  TaskList[tmpInt].TaskState:= tsAbortedDone;
+//  TaskList[tmpInt].TaskSource.AbortExecution:= false;  //--- Только для режима отладки (удалить)
  finally
  end;
 
@@ -286,11 +286,11 @@ end;
 
 end;
 
+//------------------------------------------------------------------------------
 procedure TformMain.bThreadDeleteClick(Sender: TObject);
 var
   tmpInt, tmpInt1: integer;
   tmpTaskState: TTaskState;
-
 begin
 try
 //mpTaskItem:= lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem;
@@ -329,24 +329,29 @@ try
  begin
 //--- Удаление задачи (потока)
   TaskList[tmpInt].TaskState:= tsTerminate;
+  TaskList[tmpInt].WaitFor;
 
-//--- Освобождение памяти не делаем, так как при создании поставили FreeOnTerminate
-//  TaskList[tmpWord].Terminate;
  end;
 
 //--- Удаление задачи из списка "задач" (информацию о задаче (в компоненте отображения) пока оставляем в окне просмотра (само обновиться из задачи)...)
 //--- Удаление задачи из списка объектов "задачи"
- TaskList.Extract(TaskList[tmpInt]);
+ if TaskList.Remove(lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem) < 0 then
+  for tmpInt1:= 0 to (TaskList.Count - 1) do
+   if (TaskList[tmpInt1].TaskNum = TaskList[tmpInt].TaskNum) then
+    TaskList.Delete(TaskList[tmpInt1].TaskNum);
+// TaskList.Extract(TaskList[tmpInt]);
  //--- Передвинем номера строк на одну вниз (для отображения в Мемо) для всех задач, номера которых после удаляемой строки
  for tmpInt1:= tmpInt to (TaskList.Count - 1) do
   if TaskList[tmpInt1].LineIndex_ForView > 0 then
    TaskList[tmpInt1].LineIndex_ForView:= TaskList[tmpInt1].LineIndex_ForView - 1;
-//--- После сдвига номеров строк в Мемо для всех задач, удаляем последнюю строку Мемо
+//--- После сдвига номеров строк в Мемо для всех задач, удаляем последнюю строку компонента просмотра
 //--- Удаление строки Мемо, соответствующей задаче из списка задач не производим
 //--- Отображение оставшихся задач автоматически сдвинется вверх по строкам мемо в процессе получения отчётов от задач
  try
-  if reThreadInfo_Main.Lines.Count > 0 then
-   reThreadInfo_Main.Lines.Delete(reThreadInfo_Main.Lines.Count - 1);
+  if reThreadInfo_Main.Items.Count > 0 then
+  begin
+   reThreadInfo_Main.Items.Delete(reThreadInfo_Main.Items.Count - 1);
+  end;
  except
   on E: EListError do
    WriteDataToLog(E.ClassName + E.Message, 'formMain.bThreadStopClick', 'formMain');
@@ -354,7 +359,7 @@ try
 //--- Удаляем задачу из списка задач компонента отображения (ЛистБокс)
  lbThreadList.DeleteSelected;
  if lbThreadList.ItemIndex > -1 then
-  PostMessage(OutInfo_ForViewing.hMemoThreadInfo_1, WM_Data_Update, lbThreadList.ItemIndex, CMD_SetMemoStreamUpd)
+  PostMessage(Info_ForViewing.hMemoThreadInfo_1, WM_Data_Update, lbThreadList.ItemIndex, CMD_SetMemoStreamUpd)
  else
   memThreadInfo_1.Lines.Clear;
 
@@ -387,7 +392,7 @@ begin
  end;
 
 //--- Обновим отображаемую информацию по текущей задаче перед показом диалогового окна
- PostMessage(OutInfo_ForViewing.hMemoThreadInfo_1, WM_Data_Update, TaskList[tmpInt].TaskNum, CMD_SetMemoStreamUpd);
+ PostMessage(Info_ForViewing.hMemoThreadInfo_1, WM_Data_Update, TaskList[tmpInt].TaskNum, CMD_SetMemoStreamUpd);
 
  SetButtonState_ThreadList(TaskList[tmpInt].TaskNum);
 end;
@@ -432,9 +437,9 @@ begin
  sbMain.Panels[0].Text:= 'ThreadId (процесса): ' + inttostr(GetCurrentThreadId);
 
 //--- Заполнение глобальных переменных
- OutInfo_ForViewing.hMemoThreadInfo_Main:= reThreadInfo_Main.Handle;
- OutInfo_ForViewing.hMemoThreadInfo_1:= memThreadInfo_1.Handle;
- OutInfo_ForViewing.hMemoLogInfo_2:= memLogInfo_2.Handle;
+ Info_ForViewing.hMemoThreadInfo_Main:= reThreadInfo_Main.Handle;
+ Info_ForViewing.hMemoThreadInfo_1:= memThreadInfo_1.Handle;
+ Info_ForViewing.hMemoLogInfo_2:= memLogInfo_2.Handle;
 
 //--- Настройка обработки сообщения для информации о задачах
  reThreadInfo_Main_WndProc_Original:= formMain.reThreadInfo_Main.WindowProc;
@@ -449,7 +454,7 @@ begin
  formMain.memLogInfo_2.WindowProc:= memLogInfo_2_WndProc_Current;
 
 //--- Прокрутить ТМемо с журналом работы на последнюю строку
- PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+ PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
 
 end;
 
@@ -479,19 +484,21 @@ var
 begin
 try
  tmpStringList:= TStringList.Create;
- if not ((lbThreadList.ItemIndex > -1) and ((Sender as TListBox).ItemIndex <= (Sender as TListBox).Items.Count)) then
+ if lbThreadList.ItemIndex < 0 then
  begin
   memThreadInfo_1.Lines.Clear;
   exit;
  end;
 
+ reThreadInfo_Main.ItemIndex:= lbThreadList.ItemIndex;
+
  tmpInt:= lbThreadList.ItemIndex;
- if (OutInfo_ForViewing.CurrentViewingTask = tmpInt) and (lbThreadList.Count > 1) then
+ if (Info_ForViewing.CurrentViewingTask = tmpInt) and (lbThreadList.Count > 1) then
   exit;
 
  CriticalSection.Enter;
   memThreadInfo_1.Lines.Clear;
-  OutInfo_ForViewing.CurrentViewingTask:= tmpInt;
+  Info_ForViewing.CurrentViewingTask:= tmpInt;
   TaskList[tmpInt].StringStream_LastPos:= 0;
  CriticalSection.Leave;
 
@@ -591,9 +598,10 @@ begin
   ListDLLsForProcess(GetPIDByName(PWChar(formMain.Caption)), memLogInfo_2.Lines);
 end;
 
+//------------------------------------------------------------------------------
 procedure TformMain.N2Click(Sender: TObject);
 var
-  tmpWord: word;
+  tmpInt: integer;
   tmpWideString, tmpWideString1: WideString;
 begin
   memLogInfo_2.Lines.Clear;
@@ -603,7 +611,7 @@ begin
 //    GetThreadsInfoBySubThread(strtoint(memLogInfo_2.Lines[tmpWord]), memLogInfo_2, tmpWord);
   for tmpWideString in ThreadList1 do
    tmpWideString1:= tmpWideString1 + tmpWideString + ', ';
-  memLogInfo_2.Lines.Add(format('%11s', ['На старте: ']) + tmpWideString1);
+  memLogInfo_2.Lines.Add(format('%11s: %s', ['На старте', tmpWideString1]));
 
 //--- Потоки процесса на текущий момент
   setlength(ThreadList2, 0);
@@ -611,10 +619,18 @@ begin
   tmpWideString1:= '';
   for tmpWideString in ThreadList2 do
    tmpWideString1:= tmpWideString1 + tmpWideString + ', ';
-  memLogInfo_2.Lines.Add(format('%11s', ['Сейчас: ']) + tmpWideString1);
+  memLogInfo_2.Lines.Add(format('%11s: %s', ['Сейчас', tmpWideString1]));
+
+//--- Потоки созданные по задачам с момента старта главного модуля
+  tmpWideString1:= '';
+
+  for tmpInt:= 0 to (length(ThreadStorList) - 1) do
+   tmpWideString1:= tmpWideString1 + inttostr(ThreadStorList[tmpInt].cTask_ThreadId) + '/' + inttostr(ThreadStorList[tmpInt].cTaskCore__ThreadId) + ', ';
+  memLogInfo_2.Lines.Add(format('%11s: %s', ['По задачам', tmpWideString1]));
 
 end;
 
+//------------------------------------------------------------------------------
 procedure TformMain.SetButtonState_ThreadList(ThreadNum: word);
 begin
  case TaskList[ThreadNum].GetTaskState of

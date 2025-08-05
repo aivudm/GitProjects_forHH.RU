@@ -70,6 +70,7 @@ procedure TformTools.btnNewThreadClick(Sender: TObject);
     tmpIntrfDllAPI: ILibraryAPI;
     tmpIntrfTaskSource: ITaskSource;
     tmpDWord: DWORD;
+    tmpWord: word;
 begin
  try
   if lbTemplateTaskList.ItemIndex < 0 then
@@ -86,16 +87,27 @@ begin
   TaskList[iTaskListNum].SetTaskNum(iTaskListNum);
 
   //--- 2. Создаём новый объект "Исходник Задачи", затем помещаем его в массив объектов типа "Список Исходников Задач" - нужна реализация каждого объекта, так как они будут выполняться в потоках
+  //--- в TaskSource прописывается индекс задачи в библиотеке и он больше не может изменяться
   try
-   TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex));
+   TaskList[iTaskListNum].TaskCore:= TTaskCore.Create();
+   TaskList[iTaskListNum].TaskCore.TaskItemOwner:= TaskList[iTaskListNum].GetTaskItem;   //--- передачей владельца в TaskCore
+//--- Настроим ядро задачи на соответствующую задачу из библиотек
+   tmpWord:= lbTemplateTaskList.ItemIndex;
 
+//--- В TaskItem и TaskCore свои ссылки на объект TaskSource в библиотеке
+
+   TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(tmpWord, iTaskListNum));
+   TaskList[iTaskListNum].TaskCore.SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.GetTaskSource(iTaskListNum));
+
+//-------------------------------------------------------------------------------------------------------------------------------------
 //   tmpIntrfDllAPI:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI;
 //   tmpIntrfTaskSource:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex);
 //   tmpIntrfTaskSource:= tmpIntrfDllAPI.NewTaskSource(lbTemplateTaskList.ItemIndex);
 //   TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(lbTemplateTaskList.ItemIndex));
  //  TaskList[iTaskListNum].SetTaskSource(tmpIntrfTaskSource);
 
-   TaskList[iTaskListNum].TaskSource.TaskMainModuleIndex:= iTaskListNum;
+ //????????????????????????????????????????
+ //   TaskList[iTaskListNum].TaskCore.TaskSource.TaskMainModuleIndex:= iTaskListNum;
 //   tmpIntrfTaskSource.TaskMainModuleIndex:= iTaskListNum;
 
 //--- 2.1 Настройка потока передачи результатов из библиотек в главный модуль
@@ -124,19 +136,19 @@ begin
 
 
 //--- 4. Назначим объекты для отображения информации от задач (потоков)
-  TaskList[iTaskListNum].LineIndex_ForView:= formMain.reThreadInfo_Main.Lines.Add(sWaitForThreadAnswer);
+  TaskList[iTaskListNum].LineIndex_ForView:= formMain.reThreadInfo_Main.Items.Add(sWaitForThreadAnswer);
 
 //  TaskList[iTaskListNum].HandleWinForView:= formMain.memThreadInfo.Handle;
-  GetWindowThreadProcessId(formMain.reThreadInfo_Main.Handle, @tmpDWord);
-  TaskList[iTaskListNum].ThreadIDWinForView:= tmpDWord;
+  TaskList[iTaskListNum].SetInfo_ForViewing(Info_ForViewing);
 
-//--- Запускаем Задачу на выполнение
-   TaskList[iTaskListNum].TaskState:= tsActive;
-   TaskList[iTaskListNum].Suspended:= false;
 //--- Помещаем информацию о потоке Задачи т потоке ядра задачи в хранилице ThreadID
 //--- Для контроля ресурсов потоков
   setlength(ThreadStorList, length(ThreadStorList) + 1);
-  ThreadStorList[iTaskListNum].cTask_ThreadId:= TaskList[iTaskListNum].ThreadID;
+  ThreadStorList[length(ThreadStorList) - 1].cTask_ThreadId:= TaskList[iTaskListNum].ThreadID;
+//--- Запускаем Задачу на выполнение
+   TaskList[iTaskListNum].TaskState:= tsActive;
+   TaskList[iTaskListNum].Suspended:= false;
+
 
  finally
    FreeAndNil(tmpIntrfDllAPI);
@@ -351,7 +363,7 @@ try
    if Assigned(LibraryList[tmpInt].Stream) then
     if LibraryList[tmpInt].Stream.Position > LibraryList[tmpInt].Stream_LastPos then
     begin
-     PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+     PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
      exit;
     end;
   end;
@@ -359,7 +371,7 @@ try
 //--- Проверка на новые данные от потока главного модуля
    if logFileStream_LastPos < logFileStringStream.Position then
    begin
-     PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+     PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
    end;
 
 finally

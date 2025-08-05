@@ -137,7 +137,7 @@ begin
   logFileStringStream.WriteString(tmpWideString);
   CriticalSection.Leave;
 //--- ќбновить информацию в “ћемо (с журналом работы)
-  PostMessage(OutInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+  PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
 end;
 
 function ByteToWS(inputBytes: TArray<Byte>; inputBytesSize: dword): WideString;

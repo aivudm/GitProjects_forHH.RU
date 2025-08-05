@@ -21,7 +21,8 @@ type
     function GetVersion: BSTR; safecall;
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
-    function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
+    function GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
     function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
@@ -43,7 +44,8 @@ type
     function GetVersion: BSTR; safecall;
     function GetTaskList: IBSTRItems; safecall;
     function GetTaskCount: byte; safecall;
-    function NewTaskSource(TaskLibraryIndex: word): ITaskSource; safecall;
+    function NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
+    function GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
     function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
@@ -147,12 +149,31 @@ begin
   Result := TBSTRItems.Create(tmpInfoRecordData);
 end;
 
-function TLibraryAPI.NewTaskSource(TaskLibraryIndex: word): ITaskSource;
+function TLibraryAPI.NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
 var
   tmpTaskSource: TTaskSource;
+  tmpWord: word;
 begin
+  tmpWord:= TaskSourceList.Add(TTaskSource.Create(LibraryTaskIndex));
+  Result:= TaskSourceList[tmpWord];
+
+{
   tmpTaskSource:= TTaskSource.Create(TaskLibraryIndex);
+  TaskSourceList.Add(tmpTaskSource);
   Result:= tmpTaskSource;
+}
+end;
+
+//------------------------------------------------------------------------------
+function TLibraryAPI.GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
+var
+  tmpTaskSource: TTaskSource;
+  tmpWord: word;
+begin
+  Result:= nil;
+  for tmpWord:= 0 to (TaskSourceList.Count - 1) do
+   if TaskSourceList[tmpWord].TaskMainModuleIndex = MainModuleTaskIndex then
+    Result:= TaskSourceList[tmpWord];
 end;
 
 function TLibraryAPI.GetStream: IStream; safecall;

@@ -49,12 +49,17 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
    procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+   procedure AbortTaskSource; safecall;
+   procedure FreeTaskSource; safecall;
    function GetTaskLibraryIndex: word;
    function GetTask_Result: TTask_Result; safecall;
    function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
    function GetTask_TotalResult: DWORD; safecall;
    function GetTask_ResultStream: IStream; safecall;
+   function GetAbortExecutionState: boolean; safecall;
+   procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+   property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
    property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex;
@@ -81,17 +86,21 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
    public
     FTask_TotalResult: DWORD;
     FTask_Results: TTask_Results;
+    FAbortExecution: boolean;
     constructor Create(TaskLibraryIndex: word);
-    destructor Destroy(); overload;
+    procedure AbortTaskSource; safecall;
+    procedure FreeTaskSource; safecall;
     function GetTaskLibraryIndex: word;
     function GetTask_Result: TTask_Result; safecall;
     function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
     function GetTask_TotalResult: DWORD; safecall;
     function GetTask_ResultStream: IStream; safecall;
+    function GetAbortExecutionState: boolean; safecall;
+    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
     procedure SendInfoToLog(inputString: WideString);
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
-    property TaskMainModuleIndex: WORD write FTaskMainModuleIndex;
+    property TaskMainModuleIndex: WORD read FTaskMainModuleIndex write FTaskMainModuleIndex;
 //    property TaskState: TTaskState read FTaskState write FTaskState;
 //    property StopWatch: TStopWatch read FStopWatch write FStopWatch;
     property Task_Result: TTask_Result read FTask_Result write FTask_Result;
@@ -182,13 +191,52 @@ begin
 
 end;
 
-//------------------------------------------------------------------------------
-destructor TTaskSource.Destroy();
+procedure TTaskSource.AbortTaskSource;
+var
+  tmpPointer: pointer;
 begin
-  FreeAndNil(FTaskResultStream);
- inherited Destroy();
+//--- Вызывается из родительского потока главного модуля
+//--- Для немедленного завершения задачи формируется предпосылка для получения исключения типа AV
+//--- после этого будет передача исключения поэтапно в главный модуль
+{
+    tmpPointer:= @FTask_TotalResult;
+    asm
+     mov eax, tmpPointer
+     mov dword ptr [eax], 0
+    end;
+}
+//  self.FStringStream_copy:= self.FStringStream; //--- Сохраняем правильный адрес переменной перед созданием исключения
+//  self.FStringStream:= nil;
+  FAbortExecution:= true;
 end;
 
+procedure TTaskSource.FreeTaskSource; safecall;
+begin
+//--- Освобождение ресурсов объекта TaskSource (по запросу главного модуля)
+try
+ if Assigned(FTaskResultStream) then
+ begin
+  FTaskResultStream._Release;
+//  FreeAndNil(FTaskResultStream);
+ end;
+finally
+
+end;
+//--- Восстанавливаем правильное значение переменной объекта
+//  self.FStringStream:= self.FStringStream_copy;
+try
+ if Assigned(FStringStream) then
+ begin
+  FStringStream.Clear;
+  FreeAndNil(FStringStream);
+ end;
+finally
+
+end;
+
+ TaskSourceList.Extract(self);
+
+end;
 
 //------------------------------------------------------------------------------
 function TTaskSource.GetTaskLibraryIndex: WORD;
@@ -244,6 +292,20 @@ end;
 end;
 
 //------------------------------------------------------------------------------
+function TTaskSource.GetAbortExecutionState: boolean; safecall;
+begin
+ Result:= self.FAbortExecution;
+end;
+
+//------------------------------------------------------------------------------
+procedure TTaskSource.SetAbortExecutionState(inputAbortState: boolean); safecall;
+begin
+ self.FAbortExecution:= inputAbortState;
+end;
+
+
+
+//------------------------------------------------------------------------------
 procedure TTaskSource.TaskProcedure(TaskLibraryIndex: word);
 var
   tmpWord: word;
@@ -251,6 +313,7 @@ var
   tmpInputForm_Task1: TformEditParams_Task1;
   tmpArray_WideString: TArray_WideString;
   tmpTask1_Parameters: TTask1_Parameters;
+  tmpObject: TObject;
  begin
 try
  case self.FTaskLibraryIndex {TaskLibraryIndex} of
@@ -267,12 +330,7 @@ try
     //--- Заполним inputParam5 (TaskMainModuleIndex), переданный через API
     Task1_Parameters.inputParam5:= self.FTaskMainModuleIndex;
 //--- После заполения входных параметров запуск задачи на выполнение
-{    ShowMessage('Перед входом в Task1_WinExecute'
-                + #13#10 + 'inputParam1 = ' + WideString(Task1_Parameters.inputParam1)
-                + #13#10 + 'inputParam2 = ' + WideString(Task1_Parameters.inputParam2)
-                + #13#10 + 'inputParam3 = ' + WideString(Task1_Parameters.inputParam3)
-                + #13#10 + 'inputParam5 = ' + IntToStr(FTaskMainModuleIndex)); // Task1_Parameters.inputParam5
-}
+
     tmpTask1_Parameters.inputParam1:= Task1_Parameters.inputParam1;
     tmpTask1_Parameters.inputParam2:= Task1_Parameters.inputParam2;
     tmpTask1_Parameters.inputParam3:= Task1_Parameters.inputParam3;
@@ -280,9 +338,14 @@ try
     tmpTask1_Parameters.inputParam5:= Task1_Parameters.inputParam5;
     CriticalSection.Leave;
 
+try
     self.Task1_WinExecute(WideString(tmpTask1_Parameters.inputParam1), WideString(tmpTask1_Parameters.inputParam2),
                                     WideString(tmpTask1_Parameters.inputParam3), tmpTask1_Parameters.inputParam4,
                                     FTaskMainModuleIndex, self.FTask_Result);
+except
+ tmpObject:= ExceptObject;
+// raise;
+end;
   end;
  end;
 finally
@@ -368,7 +431,7 @@ try
       end
       else
       begin
-       showmessage('ошибка CreateProcess');
+       showmessage(wsProcessCreateError);
        RaiseLastWin32Error; //RaiseLastOSError;
       end;
 

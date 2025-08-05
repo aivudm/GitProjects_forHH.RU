@@ -46,17 +46,16 @@ type
 //------------------------------------------------------------------------------
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
-   procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+   procedure TaskProcedure; safecall;
    procedure AbortTaskSource; safecall;
-   procedure FreeTaskSource; safecall;
-   function GetTaskLibraryIndex: word;
+   function GetTaskLibraryIndex: word; safecall;
    function GetTask_Result: TTask_Result; safecall;
    function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
    function GetTask_TotalResult: DWORD; safecall;
    function GetTask_ResultStream: IStream; safecall;
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
-   procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+   procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
@@ -80,7 +79,7 @@ type
    protected
     FTask_Result: TTask_Result;
     FAbortExecution: boolean;
-    procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+    procedure TaskProcedure; safecall;
     function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out inoutTask1_Result: TTask_Result; out inoutTask1_Results: TTask_Results): HRESULT;
     function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 
@@ -90,16 +89,16 @@ type
     constructor Create(TaskLibraryIndex: word);
     procedure AbortTaskSource; safecall;
     procedure FreeTaskSource; safecall;
-    function GetTaskLibraryIndex: word;
+    function GetTaskLibraryIndex: word; safecall;
     function GetTask_Result: TTask_Result; safecall;
     function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
     function GetTask_TotalResult: DWORD; safecall;
     function GetTask_ResultStream: IStream; safecall;
     function GetAbortExecutionState: boolean; safecall;
     procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
-    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
-    property TaskMainModuleIndex: WORD write FTaskMainModuleIndex;
+    property TaskMainModuleIndex: WORD read FTaskMainModuleIndex write FTaskMainModuleIndex;
     property TaskState: TTaskState read FTaskState write FTaskState;
     property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
     property Task_Result: TTask_Result read FTask_Result write FTask_Result;
@@ -180,7 +179,6 @@ var
 
 begin
  inherited Create();
-   FTaskLibraryIndex:= dllLibraryId;
    FTaskLibraryIndex:= TaskLibraryIndex;
 
 //--- Создание потока для передачи результатов в главный модуль
@@ -244,13 +242,13 @@ end;
 
 
 //------------------------------------------------------------------------------
-function TTaskSource.GetTaskLibraryIndex: WORD;
+function TTaskSource.GetTaskLibraryIndex: WORD; safecall;
 begin
   Result:= self.FTaskLibraryIndex;
 end;
 
 //------------------------------------------------------------------------------
-procedure TTaskSource.SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+procedure TTaskSource.SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
 begin
   FTaskMainModuleIndex:= inputTaskMainModuleIndex;
 end;
@@ -310,7 +308,7 @@ end;
 
 
 //------------------------------------------------------------------------------
-procedure TTaskSource.TaskProcedure(TaskLibraryIndex: word);
+procedure TTaskSource.TaskProcedure; safecall;
 var
   tmpWord: word;
   tmpStr: WideString;
