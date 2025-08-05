@@ -26,6 +26,7 @@ type
     function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
+    procedure FreeTaskSource(var MainModuleTaskIndex: word); safecall;
 
     property Name: BSTR read GetName;
     property Version: BSTR read GetVersion;
@@ -49,6 +50,7 @@ type
     function GetStream: IStream; safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
+    procedure FreeTaskSource(var MainModuleTaskIndex: word); safecall;
   public
     constructor Create;
   end;
@@ -96,9 +98,9 @@ try
  if bDllInitExecuted then
     exit;
 
- if Assigned(TaskSourceList) then
+ if not Assigned(TaskSourceList) then
  begin
-   TaskSourceList:= TTaskSourceList.Create();
+   TaskSourceList:= TTaskSourceList.Create(false); //---
    TaskSourceList.Clear;
  end;
  if not Assigned(CriticalSection) then
@@ -106,7 +108,6 @@ try
 
  if not Assigned(LibraryLog) then
    LibraryLog:= TLibraryLog.Create;
-
 
   bDllInitExecuted:= true;
 finally
@@ -154,14 +155,11 @@ var
   tmpTaskSource: TTaskSource;
   tmpWord: word;
 begin
+  Result:= nil;
   tmpWord:= TaskSourceList.Add(TTaskSource.Create(LibraryTaskIndex));
+  TaskSourceList[tmpWord].TaskMainModuleIndex:= MainModuleTaskIndex;
   Result:= TaskSourceList[tmpWord];
 
-{
-  tmpTaskSource:= TTaskSource.Create(TaskLibraryIndex);
-  TaskSourceList.Add(tmpTaskSource);
-  Result:= tmpTaskSource;
-}
 end;
 
 //------------------------------------------------------------------------------
@@ -175,6 +173,20 @@ begin
    if TaskSourceList[tmpWord].TaskMainModuleIndex = MainModuleTaskIndex then
     Result:= TaskSourceList[tmpWord];
 end;
+
+//------------------------------------------------------------------------------
+procedure TLibraryAPI.FreeTaskSource(var MainModuleTaskIndex: word); safecall;
+var
+  tmpTaskSource: TTaskSource;
+  tmpWord: word;
+begin
+  for tmpWord:= 0 to (TaskSourceList.Count - 1) do
+   if TaskSourceList[tmpWord].TaskMainModuleIndex = MainModuleTaskIndex then
+   begin
+    TaskSourceList.Remove(TaskSourceList[tmpWord]);
+   end;
+end;
+
 
 function TLibraryAPI.GetStream: IStream; safecall;
 begin

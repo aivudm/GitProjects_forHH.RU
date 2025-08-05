@@ -48,17 +48,16 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
   //------------------------------------------------------------------------------
   ITaskSource = interface (IInterface)
   ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
-   procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+   procedure TaskProcedure; safecall;
    procedure AbortTaskSource; safecall;
-   procedure FreeTaskSource; safecall;
-   function GetTaskLibraryIndex: word;
+   function GetTaskLibraryIndex: word; safecall;
    function GetTask_Result: TTask_Result; safecall;
    function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
    function GetTask_TotalResult: DWORD; safecall;
    function GetTask_ResultStream: IStream; safecall;
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
-   procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
+   procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
@@ -74,35 +73,35 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
     FTaskLibraryIndex: word;
     FTaskMainModuleIndex: word;
     FTaskSourceList: word;
-//    FTaskState: TTaskState;
+    FTaskState: TTaskState;
     FTaskStringList: TStringList;
     FStringStream: TStringStream;
+    FStringStream_copy: TStringStream;
     FTaskResultStream: IStream;
    protected
     FTask_Result: TTask_Result;
-    procedure TaskProcedure(TaskLibraryIndex: word); safecall;
+    FAbortExecution: boolean;
+    procedure TaskProcedure; safecall;
     function Task1_WinExecute (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask1_Result: TTask_Result): HRESULT;
 
    public
     FTask_TotalResult: DWORD;
     FTask_Results: TTask_Results;
-    FAbortExecution: boolean;
     constructor Create(TaskLibraryIndex: word);
     procedure AbortTaskSource; safecall;
     procedure FreeTaskSource; safecall;
-    function GetTaskLibraryIndex: word;
+    function GetTaskLibraryIndex: word; safecall;
     function GetTask_Result: TTask_Result; safecall;
     function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
     function GetTask_TotalResult: DWORD; safecall;
     function GetTask_ResultStream: IStream; safecall;
     function GetAbortExecutionState: boolean; safecall;
     procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
-    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD);
-    procedure SendInfoToLog(inputString: WideString);
+    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
     property TaskMainModuleIndex: WORD read FTaskMainModuleIndex write FTaskMainModuleIndex;
-//    property TaskState: TTaskState read FTaskState write FTaskState;
-//    property StopWatch: TStopWatch read FStopWatch write FStopWatch;
+    property TaskState: TTaskState read FTaskState write FTaskState;
+    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
     property Task_Result: TTask_Result read FTask_Result write FTask_Result;
     property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex; // write SetTask2_Result;
     property Task_TotalResult: DWORD read GetTask_TotalResult;
@@ -306,7 +305,7 @@ end;
 
 
 //------------------------------------------------------------------------------
-procedure TTaskSource.TaskProcedure(TaskLibraryIndex: word);
+procedure TTaskSource.TaskProcedure;
 var
   tmpWord: word;
   tmpStr: WideString;
@@ -451,6 +450,7 @@ end;
 
 end;
 
+{
 procedure TTaskSource.SendInfoToLog(inputString: WideString);
 var
   cdsData: TCopyDataStruct;
@@ -474,6 +474,7 @@ begin
    SysFreeString(cdsData.lpData);
   end;
 end;
+}
 //---------------- Подпрограммы вне классов ------------------------------------
 
 
