@@ -53,6 +53,7 @@ type
    function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
    function GetTask_TotalResult: DWORD; safecall;
    function GetTask_ResultStream: IStream; safecall;
+   function GetTask_LogStream: IStream; safecall;
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
@@ -70,12 +71,14 @@ type
    private
     FTaskLibraryIndex: word;
     FTaskMainModuleIndex: word;
-    FTaskSourceList: word;
+    FTaskSourceListIndex: word;
     FTaskState: TTaskState;
-    FTaskStringList: TStringList;
+//    FTaskStringList: TStringList;
     FStringStream: TStringStream;
     FStringStream_copy: TStringStream;
     FTaskResultStream: IStream;
+    FTaskStream_Log: IStream;
+
    protected
     FTask_Result: TTask_Result;
     FAbortExecution: boolean;
@@ -86,6 +89,7 @@ type
    public
     FTask_TotalResult: DWORD;
     FTask_Results: TTask_Results;
+    FStringStream_Log: TStringStream;
     constructor Create(TaskLibraryIndex: word);
     procedure AbortTaskSource; safecall;
     procedure FreeTaskSource; safecall;
@@ -94,11 +98,13 @@ type
     function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
     function GetTask_TotalResult: DWORD; safecall;
     function GetTask_ResultStream: IStream; safecall;
+    function GetTask_LogStream: IStream; safecall;
     function GetAbortExecutionState: boolean; safecall;
     procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
     property TaskMainModuleIndex: WORD read FTaskMainModuleIndex write FTaskMainModuleIndex;
+    property TaskSourceListIndex: WORD read FTaskSourceListIndex write FTaskSourceListIndex;
     property TaskState: TTaskState read FTaskState write FTaskState;
     property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
     property Task_Result: TTask_Result read FTask_Result write FTask_Result;
@@ -187,8 +193,12 @@ begin
   FStringStream:= TStringStream.Create(tmpString, TEncoding.ANSI);
   FTaskResultStream:= TStreamAdapter.Create(FStringStream, soReference);
 
+//--- Создание потока для передачи информации для журнала в главный модуль
+//--- Запись в поток "начальных данных" (наименование, номер)
+  FStringStream_Log:= TStringStream.Create(tmpString, TEncoding.ANSI);
+  FTaskStream_Log:= TStreamAdapter.Create(FStringStream, soReference);
+
 //--- Добавление созданного объекта Задачи в список Задач
-//   FTaskSourceList:= TaskSourceList.Add(self);
   FAbortExecution:= false; //--- флаг для немедленного (без создания исключения) прекращения и удаления объекта TaskSource
 
 end;
@@ -221,6 +231,13 @@ try
   FTaskResultStream._Release;
 //  FreeAndNil(FTaskResultStream);
  end;
+
+ if Assigned(FTaskStream_Log) then
+ begin
+  FTaskStream_Log._Release;
+//  FreeAndNil(FTaskResultStream);
+ end;
+
 finally
 
 end;
@@ -232,11 +249,17 @@ try
   FStringStream.Clear;
   FreeAndNil(FStringStream);
  end;
+
+ if Assigned(FStringStream_Log) then
+ begin
+  FStringStream_Log.Clear;
+  FreeAndNil(FStringStream_Log);
+ end;
 finally
 
 end;
 
- TaskSourceList.Extract(self);
+ TaskSourceList.Remove(self);
 
 end;
 
@@ -290,6 +313,16 @@ function TTaskSource.GetTask_ResultStream: IStream; safecall;
 begin
 try
   Result:= FTaskResultStream;
+finally
+end;
+end;
+
+//------------------------------------------------------------------------------
+
+function TTaskSource.GetTask_LogStream: IStream; safecall;
+begin
+try
+  Result:= FTaskStream_Log;
 finally
 end;
 end;
@@ -365,6 +398,7 @@ try
     CriticalSection.Enter; //--- Выход из критической секции будет в начале задачи
 
     tmpInputForm_Task2:= TformEditParams_Task2.Create(nil);
+    tmpInputForm_Task2.TaskSourceListIndex:= self.TaskLibraryIndex;
     tmpInputForm_Task2.ShowModal;
     FreeAndNil(tmpInputForm_Task2);
 //    tmpInputForm_Task2.Free;
@@ -442,9 +476,9 @@ try //
         except
          on E: Exception {EStreamError} do
          begin
-          CriticalSection.Enter;
-           WriteDataToLog(E.ClassName + ', E.Message = ' + E.Message, 'Task1_FileFinderByMask', 'unVariables');
-          CriticalSection.Leave;
+//          CriticalSection.Enter;
+           FStringStream_Log.WriteString(wsResultStreamTitle + wsCRLF + E.ClassName + ', E.Message = ' + E.Message + '(Task1_FileFinderByMask, unVariables)');
+//          CriticalSection.Leave;
           exit;
          end;
         end;
@@ -499,7 +533,7 @@ try //
           end;
           exit;
          end;
-  sleep(500); //--- Для отработки (для замедления процесса)
+//  sleep(500); //--- Для отработки (для замедления процесса)
 //--- Обнуляем признак сооьветствия маскам
          for tmpWord:= 0 to (tmpMaskCount - 1) do
          begin

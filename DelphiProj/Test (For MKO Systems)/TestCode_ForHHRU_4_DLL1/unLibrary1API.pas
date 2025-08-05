@@ -164,6 +164,7 @@ begin
   Result:= nil;
   tmpWord:= TaskSourceList.Add(TTaskSource.Create(LibraryTaskIndex));
   TaskSourceList[tmpWord].TaskMainModuleIndex:= MainModuleTaskIndex;
+  TaskSourceList[tmpWord].TaskSourceListIndex:= tmpWord;
   Result:= TaskSourceList[tmpWord];
 
 {
@@ -177,12 +178,12 @@ end;
 function TLibraryAPI.GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
 var
   tmpTaskSource: TTaskSource;
-  tmpWord: word;
+  tmpInt: integer;
 begin
   Result:= nil;
-  for tmpWord:= 0 to (TaskSourceList.Count - 1) do
-   if TaskSourceList[tmpWord].TaskMainModuleIndex = MainModuleTaskIndex then
-    Result:= TaskSourceList[tmpWord];
+  for tmpInt:= 0 to (TaskSourceList.Count - 1) do
+   if TaskSourceList[tmpInt].TaskMainModuleIndex = MainModuleTaskIndex then
+    Result:= TaskSourceList[tmpInt];
 end;
 
 //------------------------------------------------------------------------------

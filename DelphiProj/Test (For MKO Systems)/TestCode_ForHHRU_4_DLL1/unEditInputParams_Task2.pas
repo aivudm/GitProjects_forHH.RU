@@ -26,6 +26,7 @@ type
     { Private declarations }
   public
     { Public declarations }
+   TaskSourceListIndex: word;
   end;
 
 var
@@ -58,8 +59,10 @@ begin
 try
  if not TFile.Exists(edTargetFile.Text) then
  begin
-  WriteDataToLog(format('Целевой файл: %s не найден.', [edTargetFile.Text]),
-                        'TformEditParams_Task2.btbRunTaskClick', 'unformEditParams_Task2');
+  TaskSourceList[TaskSourceListIndex].FStringStream_Log.WriteString(wsResultStreamTitle +
+                               wsCRLF +
+                               format(wsTask1_TargetFileNotFound, [edTargetFile.Text]) +
+                               ' (TformEditParams_Task2.btbRunTaskClick, unformEditParams_Task2)');
   showmessage(wsTask1_TargetFileNotFound);
   exit;
  end;
