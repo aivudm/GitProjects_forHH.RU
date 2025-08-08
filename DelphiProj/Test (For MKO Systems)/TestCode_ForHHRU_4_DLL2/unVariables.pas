@@ -55,6 +55,7 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
    function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
    function GetTask_TotalResult: DWORD; safecall;
    function GetTask_ResultStream: IStream; safecall;
+   function GetTask_LogStream: IStream; safecall;
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
@@ -64,6 +65,7 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
    property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex;
    property Task_TotalResult: DWORD read GetTask_TotalResult;
    property Task_ResultStream: IStream read GetTask_ResultStream;
+   property Task_Stream_Log: IStream read GetTask_LogStream;
    property TaskMainModuleIndex: WORD write SetTaskMainModuleIndex;
   end;
 
@@ -72,21 +74,24 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
    private
     FTaskLibraryIndex: word;
     FTaskMainModuleIndex: word;
-    FTaskSourceList: word;
+    FTaskSourceListIndex: word;
     FTaskState: TTaskState;
     FTaskStringList: TStringList;
     FStringStream: TStringStream;
     FStringStream_copy: TStringStream;
     FTaskResultStream: IStream;
+    FTaskStream_Log: IStream;
+
    protected
+    FTask_TotalResult: DWORD;
+    FTask_Results: TTask_Results;
+    FStringStream_Log: TStringStream;
     FTask_Result: TTask_Result;
     FAbortExecution: boolean;
     procedure TaskProcedure; safecall;
     function Task1_WinExecute (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask1_Result: TTask_Result): HRESULT;
 
    public
-    FTask_TotalResult: DWORD;
-    FTask_Results: TTask_Results;
     constructor Create(TaskLibraryIndex: word);
     procedure AbortTaskSource; safecall;
     procedure FreeTaskSource; safecall;
@@ -95,17 +100,20 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
     function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
     function GetTask_TotalResult: DWORD; safecall;
     function GetTask_ResultStream: IStream; safecall;
+    function GetTask_LogStream: IStream; safecall;
     function GetAbortExecutionState: boolean; safecall;
     procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
     property TaskMainModuleIndex: WORD read FTaskMainModuleIndex write FTaskMainModuleIndex;
+    property TaskSourceListIndex: WORD read FTaskSourceListIndex write FTaskSourceListIndex;
     property TaskState: TTaskState read FTaskState write FTaskState;
     property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
     property Task_Result: TTask_Result read FTask_Result write FTask_Result;
     property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex; // write SetTask2_Result;
     property Task_TotalResult: DWORD read GetTask_TotalResult;
     property Task_ResultStream: IStream read GetTask_ResultStream;
+    property TaskStream_Log: IStream read GetTask_LogStream;
   end;
 //------------------------------------------------------------------------------
 
@@ -179,11 +187,16 @@ begin
  inherited Create();
    FTaskLibraryIndex:= dllLibraryId;
    FTaskLibraryIndex:= TaskLibraryIndex;
-//--- Создание потока для обмена результатами с главным модулем
+//--- Создание потока для передачи результатов в "управляющий поток" - TaskItem
 //--- Запись в поток "начальных данных" (наименование, номер)
   tmpString:= format(wsResultStreamTitle, [FTaskLibraryIndex, FTaskLibraryIndex]) + wsCRLF;
   FStringStream:= TStringStream.Create(tmpString, TEncoding.ANSI);
   FTaskResultStream:= TStreamAdapter.Create(FStringStream, soReference);
+
+//--- Создание потока для передачи информации для журнала в "управляющий поток" - TaskItem
+//--- Запись в поток "начальных данных" (наименование, номер)
+  FStringStream_Log:= TStringStream.Create(tmpString, TEncoding.ANSI);
+  FTaskStream_Log:= TStreamAdapter.Create(FStringStream, soReference);
 
 //--- Добавление созданного объекта Задачи в список Задач
 //   FTaskSourceList:= TaskSourceList.Add(self);
@@ -218,6 +231,13 @@ try
   FTaskResultStream._Release;
 //  FreeAndNil(FTaskResultStream);
  end;
+
+ if Assigned(FTaskStream_Log) then
+ begin
+  FTaskStream_Log._Release;
+//  FreeAndNil(FTaskResultStream);
+ end;
+
 finally
 
 end;
@@ -229,13 +249,20 @@ try
   FStringStream.Clear;
   FreeAndNil(FStringStream);
  end;
+
+ if Assigned(FStringStream_Log) then
+ begin
+  FStringStream_Log.Clear;
+  FreeAndNil(FStringStream_Log);
+ end;
 finally
 
 end;
 
- TaskSourceList.Extract(self);
+ TaskSourceList.Remove(self);
 
 end;
+
 
 //------------------------------------------------------------------------------
 function TTaskSource.GetTaskLibraryIndex: WORD;
@@ -287,6 +314,16 @@ begin
 try
 finally
   Result:= FTaskResultStream;
+end;
+end;
+
+//------------------------------------------------------------------------------
+
+function TTaskSource.GetTask_LogStream: IStream; safecall;
+begin
+try
+  Result:= FTaskStream_Log;
+finally
 end;
 end;
 
@@ -362,6 +399,7 @@ var
   tmpSearchPatternSet: array of TSearchPatternSet;
   tmpStartupInfo: TStartupInfo;
   tmpProcessInfo: TProcessInformation;
+  tmpExitCode: Cardinal;
 
 //--- Начало Задачи №1 - TaskSource.Task1_WinExecute ------------------------------------
 begin
@@ -420,17 +458,23 @@ try
 
       ZeroMemory(@tmpStartupInfo, SizeOf(tmpStartupInfo));
       tmpStartupInfo.cb := SizeOf(tmpStartupInfo);
+      tmpStartupInfo.dwFlags      := STARTF_USESHOWWINDOW;
+      tmpStartupInfo.wShowWindow := SW_NORMAL;
 //--- Запускаем процесс Shell-командера
 
       if CreateProcess(nil, PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2), nil, nil, False, CREATE_NEW_CONSOLE or NORMAL_PRIORITY_CLASS, nil, nil, tmpStartupInfo, tmpProcessInfo)
             then
       begin
+//--- На всякий случай - ждём завершения инициализации
+       WaitForInputIdle(tmpProcessInfo.hProcess, INFINITE);
 //--- Ожидаем "до конца", либо будет принудительно завершён из главного модуля
-      WaitForSingleObject(tmpProcessInfo.hProcess, INFINITE);
+       WaitForSingleObject(tmpProcessInfo.hProcess, INFINITE);
+//Получаем код завершения.
+       GetExitCodeProcess(tmpProcessInfo.hProcess, tmpExitCode);
       end
       else
       begin
-       showmessage(wsProcessCreateError);
+       showmessage(format(wsProcessCreateError, [GetLastError]));
        RaiseLastWin32Error; //RaiseLastOSError;
       end;
 

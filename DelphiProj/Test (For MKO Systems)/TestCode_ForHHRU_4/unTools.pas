@@ -110,7 +110,27 @@ begin
  //   TaskList[iTaskListNum].TaskCore.TaskSource.TaskMainModuleIndex:= iTaskListNum;
 //   tmpIntrfTaskSource.TaskMainModuleIndex:= iTaskListNum;
 
-//--- 2.1 Настройка потока передачи результатов из библиотек в главный модуль
+//--- 2.1 Настройка потока передачи результатов
+//--- от задач (в библиотеках) в главный модуль
+   TaskList[iTaskListNum].Stream_Log:= TOleStream.Create(TaskList[iTaskListNum].TaskSource.Task_Stream_Log);
+   TaskList[iTaskListNum].Stream_Log.Position:= 0;
+
+//--- от ядра задачи в главный модуль
+   TaskList[iTaskListNum].Stream_Core_Log:= TOleStream.Create(TaskList[iTaskListNum].TaskCore.TaskCoreStream_Log);
+   TaskList[iTaskListNum].Stream_Core_Log.Position:= 0;
+
+//--- Запускаем получение потока информации для журнала
+//--- от задачи (в библиотеке)
+   TaskList[iTaskListNum].StringStream_Log:= TStringStream.Create(format(wsHeaderThreadInfo, [TaskList[iTaskListNum].TaskNum]), TEncoding.ANSI);
+   TaskList[iTaskListNum].StringStream_Log.LoadFromStream(TaskList[iTaskListNum].Stream_Log);
+   DecodeStream(TaskList[iTaskListNum].StringStream_Log, TaskList[iTaskListNum].StringStream_Log);
+
+//--- от ядра задачи
+   TaskList[iTaskListNum].StringStream_Core_Log:= TStringStream.Create('', TEncoding.ANSI); //--- При создании ядра не пишем в лог отдельное сообщение
+   TaskList[iTaskListNum].StringStream_Core_Log.LoadFromStream(TaskList[iTaskListNum].Stream_Core_Log);
+   DecodeStream(TaskList[iTaskListNum].StringStream_Core_Log, TaskList[iTaskListNum].StringStream_Core_Log);
+
+   //--- 2.2 Настройка потока передачи результатов из библиотек в главный модуль
    TaskList[iTaskListNum].Stream:= TOleStream.Create(TaskList[iTaskListNum].TaskSource.Task_ResultStream);
    TaskList[iTaskListNum].Stream.Position:= 0;
 
@@ -118,6 +138,7 @@ begin
    TaskList[iTaskListNum].StringStream:= TStringStream.Create;
    TaskList[iTaskListNum].StringStream.LoadFromStream(TaskList[iTaskListNum].Stream);
    DecodeStream(TaskList[iTaskListNum].StringStream, TaskList[iTaskListNum].StringStream);
+
 
   finally
    tmpIntrfDllAPI:= nil;
@@ -130,7 +151,7 @@ begin
 //  formMain.lbThreadList.Items.Add(format(wsHeaderThreadInfo + '%3d: %s',
 //                                                              [iTaskListNum,
 //                                                             TaskList[iTaskListNum].TaskName]));
-  formMain.lbThreadList.Items.AddObject(format(wsHeaderThreadInfo + '%3d: %s',
+  formMain.lbThreadList.Items.AddObject(format(wsHeaderThreadInfo + ': %s',
                                                               [iTaskListNum,
                                                              TaskList[iTaskListNum].TaskName]), TaskList[iTaskListNum]);
 

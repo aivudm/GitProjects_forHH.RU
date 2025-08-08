@@ -100,7 +100,7 @@ try
 
  if not Assigned(TaskSourceList) then
  begin
-   TaskSourceList:= TTaskSourceList.Create(false); //---
+   TaskSourceList:= TTaskSourceList.Create(true); //---
    TaskSourceList.Clear;
  end;
  if not Assigned(CriticalSection) then
@@ -117,10 +117,19 @@ end;
 
 procedure TLibraryAPI.FinalizeDLL;
 var
-  tmpWord: word;
+ tmpTaskSource: ITaskSource;
+ tmpInt: word;
 begin
-  TaskSourceList.Clear;
-  freeandnil(TaskSourceList);
+ try
+{
+  for tmpInt:= 0 to (TaskSourceList.Count - 1) do
+    tmpTaskSource:= TTaskSource(TaskSourceList.Extract(TaskSourceList[tmpInt]));
+    tmpTaskSource._Release
+}
+ finally
+ // TaskSourceList.Clear;
+//  freeandnil(TaskSourceList);
+ end;
 
  if Assigned(CriticalSection) then
   freeandnil(CriticalSection);
@@ -189,14 +198,18 @@ end;
 //------------------------------------------------------------------------------
 procedure TLibraryAPI.FreeTaskSource(var MainModuleTaskIndex: word); safecall;
 var
-  tmpTaskSource: TTaskSource;
-  tmpWord: word;
+  tmpTaskSource: ITaskSource;
+  tmpInt: integer;
 begin
-  for tmpWord:= 0 to (TaskSourceList.Count - 1) do
-   if TaskSourceList[tmpWord].TaskMainModuleIndex = MainModuleTaskIndex then
+ try
+  for tmpInt:= 0 to (TaskSourceList.Count - 1) do
+   if TaskSourceList[tmpInt].TaskMainModuleIndex = MainModuleTaskIndex then
    begin
-    TaskSourceList.Remove(TaskSourceList[tmpWord]);
+    tmpTaskSource:= TTaskSource(TaskSourceList.Extract(TaskSourceList[tmpInt]));
+    tmpTaskSource._Release
    end;
+ finally
+ end;
 end;
 
 

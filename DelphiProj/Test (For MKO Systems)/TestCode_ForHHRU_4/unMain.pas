@@ -23,7 +23,6 @@ type
     miAbout: TMenuItem;
     miTools: TMenuItem;
     GroupBox1: TGroupBox;
-    memThreadInfo_1: TMemo;
     lbThreadList: TListBox;
     bThreadPause: TButton;
     bThreadStop: TButton;
@@ -31,10 +30,13 @@ type
     N1: TMenuItem;
     Label1: TLabel;
     Label2: TLabel;
-    memLogInfo_2: TMemo;
     bThreadDelete: TButton;
     N2: TMenuItem;
     reThreadInfo_Main: TListBox;
+    Panel1: TPanel;
+    memThreadInfo_1: TMemo;
+    memLogInfo_2: TMemo;
+    Splitter1: TSplitter;
     procedure miToolsClick(Sender: TObject);
     procedure miExitClick(Sender: TObject);
     procedure lbThreadListMouseUp(Sender: TObject; Button: TMouseButton;
@@ -50,6 +52,7 @@ type
     procedure FormCreate(Sender: TObject);
     procedure bThreadDeleteClick(Sender: TObject);
     procedure N2Click(Sender: TObject);
+    procedure reThreadInfo_MainClick(Sender: TObject);
   private
     { Private declarations }
     procedure WMWindowPosChanging(var Msg: TWMWindowPosChanging); message WM_WINDOWPOSCHANGING;
@@ -108,6 +111,12 @@ begin
 
 end;
 
+
+procedure TformMain.reThreadInfo_MainClick(Sender: TObject);
+begin
+ lbThreadList.ItemIndex:= reThreadInfo_Main.ItemIndex;
+ lbThreadListClick(Sender);
+end;
 
 procedure TformMain.reThreadInfo_Main_WndProc_Current(var Message: TMessage);
 var
@@ -180,15 +189,16 @@ end;
 procedure TformMain.memLogInfo_2_WndProc_Current(var Message: TMessage);
 var
   tmpWord: word;
+  tmpInt: integer;
   tmpBool: boolean;
+  tmpStringList: TStringList;
 begin
  tmpBool:= false;
  if (Message.Msg = WM_Data_Update) and (Message.WParam = CMD_SetMemoStreamUpd) then
  begin
   try
-//--- Проверка на новые данные от потоков библиотек
- {
-   if Assigned(LibraryList) then
+//--- Проверка на новые данные от API библиотек
+    if Assigned(LibraryList) then
     for tmpWord:= 0 to (LibraryList.Count - 1) do
     begin
      if Assigned(LibraryList[tmpWord].Stream) then
@@ -200,7 +210,38 @@ begin
        memLogInfo_2.Lines.AddStrings(logFileStringList);
       end;
     end;
-}
+
+    if Assigned(TaskList) then
+    begin
+//--- Проверка на новые данные от потоков задач библиотек
+     for tmpInt:= 0 to (TaskList.Count - 1) do
+     begin
+      if Assigned(TaskList[tmpInt].StringStream_Log) then
+       if TaskList[tmpInt].StringStream_Log.Position > TaskList[tmpInt].StringStream_Log_LastPos then
+       begin
+        TaskList[tmpInt].StringStream_Log.Position:= TaskList[tmpInt].StringStream_Log_LastPos;
+        logFileStringList.LoadFromStream(TaskList[tmpInt].StringStream_Log);
+        TaskList[tmpInt].StringStream_Log_LastPos:= TaskList[tmpInt].StringStream_Log.Position;
+        memLogInfo_2.Lines.AddStrings(logFileStringList);
+       end;
+     end;
+
+
+//--- Проверка на новые данные от ядра задачи
+     for tmpInt:= 0 to (TaskList.Count - 1) do
+     begin
+      if Assigned(TaskList[tmpInt].StringStream_Core_Log) then
+       if TaskList[tmpInt].StringStream_Core_Log.Position > TaskList[tmpInt].StringStream_Core_Log_LastPos then
+       begin
+        TaskList[tmpInt].StringStream_Core_Log.Position:= TaskList[tmpInt].StringStream_Core_Log_LastPos;
+        logFileStringList.LoadFromStream(TaskList[tmpInt].StringStream_Core_Log);
+        TaskList[tmpInt].StringStream_Core_Log_LastPos:= TaskList[tmpInt].StringStream_Core_Log.Position;
+        memLogInfo_2.Lines.AddStrings(logFileStringList);
+       end;
+     end;
+    end;
+
+
 //--- Проверка на новые данные от потока главного модуля
    if logFileStream_LastPos < logFileStringStream.Position then
    begin
@@ -325,27 +366,31 @@ try
  end;
 
 
- if (TaskList[tmpInt].TaskState in [tsActive, tsPause, tsAbortedDone]) then
- begin
+// if (TaskList[tmpInt].TaskState in [tsActive, tsPause, tsAbortedDone]) then
+// begin
 //--- Удаление задачи (потока)
   TaskList[tmpInt].TaskState:= tsTerminate;
   TaskList[tmpInt].WaitFor;
 
- end;
+// end;
 
 //--- Удаление задачи из списка "задач" (информацию о задаче (в компоненте отображения) пока оставляем в окне просмотра (само обновиться из задачи)...)
 //--- Удаление задачи из списка объектов "задачи"
- if TaskList.Remove(lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem) < 0 then
-  for tmpInt1:= 0 to (TaskList.Count - 1) do
+
+//--- Переведём выделение строки на одну вверх или, если эта последняя, то установим в -1
+ lbThreadList.ItemIndex:= tmpInt - 1;  //--- в этом месте значение номера выделенной строки не может быть меньше нуля, поэтому можно без проверкк
+
+
+ if TaskList.Remove(lbThreadList.Items.Objects[tmpInt] as TTaskItem) < 0 then //--- если удаление прошло не удачно, то будет -1
+  for tmpInt1:= 0 to (TaskList.Count - 1) do  //--- тогда пытаемся поиском определить индекс нудной задачи и удалить Delete(Index)
    if (TaskList[tmpInt1].TaskNum = TaskList[tmpInt].TaskNum) then
     TaskList.Delete(TaskList[tmpInt1].TaskNum);
-// TaskList.Extract(TaskList[tmpInt]);
- //--- Передвинем номера строк на одну вниз (для отображения в Мемо) для всех задач, номера которых после удаляемой строки
+ //--- Передвинем номера строк на одну вверх (для отображения в Мемо) для всех задач, номера которых после удаляемой строки
  for tmpInt1:= tmpInt to (TaskList.Count - 1) do
   if TaskList[tmpInt1].LineIndex_ForView > 0 then
    TaskList[tmpInt1].LineIndex_ForView:= TaskList[tmpInt1].LineIndex_ForView - 1;
-//--- После сдвига номеров строк в Мемо для всех задач, удаляем последнюю строку компонента просмотра
-//--- Удаление строки Мемо, соответствующей задаче из списка задач не производим
+//--- После сдвига номеров строк в компоненте просмотра для всех задач, удаляем последнюю строку компонента просмотра
+//--- Удаление строки компонента просмотра, соответствующей задаче из списка задач, не производим
 //--- Отображение оставшихся задач автоматически сдвинется вверх по строкам мемо в процессе получения отчётов от задач
  try
   if reThreadInfo_Main.Items.Count > 0 then
@@ -357,7 +402,8 @@ try
    WriteDataToLog(E.ClassName + E.Message, 'formMain.bThreadStopClick', 'formMain');
  end;
 //--- Удаляем задачу из списка задач компонента отображения (ЛистБокс)
- lbThreadList.DeleteSelected;
+ lbThreadList.Items.Delete(tmpInt);
+//--- обновление информации о задаче
  if lbThreadList.ItemIndex > -1 then
   PostMessage(Info_ForViewing.hMemoThreadInfo_1, WM_Data_Update, lbThreadList.ItemIndex, CMD_SetMemoStreamUpd)
  else
@@ -483,6 +529,7 @@ var
 
 begin
 try
+ tmpInt:=  TaskList.IndexOf(lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem);
  tmpStringList:= TStringList.Create;
  if lbThreadList.ItemIndex < 0 then
  begin
@@ -493,14 +540,19 @@ try
  reThreadInfo_Main.ItemIndex:= lbThreadList.ItemIndex;
 
  tmpInt:= lbThreadList.ItemIndex;
- if (Info_ForViewing.CurrentViewingTask = tmpInt) and (lbThreadList.Count > 1) then
+ if (Info_ForViewing.CurrentViewingTask = TaskList[tmpInt].TaskNum) and (lbThreadList.Count > 1) then
   exit;
 
+//--- установка текущего активного (выбранного) элемента - Задача
+//--- по данноой переменной определяется задача, для которой должны отображаться результаты от задачи (потока)
+//--- (в визуальном компоненте для результатов
+// и колбак функция окна тоже проверяет данное соответствие
  CriticalSection.Enter;
-  memThreadInfo_1.Lines.Clear;
-  Info_ForViewing.CurrentViewingTask:= tmpInt;
-  TaskList[tmpInt].StringStream_LastPos:= 0;
+  Info_ForViewing.CurrentViewingTask:= TaskList[tmpInt].TaskNum;
  CriticalSection.Leave;
+  memThreadInfo_1.Lines.Clear;
+
+ TaskList[tmpInt].StringStream_LastPos:= 0;
 
  SetButtonState_ThreadList(lbThreadList.ItemIndex);
 
@@ -509,26 +561,32 @@ try
 //--- последующая информация будет выводиться по сообщениям от задач (по мере выполнения)
 //--- Выведем информацию о результате выполнения задачи в TMemo
 try
-
-   TaskList[tmpInt].StringStream.LoadFromStream(TaskList[tmpInt].Stream);
-   if (TaskList[tmpInt].StringStream.Position > TaskList[tmpInt].StringStream_LastPos) then
+   if Assigned(TaskList[tmpInt]) then
    begin
-    TaskList[tmpInt].StringStream.Position:= TaskList[tmpInt].StringStream_LastPos;
-    try
-      tmpStringList:= TStringList.Create;
-      tmpStringList.LoadFromStream(TaskList[tmpInt].StringStream);
-      TaskList[tmpInt].StringStream_LastPos:= TaskList[tmpInt].StringStream.Position;
-      memThreadInfo_1.Lines.Text:= tmpStringList.Text;
-    finally
-     FreeAndNil(tmpStringList);
+    TaskList[tmpInt].StringStream.LoadFromStream(TaskList[tmpInt].Stream);
+    if (TaskList[tmpInt].StringStream.Position > TaskList[tmpInt].StringStream_LastPos) then
+    begin
+     TaskList[tmpInt].StringStream.Position:= TaskList[tmpInt].StringStream_LastPos;
+     try
+       tmpStringList:= TStringList.Create;
+       tmpStringList.LoadFromStream(TaskList[tmpInt].StringStream);
+       TaskList[tmpInt].StringStream_LastPos:= TaskList[tmpInt].StringStream.Position;
+       memThreadInfo_1.Lines.Text:= tmpStringList.Text;
+     finally
+      FreeAndNil(tmpStringList);
+     end;
     end;
-   end;
+   end
+   else
+    showmessage(wsError_TaskItemNotAssigned);
 
 
 except
- on E: Exception {EStreamError} do
+ on tmpE: Exception {EStreamError} do
  begin
-  WriteDataToLog(E.ClassName + ', E.Message = ' + E.Message, 'TformMain.lbThreadListClick', 'unMain');
+  WriteDataToLog(tmpE.ClassName + ', E.Message = ' +
+                 tmpE.Message,
+                 'TformMain.lbThreadListClick', 'unMain');
  end;
 end;
 
@@ -604,8 +662,6 @@ var
   tmpInt: integer;
   tmpWideString, tmpWideString1: WideString;
 begin
-  memLogInfo_2.Lines.Clear;
-
 //--- Отобразить зависимые потоки
 //  for tmpWord:= 0 to (memLogInfo_2.Lines.Count - 1) do
 //    GetThreadsInfoBySubThread(strtoint(memLogInfo_2.Lines[tmpWord]), memLogInfo_2, tmpWord);

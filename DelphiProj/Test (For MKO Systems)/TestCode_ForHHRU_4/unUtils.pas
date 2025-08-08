@@ -208,13 +208,19 @@ begin
  begin
   if LibraryList[tmpWord].LibraryAPI <> nil then
   begin
-    LibraryList[tmpWord].LibraryAPI.FinalizeDLL;         //--- Здесь вылетала ошибка
+   try
+    LibraryList[tmpWord].LibraryAPI.FinalizeDLL;
+   finally
     LibraryList[tmpWord].LibraryAPI:= nil;
+   end;
   end;
   if LibraryList[tmpWord].LibraryHandle <> 0 then
   begin
+   try
     FreeLibrary(LibraryList[tmpWord].LibraryHandle);
+   finally
     LibraryList[tmpWord].LibraryHandle := 0;
+   end;
   end;
  end;
 end;

@@ -63,6 +63,7 @@ type
    property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex;
    property Task_TotalResult: DWORD read GetTask_TotalResult;
    property Task_ResultStream: IStream read GetTask_ResultStream;
+   property Task_Stream_Log: IStream read GetTask_LogStream;
    property TaskMainModuleIndex: WORD write SetTaskMainModuleIndex;
   end;
 
@@ -80,6 +81,9 @@ type
     FTaskStream_Log: IStream;
 
    protected
+    FTask_TotalResult: DWORD;
+    FTask_Results: TTask_Results;
+    FStringStream_Log: TStringStream;
     FTask_Result: TTask_Result;
     FAbortExecution: boolean;
     procedure TaskProcedure; safecall;
@@ -87,9 +91,6 @@ type
     function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
 
    public
-    FTask_TotalResult: DWORD;
-    FTask_Results: TTask_Results;
-    FStringStream_Log: TStringStream;
     constructor Create(TaskLibraryIndex: word);
     procedure AbortTaskSource; safecall;
     procedure FreeTaskSource; safecall;
@@ -110,7 +111,10 @@ type
     property Task_Result: TTask_Result read FTask_Result write FTask_Result;
     property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex; // write SetTask2_Result;
     property Task_TotalResult: DWORD read GetTask_TotalResult;
+    property StringStream: TStringStream read FStringStream write FStringStream;
     property Task_ResultStream: IStream read GetTask_ResultStream;
+    property StringStream_Log: TStringStream read FStringStream_Log write FStringStream_Log;
+    property TaskStream_Log: IStream read GetTask_LogStream;
   end;
 
 
@@ -187,13 +191,13 @@ begin
  inherited Create();
    FTaskLibraryIndex:= TaskLibraryIndex;
 
-//--- Создание потока для передачи результатов в главный модуль
+//--- Создание потока для передачи результатов в "управляющий поток" - TaskItem
 //--- Запись в поток "начальных данных" (наименование, номер)
   tmpString:= format(wsResultStreamTitle, [FTaskLibraryIndex, FTaskLibraryIndex]) + wsCRLF;
   FStringStream:= TStringStream.Create(tmpString, TEncoding.ANSI);
   FTaskResultStream:= TStreamAdapter.Create(FStringStream, soReference);
 
-//--- Создание потока для передачи информации для журнала в главный модуль
+//--- Создание потока для передачи информации для журнала в "управляющий поток" - TaskItem
 //--- Запись в поток "начальных данных" (наименование, номер)
   FStringStream_Log:= TStringStream.Create(tmpString, TEncoding.ANSI);
   FTaskStream_Log:= TStreamAdapter.Create(FStringStream, soReference);
@@ -203,6 +207,7 @@ begin
 
 end;
 
+//------------------------------------------------------------------------------
 procedure TTaskSource.AbortTaskSource;
 var
   tmpPointer: pointer;
@@ -219,6 +224,7 @@ begin
 }
 //  self.FStringStream_copy:= self.FStringStream; //--- Сохраняем правильный адрес переменной перед созданием исключения
 //  self.FStringStream:= nil;
+//--- Или более мягкий вариант - встроен в алгоритм задачи (проверка "флага останова")
   FAbortExecution:= true;
 end;
 
@@ -719,7 +725,7 @@ try
          end;
 
 //------------------------------------------------------------------------------
-         sleep(5); //--- Для отработки (для замедления процесса)
+//         sleep(5); //--- Для отработки (для замедления процесса)
 //------------------------------------------------------------------------------
 
          tmpBool:= false;

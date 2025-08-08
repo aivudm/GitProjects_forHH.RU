@@ -33,7 +33,7 @@ type
   TTaskItem = class (TThread)
    private
     FTaskName: WideString;
-    FTaskNumInList: word;
+    FTaskNum: word;
     FTaskSource: ITaskSource;
     FTaskCore: TTaskCore;
     FTaskCoreState: TTaskState;
@@ -45,11 +45,14 @@ type
     FStringStream: TStringStream;
     FStringStream_LastPos: DWORD;
     FStream: TStream;
+    FStream_Log: TStream;
     FOLEStream: IStream;  //--- Поток в "COM-формате" принимаем посредством TStreamAdapter
-    FLogStream: TStream;
-    FLogStringStream: TStringStream;
-    FLogStringStream_LastPos: DWORD;
-    FOLELogStream: IStream;  //--- Поток в "COM-формате" принимаем посредством TStreamAdapter
+    FStringStream_Log: TStringStream;
+    FStringStream_Log_LastPos: DWORD;
+    FOLEStream_Log: IStream;  //--- Поток в "COM-формате" принимаем посредством TStreamAdapter
+    FStream_Core_Log: TStream;
+    FStringStream_Core_Log: TStringStream;
+    FStringStream_Core_Log_LastPos: DWORD;
     FCycleTimeValue: word; // продолжительность одного расчётного цикла в мс (по умолчанию 1000 мс)
     FCoreUtilization: byte;
 {$IFDEF MSWINDOWS}
@@ -93,7 +96,7 @@ type
 
     property LibraryId: DWORD read FLibraryId;
     property TaskName: WideString read FTaskName;
-    property TaskNum: word read FTaskNumInList;
+    property TaskNum: word read FTaskNum;
 {$IFDEF MSWINDOWS}
     property TaskSource: ITaskSource read FTaskSource write SetTaskSource;
     property TaskCore: TTaskCore read FTaskCore write FTaskCore;
@@ -109,12 +112,17 @@ type
     property HandleWinForView: hWnd read FHandleWinForView write SetHandleWinForView;
     property InfoFromTask: WideString read FInfoFromTask write FInfoFromTask;
     property StreamWriterNum: word read FSreamWriterNum;
+
     property Stream: TStream read FStream write FStream;
     property StringStream: TStringStream read FStringStream write FStringStream;
     property StringStream_LastPos: DWORD read FStringStream_LastPos write FStringStream_LastPos;
-    property LogStream: TStream read FLogStream write FLogStream;
-    property LogStringStream: TStringStream read FLogStringStream write FLogStringStream;
-    property LogStringStream_LastPos: DWORD read FLogStringStream_LastPos write FLogStringStream_LastPos;
+
+    property Stream_Log: TStream read FStream_Log write FStream_Log;
+    property StringStream_Log: TStringStream read FStringStream_Log write FStringStream_Log;
+    property StringStream_Log_LastPos: DWORD read FStringStream_Log_LastPos write FStringStream_Log_LastPos;
+    property Stream_Core_Log: TStream read FStream_Core_Log write FStream_Core_Log;
+    property StringStream_Core_Log: TStringStream read FStringStream_Core_Log write FStringStream_Core_Log;
+    property StringStream_Core_Log_LastPos: DWORD read FStringStream_Core_Log_LastPos write FStringStream_Core_Log_LastPos;
     property Info_ForViewing: TInfo_ForViewing read GetInfo_ForViewing;
   published
     property Terminated;
@@ -137,14 +145,18 @@ type
 //------------------------------------------------------------------------------
   TTaskCore = class (TTaskItem)
    private
-    FTaskNumInList: word;
+    FTaskNum: word;
     FTaskSource: ITaskSource;
     FTaskItemOwner: TTaskItem;
-    FLastOSTickCount: cardinal;
    protected
     FLibraryId: DWORD;
     FTaskTemplateId: word;
     FTaskProcedure: TTaskProcedure;
+    FStream_Log: TStream;
+    FTaskCoreStream: IStream;  //--- Поток в "COM-формате" принимаем посредством TStreamAdapter
+    FStringStream_Log: TStringStream;
+    FStringStream_Log_LastPos: DWORD;
+    FTaskCoreStream_Log: IStream;  //--- Поток в "COM-формате" принимаем посредством TStreamAdapter
     procedure Execute; override;
    public
     constructor Create(); overload;
@@ -154,6 +166,11 @@ type
     property LibraryId: DWORD read FLibraryId write FLibraryId;
     property TaskTemplateId: word read FTaskTemplateId write FTaskTemplateId;
     property TaskItemOwner: TTaskItem read FTaskItemOwner write FTaskItemOwner;
+
+    property Stream_Log: TStream read FStream_Log write FStream_Log;
+    property TaskCoreStream_Log: IStream read FTaskCoreStream_Log write FTaskCoreStream_Log;
+    property StringStream_Log: TStringStream read FStringStream_Log write FStringStream_Log;
+    property StringStream_Log_LastPos: DWORD read FStringStream_Log_LastPos write FStringStream_Log_LastPos;
 
   published
   end;
@@ -190,6 +207,14 @@ constructor TTaskCore.Create();
 begin
  inherited  Create(true); //--- true = отложим запуск потока (управляет TaskItem)
  FreeOnTerminate:= false; //--- false - управляет владелец - TaskItem (например, нелбходимо для повтора задачи на этом же потоке)
+
+//--- Создание потока для передачи информации для журнала в "управляющий поток" - TaskItem
+//--- Запись в поток "начальных данных" (наименование, номер)
+  FStringStream_Log:= TStringStream.Create('', TEncoding.ANSI);
+  self.FTaskCoreStream_Log:= TStreamAdapter.Create(FStringStream_Log, soReference);
+
+// DecodeStream(StringStream_Log, StringStream_Log);
+
 end;
 
 //------------------------------------------------------------------------------
@@ -234,7 +259,8 @@ try
 //--- Если исключение вызвано естественными причинами (не экстренное прерывание работы), то статус был Активен
 //--- поэтому устанавливаем Прервано
      self.FTaskItemOwner.TaskState:= tsTerminate;
-     self.FStringStream.WriteString(Exception(tmpObject).ClassName + ', E.Message = ' + tmpWideString + '(TTaskCore.Execute, unTasks)');
+     self.FStringStream_Log.WriteString(Exception(tmpObject).ClassName + ', E.Message = ' + tmpWideString + '(TTaskCore.Execute, unTasks)');
+     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
     end;
 //--- Фиксируем общее время выполнения задачи
     self.FTaskItemOwner.FEndTickCount:= GetTickCount();
@@ -259,23 +285,43 @@ end;
 procedure TTaskCore.DoTerminate;
 var
   tmpString: WideString;
-  E: Exception;
+  tmpE: Exception;
+  tmpExcept: TObject;
 begin
  inherited;
 try
  try
   self.FTaskItemOwner.TaskCoreState:= tsTerminate;
  except
-  if Assigned(E) then
+  if Assigned(tmpE) then
    begin
-    WriteDataToLog(E.ClassName + ', E.Message = ' + E.Message, 'TTaskCore.OnTerminate', 'unTasks');
+    FStringStream_Log.WriteString(tmpE.ClassName +
+                                    ', E.Message = ' +
+                                    tmpE.Message +
+                                    '(TTaskCore.DoTerminate, unTasks)');
+    PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+
    end;
    raise Exception.Create(PAnsiChar(tmpString));
  end;
 finally
+  tmpExcept:= TThread(self).FatalException;
+  if Assigned(tmpExcept) then
+  begin
+    // Thread terminated due to an exception
+    if tmpExcept is Exception then
+     FStringStream_Log.WriteString(Exception(tmpExcept).ClassName +
+                                     ', E.Message = ' +
+                                     Exception(tmpExcept).Message +
+                                     '(TTaskCore.DoTerminate, unTasks)');
+     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+  end;
+
  self.FTaskItemOwner:= nil;
  self.FTaskSource:= nil;
-
+//--- Записать в журнал отчёт о завершении данной задачи (потока)
+ FStringStream_Log.WriteString(format(wsTaskCore_Terminated, [self.FTaskNum, self.ThreadID]));
+ PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
 end;
 
 end;
@@ -332,7 +378,14 @@ try
  end;
  FPauseEvent:= TEvent.Create(nil, true, tmpBool, 'ThreadPauseEvent_Task_' + IntToStr(FTaskTemplateId));
 
-//--- Начальное значение для потока (информация от задач)
+//--- Создание потока для передачи информации для журнала в главный модуль
+//--- Запись в поток "начальных данных" (наименование, номер)
+//  tmpString:= format(wsResultStreamTitle, [FTaskLibraryIndex, FTaskLibraryIndex]) + wsCRLF;
+
+
+//--- Начальное значение для потока (информация для журнала от задач)
+ FStringStream_Log_LastPos:= 0;
+//--- Начальное значение для потока (информация о результате выполнения от задач)
  FStringStream_LastPos:= 0;
 //--- присвоим состояние задачи, которое пришло на входе данной подпрограммы
 TaskState:= inputBeginState;
@@ -367,19 +420,60 @@ end;
 procedure TTaskItem.OnTerminate(Sender: TObject);
 var
   E: Exception;
+  tmpExcept: TObject;
 begin
 try
- if Assigned(self) then
- begin
-  FreeAndNil(self.FTaskCore);
- end;
-except
- if Assigned(E) then
+ try
+  if Assigned(self.FTaskCore) then
+   FreeAndNil(self.FTaskCore);
+//  FreeAndNil(self.FTaskSource);
+  if Assigned(self.FPauseEvent) then
+   FreeAndNil(self.FPauseEvent);
+  if Assigned(self.FStream) then
+   FreeAndNil(self.FStream);
+  if Assigned(self.FStringStream) then
+   FreeAndNil(self.FStringStream);
+  if Assigned(self.FOLEStream) then
+   FreeAndNil(self.FOLEStream);
+  if Assigned(self.FOLEStream_Log) then
+   FreeAndNil(self.FOLEStream_Log);
+  if Assigned(self.FClientUDP) then
+   FreeAndNil(self.FClientUDP);
+
+ except
+  if Assigned(E) then
   begin
-   self.FLogStringStream.WriteString(E.ClassName + ', E.Message = ' + E.Message + ' (TTaskItem.OnTerminate, unTasks)');
+   self.FStringStream_Log.WriteString(E.ClassName + ', E.Message = ' + E.Message + ' (TTaskItem.OnTerminate, unTasks)');
+   PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
   end;
   raise Exception.Create(PAnsiChar(E.ClassName + ', E.Message = ' + E.Message));
+ end;
+
+except
+ tmpExcept:= TThread(self).FatalException;
+ if Assigned(tmpExcept) then
+ begin
+   // Thread terminated due to an exception
+   if tmpExcept is Exception then
+    self.FStringStream_Log.WriteString(Exception(tmpExcept).ClassName +
+                                    ', E.Message = ' +
+                                    Exception(tmpExcept).Message +
+                                    '(TTaskCore.DoTerminate, unTasks)');
+    PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+ end;
 end;
+//--- Записать в журнал отчёт о завершении данной задачи (потока)
+try
+ FStringStream_Log.WriteString(format(wsTaskItem_Terminated, [self.FTaskNum, self.ThreadID]));
+ PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+ self.Sleep(iCycleTimeValue*3); //--- пауза для получения данных главным потоком
+finally
+ if Assigned(self.FStringStream_Log) then
+  FreeAndNil(self.FStringStream_Log);
+ if Assigned(self.FStream_Log) then
+  FreeAndNil(self.FStream_Log);
+end;
+
 end;
 
 
@@ -396,33 +490,45 @@ var
   tmpStreamWriter: TStreamWriter;
   tmpInt: integer;
   tmpInt64: Int64;
+  tmpE: Exception;
+  tmpObject: TObject;
 begin
-try  //--- finally
 //--- Создаём новый объект "Ядро исходника Задачи" - для получения функционала управления потоком
 //--- Делаем это в главном модуле, так как этот объект "продолжение" TaskItem, который становится аналогом
 //--- "callback pump" для TaskSource, который создаётся в библиотеке
-try  //--- except
+//--- Настройка потока для журнала главного модуля (через TaskItem)
+{
+//--- от ядра задачи в главный модуль
+ Stream_Core_Log:= TOleStream.Create(TaskCore.TaskCoreStream_Log);
+ Stream_Core_Log.Position:= 0;
+//--- от ядра задачи
+ StringStream_Core_Log:= TStringStream.Create('', TEncoding.ANSI); //--- При создании ядра не пишем в лог отдельное сообщение
+ StringStream_Core_Log.LoadFromStream(Stream_Core_Log);
+
+}
  self.TaskCoreState:= tsActive;
  self.FTaskCore.Start;
  tmpInt64:= 0;
 //--- Допишем в массив запущенных потоков ID потока TaskCore (дочернего  для TaskItem)
-try
- ThreadStorList[length(ThreadStorList) - 1].cTaskCore__ThreadId:= TaskList[self.FTaskNumInList].TaskCore.ThreadID;
-finally
+ try
+  ThreadStorList[length(ThreadStorList) - 1].cTaskCore__ThreadId:= TaskList[self.FTaskNum].TaskCore.ThreadID;
+ finally
 
-end;
+ end;
 
 //--- Запишем в лог событие - создание нового потока - Задачи
- WriteDataToLog(format(wsEvent_ThreadCreated, [self.FTaskNumInList,
-                                                TaskList[self.FTaskNumInList].ThreadID,
-                                                TaskList[self.FTaskNumInList].TaskCore.ThreadID]),
-                        'formTools.btnNewThreadClick()', 'unTools');
+ FStringStream_Log.WriteString(format(wsEvent_ThreadCreated, [self.FTaskNum,
+                                                TaskList[self.FTaskNum].ThreadID,
+                                                TaskList[self.FTaskNum].TaskCore.ThreadID]) +
+                                                ' (formTools.btnNewThreadClick(), unTools)');
+ PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+
 //--- Для отработки (удалить после...)
  try
   tmpStreamWriter:= TFile.AppendText('D:\Install\ThreadList.txt');
-  tmpStreamWriter.WriteLine(format(wsEvent_ThreadCreated, [self.FTaskNumInList,
-                                                TaskList[self.FTaskNumInList].ThreadID,
-                                                TaskList[self.FTaskNumInList].TaskCore.ThreadID]));
+  tmpStreamWriter.WriteLine(format(wsEvent_ThreadCreated, [self.FTaskNum,
+                                                TaskList[self.FTaskNum].ThreadID,
+                                                TaskList[self.FTaskNum].TaskCore.ThreadID]));
  finally
   FreeAndNil(tmpStreamWriter);
  end;
@@ -430,8 +536,9 @@ end;
 
 // Начинаем отсчёт времени работы ядра текущей задачи (потока)
  self.FBeginTickCount:= GetTickCount();
-repeat
-  case self.TaskState of
+ repeat
+  try
+   case self.TaskState of
     tsPause, tsDone:
       begin
        if self.FTaskCore.Priority <> tpIdle then self.FTaskCore.Priority:= tpIdle;
@@ -452,7 +559,7 @@ repeat
     tsAbortedDone:
     begin
      if not self.FTaskSource.AbortExecution then
-      self.FTaskSource.AbortExecution:= true; 
+      self.FTaskSource.AbortExecution:= true;
      if self.FTaskCore.Priority <> tpNormal then self.FTaskCore.Priority:= tpNormal;
      if self.FTaskCore.Suspended then
      begin
@@ -463,7 +570,7 @@ repeat
       begin
        self.FTaskCore.TaskState:= tsTerminate; //--- чтобы покинуть цикл в TaskCore.Execute;
       if not self.FTaskSource.AbortExecution then
-       self.FTaskSource.AbortExecution:= true; 
+       self.FTaskSource.AbortExecution:= true;
        if self.FTaskCore.Priority <> tpNormal then self.FTaskCore.Priority:= tpNormal;
        if self.FTaskCore.Suspended then self.FTaskCore.Suspended:= false;
       end;
@@ -472,7 +579,7 @@ repeat
        self.FTaskCore.Priority:= tpIdle;
       end;
 }
-  end;
+   end;
 
 //--- Отчёт о сотоянии и результатах в главный модуль через self.PeriodReport (мс)
    if ((GetTickCount - tmpInt64) > self.PeriodReport) and (self.TaskState <> tsTerminate) then
@@ -480,7 +587,6 @@ repeat
 //--- При выводе отчёта, также читаем промежуточные результаты от задачи и показываем в визуальных компонентах главного потока
 //--- все потоки выводят информацию через одну переменную (запись) OutInfo_ForViewing
     try
-      CriticalSection.Enter;
 
       FInfo_ForViewing.IndexInViewComponent:= self.FLineIndex_ForView;
       FInfo_ForViewing.TextForViewComponent:= self.InfoFromTask;
@@ -516,7 +622,7 @@ repeat
       end;
 
 //--- Вывод информации о зтекущем состоянии задачи и результирующей информации от задачи
-     if TaskState in [tsActive, tsDone, tsAbortedDone] then
+     if TaskState <> tsTerminate then
      begin
 //--- Отправим ТМемо (c подробной информацией о задаче) данные для обновлению
        case ModulsExchangeType of
@@ -527,74 +633,88 @@ repeat
        end;
 
 //--- Обновление результирующей информации, получаемой от задачи
-      if FInfo_ForViewing.CurrentViewingTask = self.FTaskNumInList then
+      CriticalSection.Enter;
+       tmpWord:= Info_ForViewing.CurrentViewingTask;
+      CriticalSection.Leave;
+      if tmpWord = self.FTaskNum then
       begin
        if self.StringStream_LastPos < self.Stream.Position then
        begin
-          PostMessage(FInfo_ForViewing.hMemoThreadInfo_1, WM_Data_Update, self.FTaskNumInList, CMD_SetMemoStreamUpd);
+          PostMessage(FInfo_ForViewing.hMemoThreadInfo_1, WM_Data_Update, self.FInfo_ForViewing.IndexInViewComponent, CMD_SetMemoStreamUpd);
        end;
       end;
-     end;
 
+   end;
+
+//--- При ошибках во время формирования и направления информации для отображения в главной форме
+//--- попадаем в этот finally и ничего не предпринимаем)
     finally
-      CriticalSection.Leave;
+     tmpInt64:= GetTickCount;
     end;
 
-    tmpInt64:= GetTickCount;
    end;
+
+//--- При других ошибках в TaskItem попадаем в этот except
+ except
+  if Assigned(tmpE) then
+   begin
+    FStringStream_Log.WriteString(tmpE.ClassName +
+                                    ', Err.Message = ' +
+                                    tmpE.Message +
+                                    '(TTaskCore.DoTerminate, unTasks)');
+    PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+   end;
+ end;
 
  sleep(round(FCycleTimeValue*(iCycleTimeValue*(1 - iTaskBoreHole)))); // 15мс - время выполнениея кода (выше) и sleep
                                      // Для уменьшения загрузки процессора вспомогательной нагрузкой (контроль, распределение) - - TaskItem
                                      // Полезная нагрузка выполняется в TaskCore -
- until (self.TaskState = tsTerminate) and (self.TaskCoreState = tsTerminate);
 
-except
-end;
+until (self.TaskState = tsTerminate) and (self.TaskCoreState = tsTerminate);
 
-finally
+
+//--- Завершающие действия перед уничтожением потока (TThread) -----------------
+ try
 //--- Сначала необходимо проверить на освобождение дочернего процесса - TaskCore
 //--- В случае, если была исключительнвя ситуация, то в данной точке TaskCore может ещё существовать
- if self.TaskCoreState <> tsTerminate then
- begin
- //--- Дочерний поток TaskCore не завершён
-  self.FTaskCore.TaskState:= tsTerminate; //--- чтобы покинуть цикл в TaskCore.Execute;
-  if not self.FTaskSource.AbortExecution  then
-   self.FTaskSource.AbortExecution:= true;
-  if self.FTaskCore.Priority <> tpNormal then self.FTaskCore.Priority:= tpNormal;
-  if self.FTaskCore.Suspended then self.FTaskCore.Suspended:= false;
-  sleep(iCycleTimeValue);
   if self.TaskCoreState <> tsTerminate then
   begin
+ //--- Дочерний поток TaskCore не завершён
+   self.FTaskCore.TaskState:= tsTerminate; //--- чтобы покинуть цикл в TaskCore.Execute;
+   if not self.FTaskSource.AbortExecution  then
+    self.FTaskSource.AbortExecution:= true;
+   if self.FTaskCore.Priority <> tpNormal then self.FTaskCore.Priority:= tpNormal;
+   if self.FTaskCore.Suspended then self.FTaskCore.Suspended:= false;
+   sleep(iCycleTimeValue);
+   if self.TaskCoreState <> tsTerminate then
+   begin
 //--- Поток не отвечает - вызываем исключение в TaskSource
 
+   end;
   end;
- end;
 //--- Высвобождаем ресурсы TaskCore (уже завершённого к этому моменту)
- FTaskCore.WaitFor;
- FreeAndNil(FTaskCore);
-
+  FTaskCore.WaitFor;
+  FreeAndNil(FTaskCore);
 
 //--- Высвобождаем ресурсы источника задачи (TaskSource) (на стороне библиотеки)
- try
-  LibraryList[self.FLibraryId].LibraryAPI.FreeTaskSource(self.FTaskNumInList);
- finally
-//--- На данный момент ресурсы освобождаются автоматически после завершения потока
-//--- Высвобождаем ресурсы ядра задачи (на стороне главного модуля)
-// if Assigned(self.FTaskCore) then
-//  FreeAndNil(self.FTaskCore);
- end;
+   try
+    self.TaskSource._Release;
+//    LibraryList[self.FLibraryId].LibraryAPI.FreeTaskSource(self.FTaskNum);
+   except
+     tmpObject:= ExceptObject;
+//--- Если исключение вызвано естественными причинами (не экстренное прерывание работы), то статус был Активен
+//--- поэтому устанавливаем Прервано
+     self.FStringStream_Log.WriteString(Exception(tmpObject).ClassName +
+                                        ', E.Message = ' +
+                                        Exception(tmpObject).Message +
+                                        '(TTaskCore.Execute (LibraryList[self.FLibraryId].LibraryAPI.FreeTaskSource(self.FTaskNum);), unTasks)');
+     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+     self.Sleep(iCycleTimeValue*3);
+   end;
 
-end;
-self.OnTerminate(self);
-//  FreeAndNil(self.FTaskSource);
-FreeAndNil(self.FPauseEvent);
-FreeAndNil(self.FStream);
-FreeAndNil(self.FStringStream);
-FreeAndNil(self.FOLEStream);
-FreeAndNil(self.FClientUDP);
-FreeAndNil(self.FLogStream);
-FreeAndNil(self.FLogStringStream);
-FreeAndNil(self.FOLELogStream);
+ finally
+  self.OnTerminate(self);
+ end;
 
 end; //--- TTaskItem.Execute;
 
@@ -624,7 +744,7 @@ end;
 
 procedure TTaskItem.SetTaskNum(TaskNum: word);
 begin
- FTaskNumInList:= TaskNum;
+ FTaskNum:= TaskNum;
 //--- Назначаем в визуальном компоненте номер строки для вывода информации о процессе
 //--- выполнения задачи равной номеру самой задачи в списке задач
  FLineIndex_ForView:= TaskNum;
@@ -701,10 +821,11 @@ begin
   exit;
  end;
 
- tmpInt:= TaskList[TaskNum].FTaskSource.Task_Result.dwEqualsCount;
+ try
+  tmpInt:= TaskList[self.FInfo_ForViewing.IndexInViewComponent].FTaskSource.Task_Result.dwEqualsCount;
 
 // tmpWideString:= GetTaskStateName(TaskList[TaskNum].TaskState);
- tmpWideString:= format(sThreadInfoForView,
+  tmpWideString:= format(sThreadInfoForView,
                                     [self.TaskNum,
                                      self.TaskName,
                                      '???',
@@ -737,6 +858,16 @@ begin
      end;
 
     end;
+ except
+  on tmpE: Exception do
+    begin
+     FStringStream_Log.WriteString(tmpE.ClassName +
+                                    ', Err.Message = ' +
+                                    tmpE.Message +
+                                    '(TTaskItem.SendReportToMainProcess, unTasks)');
+     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+    end;
+ end;
 
 end;
 

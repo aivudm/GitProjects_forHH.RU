@@ -59,7 +59,7 @@ begin
 try
  if not TFile.Exists(edTargetFile.Text) then
  begin
-  TaskSourceList[TaskSourceListIndex].FStringStream_Log.WriteString(wsResultStreamTitle +
+  TaskSourceList[TaskSourceListIndex].StringStream_Log.WriteString(wsResultStreamTitle +
                                wsCRLF +
                                format(wsTask1_TargetFileNotFound, [edTargetFile.Text]) +
                                ' (TformEditParams_Task2.btbRunTaskClick, unformEditParams_Task2)');

@@ -19,7 +19,7 @@ const
   wsCRLF = #13#10;
   wsIniFileName = 'Primer_MT_4_Lib2.ini';
   wsTask1_TargetFileNotFound: WideString = 'Целевой файл: %s не найден.';
-  wsProcessCreateError: WideString = 'Ошибка создания процесса';
+  wsProcessCreateError: WideString = 'Ошибка создания процесса: %d';
 
 
 //--- Для Задачи №2 ------------------------------------------------------------

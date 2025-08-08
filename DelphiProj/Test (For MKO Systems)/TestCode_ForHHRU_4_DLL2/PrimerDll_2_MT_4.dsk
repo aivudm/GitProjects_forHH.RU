@@ -16,19 +16,19 @@ File_13=TSourceModule,'c:\embarcadero\studio\17.0\SOURCE\VCL\Vcl.Forms.pas',0,1,
 File_14=TSourceModule,'c:\embarcadero\studio\17.0\source\rtl\common\System.Classes.pas',0,1,14459,1,14481,0,0,,
 
 [Modules]
-Module0=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unVariables.pas
-Module1=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unLibrary2API.pas
+Module0=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unLibrary2API.pas
+Module1=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unVariables.pas
 Module2=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unTaskSource.pas
 Module3=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unEditInputParams_Task1.pas
 Count=4
 EditWindowCount=1
 
-[D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unVariables.pas]
+[D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unLibrary2API.pas]
 ModuleType=TSourceModule
 FormState=0
 FormOnTop=0
 
-[D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unLibrary2API.pas]
+[D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unVariables.pas]
 ModuleType=TSourceModule
 FormState=0
 FormOnTop=0
@@ -45,7 +45,7 @@ FormOnTop=0
 
 [EditWindow0]
 ViewCount=4
-CurrentEditView=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unVariables.pas
+CurrentEditView=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unLibrary2API.pas
 View0=0
 View1=1
 View2=2
@@ -82,9 +82,9 @@ BottomMiddelPanelData=0000080001020200000009000000446F636B5369746530100000004772
 [View0]
 CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unLibrary2API.pas
-CursorX=7
-CursorY=56
-TopLine=18
+CursorX=38
+CursorY=188
+TopLine=172
 LeftCol=1
 Elisions=
 Bookmarks=
@@ -105,8 +105,8 @@ EditViewName=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unTaskSource.pas
 CustomEditViewType=TEditView
 Module=D:\DelphiProj\TestCode_ForHHRU_4_DLL2\unVariables.pas
 CursorX=1
-CursorY=53
-TopLine=28
+CursorY=89
+TopLine=77
 LeftCol=1
 Elisions=
 Bookmarks=

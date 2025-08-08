@@ -17,11 +17,13 @@ const
   iMaxPixelCount_difference = 5;
 //------------------------------------------------------------------------------
   wsUncknownVersionOS = 'Не допустимая версия ОС. #13#10 Завершение работы приложения.';
-  wsHeaderThreadInfo = 'Задача (поток) №';
-  wsEvent_ThreadCreated = wsHeaderThreadInfo + '%3d создан успешно. ThreadId (задача/ядро задачи)= %d/%d';
+  wsHeaderThreadInfo = 'Задача (поток) №%3d';
+  wsEvent_ThreadCreated = wsHeaderThreadInfo + ' создан успешно. ThreadId (задача/ядро задачи)= %d/%d';
   sWaitForThreadAnswer = 'Ожидание ответа от потока...';
   sWaitForAppClosing = 'Ожидание завершения задач (потоков)...';
-  sThreadInfoForView = wsHeaderThreadInfo + ' %4d : %s, %s TreadId: %4d | Время работы: %d | %s ||| [сост. - %s]';
+  wsTaskItem_Terminated = wsHeaderThreadInfo + 'завершена. Задача (ThreadID: %d';
+  wsTaskCore_Terminated = wsHeaderThreadInfo + 'завершена. Ядро задачи (ThreadID: %d';
+  sThreadInfoForView = wsHeaderThreadInfo + ' : %s, %s TreadId: %4d | Время работы: %d | %s ||| [сост. - %s]';
 //  sThreadInfoForView = sHeaderThreadInfo + ' %4d : %s, %s TreadId: %4d | CPU usage(проц.): %f | Кол-во совпадений: %6d ||| [сост. - %s]';
   wsIniToolsTitle1 = 'Library Path';
   wsIniLibraryPath_Item = 'lbLibraryList_Item%d';
@@ -31,6 +33,7 @@ const
   wsNameExchangeType_ServerUDP = 'Режим: Сервер UDP [Порт: %5d]';
   wsError_LoadLibrary = 'Ошибка загрузки библиотеки';
   wsError_LoadLibraryWithTargetAPI = 'Ошибка. Библиотека не поддерживает целевой API';
+  wsError_TaskItemNotAssigned = 'Задача не существует. Вожможно, удалена в связи с исключительной ситуацией.';
   wsResultPartDll1Task0_InfoFromTask = 'Кол-во файлов по маскам: %3d';
   wsResultPartDll1Task1_InfoFromTask = 'Общ. кол-во соотв. шаблонам: %3d';
   wsResultPartDll2Task0_InfoFromTask = '';

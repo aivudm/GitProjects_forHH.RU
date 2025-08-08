@@ -22,34 +22,22 @@ object formMain: TformMain
     Left = 8
     Top = 8
     Width = 992
-    Height = 353
+    Height = 369
     Caption = #1048#1085#1092#1086#1088#1084#1072#1094#1080#1103' '#1086' '#1079#1072#1076#1072#1095#1072#1093' ('#1087#1086#1090#1086#1082#1072#1093')'
     TabOrder = 0
     object Label1: TLabel
       Left = 5
-      Top = 243
+      Top = 239
       Width = 151
       Height = 13
       Caption = #1056#1077#1079#1091#1083#1100#1090#1072#1090' '#1074#1099#1087#1086#1083#1085#1077#1085#1080#1103' '#1079#1072#1076#1072#1095
     end
     object Label2: TLabel
-      Left = 606
-      Top = 244
+      Left = 843
+      Top = 239
       Width = 146
       Height = 13
       Caption = #1046#1091#1088#1085#1072#1083' '#1088#1072#1073#1086#1090#1099' '#1087#1088#1080#1083#1086#1078#1077#1085#1080#1103
-    end
-    object memThreadInfo_1: TMemo
-      Left = 5
-      Top = 261
-      Width = 516
-      Height = 89
-      HideSelection = False
-      ScrollBars = ssBoth
-      TabOrder = 0
-      WantReturns = False
-      WordWrap = False
-      OnClick = memThreadInfo_1Click
     end
     object lbThreadList: TListBox
       Left = 3
@@ -57,7 +45,7 @@ object formMain: TformMain
       Width = 382
       Height = 63
       ItemHeight = 13
-      TabOrder = 1
+      TabOrder = 0
       OnClick = lbThreadListClick
     end
     object bThreadPause: TButton
@@ -66,7 +54,7 @@ object formMain: TformMain
       Width = 105
       Height = 25
       Caption = #1055#1072#1091#1079#1072
-      TabOrder = 2
+      TabOrder = 1
       OnClick = bThreadPauseClick
     end
     object bThreadStop: TButton
@@ -75,16 +63,8 @@ object formMain: TformMain
       Width = 105
       Height = 25
       Caption = #1054#1089#1090#1072#1085#1086#1074#1080#1090#1100
-      TabOrder = 3
+      TabOrder = 2
       OnClick = bThreadStopClick
-    end
-    object memLogInfo_2: TMemo
-      Left = 527
-      Top = 259
-      Width = 462
-      Height = 89
-      ScrollBars = ssBoth
-      TabOrder = 4
     end
     object bThreadDelete: TButton
       Left = 502
@@ -92,7 +72,7 @@ object formMain: TformMain
       Width = 105
       Height = 25
       Caption = #1059#1076#1072#1083#1080#1090#1100
-      TabOrder = 5
+      TabOrder = 3
       OnClick = bThreadDeleteClick
     end
     object reThreadInfo_Main: TListBox
@@ -101,7 +81,51 @@ object formMain: TformMain
       Width = 986
       Height = 156
       ItemHeight = 13
-      TabOrder = 6
+      TabOrder = 4
+      OnClick = reThreadInfo_MainClick
+    end
+    object Panel1: TPanel
+      Left = 2
+      Top = 251
+      Width = 988
+      Height = 116
+      Align = alBottom
+      Caption = 'Panel1'
+      TabOrder = 5
+      ExplicitTop = 247
+      object Splitter1: TSplitter
+        Left = 494
+        Top = 1
+        Height = 114
+        ExplicitLeft = 448
+        ExplicitTop = 48
+        ExplicitHeight = 100
+      end
+      object memThreadInfo_1: TMemo
+        Left = 1
+        Top = 1
+        Width = 493
+        Height = 114
+        Align = alLeft
+        HideSelection = False
+        ScrollBars = ssBoth
+        TabOrder = 0
+        WantReturns = False
+        WordWrap = False
+        OnClick = memThreadInfo_1Click
+      end
+      object memLogInfo_2: TMemo
+        Left = 497
+        Top = 1
+        Width = 490
+        Height = 114
+        Align = alClient
+        ScrollBars = ssBoth
+        TabOrder = 1
+        ExplicitLeft = 500
+        ExplicitTop = -2
+        ExplicitWidth = 487
+      end
     end
   end
   object sbMain: TStatusBar
