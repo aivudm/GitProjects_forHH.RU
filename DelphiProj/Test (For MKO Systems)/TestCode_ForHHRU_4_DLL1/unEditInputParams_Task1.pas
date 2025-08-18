@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, IOUtils, ActiveX,
-  unTaskSource;
+  unTaskSource, Vcl.Buttons, CommDlg;
 
 type
   TformEditParams_Task1 = class(TForm)
@@ -14,12 +14,15 @@ type
     Label2: TLabel;
     edTargetDirectory: TEdit;
     btbRunTask: TButton;
-    odTargetDirectory: TOpenDialog;
-    Label3: TLabel;
+    lbResultFile: TLabel;
     edResultFile: TEdit;
     chkbTypeResultOutput: TCheckBox;
+    bbOpenDirectory: TBitBtn;
     procedure btbRunTaskClick(Sender: TObject);
-    procedure FormShow(Sender: TObject);
+    procedure sbSelectDirectoryClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure bbOpenDirectoryClick(Sender: TObject);
+    procedure chkbTypeResultOutputClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -28,11 +31,29 @@ type
 
 var
   formEditParams_Task1: TformEditParams_Task1;
+  edTargetDirectory_Buffer: PWideChar;
 
 
 implementation
-
+//uses Shobjidl;
 {$R *.dfm}
+
+procedure TformEditParams_Task1.bbOpenDirectoryClick(Sender: TObject);
+var
+  tmpWideString: WideString;
+begin
+ if SelectDirectory(Handle, wsTask1_Name, wsTask1_DefaultDirectory, tmpWideString) then
+ begin
+  setlength(tmpWideString, length(tmpWideString) + 1);
+  try
+   SysAllocStringLen(edTargetDirectory_Buffer, length(tmpWideString)*sizeof(WideChar) + 1);
+   edTargetDirectory_Buffer:= PWideChar(tmpWideString);
+   edTargetDirectory.SetTextBuf(edTargetDirectory_Buffer);
+  except
+   SysFreeString(edTargetDirectory_Buffer);
+  end;
+ end;
+end;
 
 procedure TformEditParams_Task1.btbRunTaskClick(Sender: TObject);
 var
@@ -70,9 +91,34 @@ end;
 end;
 
 
-procedure TformEditParams_Task1.FormShow(Sender: TObject);
+procedure TformEditParams_Task1.chkbTypeResultOutputClick(Sender: TObject);
 begin
-// btbRunTaskClick(Sender);
+ lbResultFile.Visible:= (Sender as TCheckBox).Checked;
+ edResultFile.Visible:= (Sender as TCheckBox).Checked;
+end;
+
+procedure TformEditParams_Task1.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+ SysFreeString(edTargetDirectory_Buffer);
+end;
+
+procedure TformEditParams_Task1.sbSelectDirectoryClick(Sender: TObject);
+var
+  tmpWideString: WideString;
+begin
+ if SelectDirectory(Handle, wsTask1_Name, wsTask1_DefaultDirectory, tmpWideString) then
+ begin
+  setlength(tmpWideString, length(tmpWideString) + 1);
+  try
+   SysAllocStringLen(edTargetDirectory_Buffer, length(tmpWideString)*sizeof(WideChar) + 1);
+   edTargetDirectory_Buffer:= PWideChar(tmpWideString);
+   edTargetDirectory.SetTextBuf(edTargetDirectory_Buffer);
+  except
+   SysFreeString(edTargetDirectory_Buffer);
+  end;
+ end;
+
 end;
 
 end.

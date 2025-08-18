@@ -92,7 +92,6 @@ object formMain: TformMain
       Align = alBottom
       Caption = 'Panel1'
       TabOrder = 5
-      ExplicitTop = 247
       object Splitter1: TSplitter
         Left = 494
         Top = 1
@@ -122,9 +121,6 @@ object formMain: TformMain
         Align = alClient
         ScrollBars = ssBoth
         TabOrder = 1
-        ExplicitLeft = 500
-        ExplicitTop = -2
-        ExplicitWidth = 487
       end
     end
   end

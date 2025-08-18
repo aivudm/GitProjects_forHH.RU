@@ -14,14 +14,14 @@ type
     Label2: TLabel;
     edTargetCommand: TEdit;
     btbRunTask: TButton;
-    odTargetDirectory: TOpenDialog;
-    Label3: TLabel;
+    lbResultFile: TLabel;
     edResultFile: TEdit;
     chkbTypeResultOutput: TCheckBox;
     procedure btbRunTaskClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
+    procedure chkbTypeResultOutputClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -73,6 +73,12 @@ finally
 end;
 end;
 
+
+procedure TformEditParams_Task1.chkbTypeResultOutputClick(Sender: TObject);
+begin
+ lbResultFile.Visible:= (Sender as TCheckBox).Checked;
+ edResultFile.Visible:= (Sender as TCheckBox).Checked;
+end;
 
 procedure TformEditParams_Task1.FormClose(Sender: TObject;
   var Action: TCloseAction);

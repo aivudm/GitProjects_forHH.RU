@@ -43,7 +43,7 @@ object formEditParams_Task1: TformEditParams_Task1
     Font.Style = [fsBold]
     ParentFont = False
   end
-  object Label3: TLabel
+  object lbResultFile: TLabel
     Left = 8
     Top = 94
     Width = 177
@@ -96,16 +96,12 @@ object formEditParams_Task1: TformEditParams_Task1
   end
   object chkbTypeResultOutput: TCheckBox
     Left = 8
-    Top = 146
+    Top = 142
     Width = 161
     Height = 17
     Caption = #1042#1099#1074#1086#1076' '#1088#1077#1079#1091#1083#1100#1090#1072#1090#1072' '#1074' '#1092#1072#1081#1083
     TabOrder = 4
     Visible = False
-  end
-  object odTargetDirectory: TOpenDialog
-    InitialDir = 'edTargetDirectory.Text'
-    Left = 336
-    Top = 24
+    OnClick = chkbTypeResultOutputClick
   end
 end

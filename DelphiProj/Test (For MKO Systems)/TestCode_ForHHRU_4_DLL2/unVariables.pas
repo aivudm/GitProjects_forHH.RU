@@ -409,6 +409,13 @@ try
 //  inputParam3:= 'D:\Install\Result_Library1_Task2.txt'; // Имя файла для записи результата, если inputParam4 - true
 //  inputParam4:= true;                                  // Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
 
+ try
+//--- Запись результата в память
+       self.FStringStream.Clear;
+       self.FStringStream.Position:= 0;
+
+      if inputParam4 then //--- Запись результата в файл (пока отработка - запись в файл будет всегда)
+      begin
 //--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
 //--- Добавим к имени выходного файла информацию о номере задачи по порядку запуска потоков в главном модуле, иначе имена файлов в потоках совпадут
        if TPath.GetFileName(inputParam3) <> '' then
@@ -422,20 +429,15 @@ try
         tmpWideString:= TPath.GetDirectoryName(inputParam3) + '\' + tmpWideString
        else
         tmpWideString:= TDirectory.GetCurrentDirectory() + '\' + tmpWideString;
-
-//--- Удалить с этого места в боевом режиме и разкомментировать код внутри if...then
-        tmpStreamWriter:= TFile.CreateText(tmpWideString);
-//--- Разкомментировать в боевом режиме
-        if inputParam4 then //--- Запись результата в файл (пока отработка - запись в файл будет всегда)
-        begin
-//         tmpStreamWriter:= TFile.CreateText(tmpWideString)
-        end
-        else //--- Запись результата в память
-        begin
-//         self.FTaskStringList.Clear;
-         self.FStringStream.Clear;
-         self.FStringStream.Position:= 0;
-        end;
+         tmpStreamWriter:= TFile.CreateText(tmpWideString);
+      end;
+ except
+  on E: Exception {EStreamError} do
+  begin
+   FStringStream_Log.WriteString(wsResultStreamTitle + wsCRLF + E.ClassName + ', E.Message = ' + E.Message + '(Task1_FileFinderByMask, unVariables)');
+   exit;
+  end;
+ end;
 //--- Вывод информации с входными параметрами ----------------------------------
        tmpWideString:= 'Входные параметры: '
                 + #13#10 + 'inputParam1 = ' + WideString(Task1_Parameters.inputParam1)
@@ -444,15 +446,14 @@ try
                 + #13#10 + 'inputParam5 = ' + IntToStr(FTaskMainModuleIndex)
                 + #13#10 + 'Строка для выполнения = ' + PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2);
 
-       tmpStreamWriter.WriteLine(tmpWideString);
-       if inputParam4 then
-       begin
-//        tmpStreamWriter.WriteLine(tmpWideString)
-       end
-       else //--- Результат через память
-       begin
+//--- Результат через память
         tmpWideString:= tmpWideString + wsCRLF;
         FStringStream.WriteString(tmpWideString);
+
+//--- Запись результата в файл (если выбрано)
+       if inputParam4 then
+       begin
+        tmpStreamWriter.WriteLine(tmpWideString);
        end;
 //------------------------------------------------------------------------------
 
@@ -484,7 +485,7 @@ finally
  CloseHandle(tmpProcessInfo.hProcess);
  CloseHandle(tmpProcessInfo.hThread);
 
- if Win32Check(Assigned(tmpStreamWriter)) then
+ if inputParam4 then
  begin
   tmpStreamWriter.Close;
   freeandnil(tmpStreamWriter);

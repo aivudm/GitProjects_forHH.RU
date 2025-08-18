@@ -212,7 +212,7 @@ begin
 //--- Создание объекта библиотек
 //--- Индекс соответсвует индексу строки при получении списка реализуемых задач
 //--- полученных через интерфейс DllAPI
-     tmpLibraryNum:= LibraryList.Add(TLibraryTask.Create);
+   tmpLibraryNum:= LibraryList.Add(TLibraryTask.Create);
  //--- По номеру библиотеки с списке библиотек получим её наименование и список реализованных в ней функций
    GetLibraryInfo(odGetLibrary.Files.Strings[tmpItem], tmpLibraryNum);
  //--- Если наименование не получено от Dll, значит Dll "не наша", просто пропускаем её

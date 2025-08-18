@@ -12,6 +12,7 @@ object formEditParams_Task2: TformEditParams_Task2
   Font.Style = []
   OldCreateOrder = False
   Position = poDesktopCenter
+  OnClose = FormClose
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel
@@ -40,7 +41,7 @@ object formEditParams_Task2: TformEditParams_Task2
     Font.Style = [fsBold]
     ParentFont = False
   end
-  object Label3: TLabel
+  object lbResultFile: TLabel
     Left = 8
     Top = 94
     Width = 177
@@ -52,6 +53,7 @@ object formEditParams_Task2: TformEditParams_Task2
     Font.Name = 'Tahoma'
     Font.Style = [fsBold]
     ParentFont = False
+    Visible = False
   end
   object edPattern: TEdit
     Left = 8
@@ -86,6 +88,7 @@ object formEditParams_Task2: TformEditParams_Task2
     Height = 21
     TabOrder = 3
     Text = 'D:\Install\Result_Library1_Task2.txt'
+    Visible = False
   end
   object chkbTypeResultOutput: TCheckBox
     Left = 8
@@ -94,6 +97,7 @@ object formEditParams_Task2: TformEditParams_Task2
     Height = 17
     Caption = #1042#1099#1074#1086#1076' '#1088#1077#1079#1091#1083#1100#1090#1072#1090#1072' '#1074' '#1092#1072#1081#1083
     TabOrder = 4
+    OnClick = chkbTypeResultOutputClick
   end
   object chkbTypeCase: TCheckBox
     Left = 8
@@ -112,11 +116,5 @@ object formEditParams_Task2: TformEditParams_Task2
     Caption = #1054#1073#1079'.'
     TabOrder = 6
     OnClick = bbOpenFileClick
-  end
-  object odTargetFile: TOpenDialog
-    Filter = '*.*|*.bin'
-    InitialDir = 'edTargetDirectory.Text'
-    Left = 328
-    Top = 96
   end
 end

@@ -334,13 +334,12 @@ var
   tmpTaskState: TTaskState;
 begin
 try
-//mpTaskItem:= lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem;
- tmpInt:=  TaskList.IndexOf(lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem);
-//TaskNum:= tmpTaskItem.TaskNum;
+ tmpInt:= lbThreadList.ItemIndex;
  if (tmpInt < 0) then
  begin
   exit;
  end;
+ tmpInt:=  TaskList.IndexOf(lbThreadList.Items.Objects[tmpInt] as TTaskItem);
 
 //--- Попытка приостановить выполнение на время диалога подтверждения
  if (TaskList[tmpInt].TaskState in [tsActive, tsPause]) then
@@ -395,6 +394,7 @@ try
  try
   if reThreadInfo_Main.Items.Count > 0 then
   begin
+   PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
    reThreadInfo_Main.Items.Delete(reThreadInfo_Main.Items.Count - 1);
   end;
  except

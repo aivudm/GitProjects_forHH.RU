@@ -1,7 +1,8 @@
 unit unTaskSource;
 
 interface
-uses   Windows, ActiveX, Classes, IOUtils, SysUtils, System.SyncObjs, Dialogs, DateUtils;
+uses   Windows, ActiveX, Classes, IOUtils, SysUtils, System.SyncObjs, Dialogs, DateUtils,
+      Shobjidl;
 
 //--- Для Задачи №1 ------------------------------------------------------------
 const
@@ -9,6 +10,7 @@ const
   wsBeginMask: WideString = '*.';
   wsAllMask: WideString = '*';
   wsPartMaskDelemiter: WideString = '*';
+  dwMaxStringLength = 2048;
 
   wsCRLF = #13#10;
   wsTask1_Name: WideString = 'Поиск файлов по маске';
@@ -21,10 +23,14 @@ const
   wsTask1_TargetDirectoryNotFound: WideString = 'Целевая директория не найдена.';
   wsTask1_TargetFileNotFound: WideString = 'Целевой файл: %s не найден.';
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
+  wsTask2_TotalResultTitle_TemplateView: WideString = 'Всего найдено совпадений: %d';
   wsTask2_Result_TemplateView: WideString = 'Шаблон: %12s, Позиция в файле: %d';
   wsTask2_TotalResult_TemplateView: WideString = 'Шаблон: %12s, Всего совпадений: %d';
   wsResultStreamTitle: WideString = 'Библиотека №%d, Задача №%d';
   wsTask_AbortedOnRequest: WideString = 'Выполнение прервано по запросу главного модуля';
+  wsFileDlgFilter = 'All Files' + #0 + '*.*' + #0 + 'Text Files' + #0 + '*.txt' + #0#0;
+  wsTask1_DefaultDirectory = 'C:\Users\user\AppData\Roaming\Primer_MT_3';
+  wsTask2_DefaultDirectory = 'C:\Users\user\AppData\Roaming\Primer_MT_4';
 
 
 //--- Для Задачи №2 ------------------------------------------------------------
@@ -135,6 +141,8 @@ procedure GetPatternsFromString(inputSourceBSTR: WideString; var outputStringIte
 function GetPosForPattern(inputBuffer: Pointer; inputFileSize: DWORD; inputSearchPatternSet: TSearchPatternSet; inputPosBeginSearch: DWORD): DWORD;
 function WSToByte(inputWideString: WideString): TSearchPattern;
 function ByteToWS(inputBytes: TSearchPattern; inputBytesSize: dword): WideString;
+function SelectDirectory(Parent: HWND; const Caption: WideString; const Root: WideString; var outputDirectory: WideString): Boolean;
+function SelectFile(Parent: HWND; const Caption: WideString; const Root: WideString; var outputFileName: WideString): Boolean;
 
 
 
@@ -467,6 +475,7 @@ begin
 end;
 {
 //--- Старая версия, которая только для поиска расширений
+//--- В качестве заглушки - только для отработки алгоритма Dll API
 procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
 begin
  outputMaskCount:= 0;
@@ -700,5 +709,69 @@ finally
 
 end;
 end;
+
+
+function SelectDirectory(Parent: HWND; const Caption: WideString; const Root: WideString; var outputDirectory: WideString): Boolean;
+var
+  FileDialog: IFileDialog;
+  ShellItem: IShellItem;
+  FileDialogEvents: TFileDialogEvents;
+  Cookie: Cardinal;
+begin
+  Result:=False;
+  if CoCreateInstance(CLSID_FileOpenDialog, nil,
+    CLSCTX_INPROC_SERVER or CLSCTX_LOCAL_SERVER,
+    IFileDialog, FileDialog) = S_OK then
+  begin
+    FileDialog.SetTitle(PWideChar(WideString(Caption)));
+    if SHCreateItemFromParsingName(PWideChar(WideString(Root)),
+      nil, SID_IShellItem, ShellItem)=S_OK then FileDialog.SetFolder(ShellItem);
+
+    FileDialog.SetOptions(FOS_PICKFOLDERS);
+
+    FileDialogEvents:=TFileDialogEvents.Create;
+    FileDialog.Advise(FileDialogEvents, Cookie);
+
+    if FileDialog.Show(Parent) = S_OK then
+    begin
+      outputDirectory:= FileDialogEvents.ResultFileName;
+      Result:= true;
+    end;
+
+    FileDialog.Unadvise(Cookie);
+  end;
+end;
+
+function SelectFile(Parent: HWND; const Caption: WideString; const Root: WideString; var outputFileName: WideString): Boolean;
+var
+  FileDialog: IFileDialog;
+  ShellItem: IShellItem;
+  FileDialogEvents: TFileDialogEvents;
+  Cookie: Cardinal;
+begin
+  Result:=False;
+  if CoCreateInstance(CLSID_FileOpenDialog, nil,
+    CLSCTX_INPROC_SERVER or CLSCTX_LOCAL_SERVER,
+    IFileDialog, FileDialog) = S_OK then
+  begin
+    FileDialog.SetTitle(PWideChar(WideString(Caption)));
+    if SHCreateItemFromParsingName(PWideChar(WideString(Root)),
+      nil, SID_IShellItem, ShellItem) = S_OK then FileDialog.SetFolder(ShellItem);
+
+    FileDialog.SetOptions(FOS_FILEMUSTEXIST);
+
+    FileDialogEvents:=TFileDialogEvents.Create;
+    FileDialog.Advise(FileDialogEvents, Cookie);
+
+    if FileDialog.Show(Parent) = S_OK then
+    begin
+      outputFileName:= FileDialogEvents.ResultFileName;
+      Result:= true;
+    end;
+
+    FileDialog.Unadvise(Cookie);
+  end;
+end;
+
 
 end.

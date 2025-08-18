@@ -11,17 +11,18 @@ type
   TformEditParams_Task2 = class(TForm)
     Label1: TLabel;
     Label2: TLabel;
-    Label3: TLabel;
+    lbResultFile: TLabel;
     edPattern: TEdit;
     edTargetFile: TEdit;
     btbRunTask: TButton;
     edResultFile: TEdit;
     chkbTypeResultOutput: TCheckBox;
-    odTargetFile: TOpenDialog;
     chkbTypeCase: TCheckBox;
     bbOpenFile: TBitBtn;
     procedure btbRunTaskClick(Sender: TObject);
     procedure bbOpenFileClick(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure chkbTypeResultOutputClick(Sender: TObject);
   private
     { Private declarations }
   public
@@ -31,23 +32,27 @@ type
 
 var
   formEditParams_Task2: TformEditParams_Task2;
+  edTargetFile_Buffer: PWideChar;
 
 implementation
 uses unVariables;
 {$R *.dfm}
 
 procedure TformEditParams_Task2.bbOpenFileClick(Sender: TObject);
+var
+  tmpWideString: WideString;
 begin
-try
- sWorkDirectory:= GetWorkingDirectoryName();
- odTargetFile.Files.Clear;
- if TFile.Exists(sWorkDirectory) then
-  odTargetFile.InitialDir:= sWorkDirectory;
- if Not odTargetFile.Execute(formEditParams_Task2.Handle) then Exit;
- edTargetFile.Text:= odTargetFile.FileName;
-finally
-
-end;
+ if SelectFile(Handle, wsTask1_Name, wsTask2_DefaultDirectory, tmpWideString) then
+ begin
+  setlength(tmpWideString, length(tmpWideString) + 1);
+  try
+   SysAllocStringLen(edTargetFile_Buffer, length(tmpWideString)*sizeof(WideChar) + 1);
+   edTargetFile_Buffer:= PWideChar(tmpWideString);
+   edTargetFile.SetTextBuf(edTargetFile_Buffer);
+  except
+   SysFreeString(edTargetFile_Buffer);
+  end;
+ end;
 end;
 
 procedure TformEditParams_Task2.btbRunTaskClick(Sender: TObject);
@@ -86,6 +91,18 @@ finally
 // FreeMem(tmpPWideChar);
 end;
 
+end;
+
+procedure TformEditParams_Task2.chkbTypeResultOutputClick(Sender: TObject);
+begin
+ lbResultFile.Visible:= (Sender as TCheckBox).Checked;
+ edResultFile.Visible:= (Sender as TCheckBox).Checked;
+end;
+
+procedure TformEditParams_Task2.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+   SysFreeString(edTargetFile_Buffer);
 end;
 
 end.

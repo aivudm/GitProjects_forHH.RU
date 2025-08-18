@@ -269,7 +269,7 @@ try
    begin
 //    if self.TaskState = tsTerminate then
 //     self.FTaskItemOwner.TaskCoreState:= self.TaskState;
-    sleep(iTaskPeriodReport);
+//    sleep(iTaskPeriodReport);
    end;
    tmpCardinal:= self.ThreadID;
  until (self.TaskState = tsTerminate) and (self.FTaskItemOwner.TaskState = tsTerminate);
@@ -424,8 +424,6 @@ var
 begin
 try
  try
-  if Assigned(self.FTaskCore) then
-   FreeAndNil(self.FTaskCore);
 //  FreeAndNil(self.FTaskSource);
   if Assigned(self.FPauseEvent) then
    FreeAndNil(self.FPauseEvent);
@@ -439,6 +437,8 @@ try
    FreeAndNil(self.FOLEStream_Log);
   if Assigned(self.FClientUDP) then
    FreeAndNil(self.FClientUDP);
+  if Assigned(self.FTaskCore) then
+   FreeAndNil(self.FTaskCore);
 
  except
   if Assigned(E) then
@@ -549,7 +549,7 @@ begin
        if self.FTaskCore.Priority <> tpNormal then self.FTaskCore.Priority:= tpNormal;
        if self.FTaskCore.Suspended then self.FTaskCore.Suspended:= false;
       //--- выдаЄм квант времени на выполнение «адачи
-       sleep(round(FCycleTimeValue*iTaskBoreHole)); // 5мс - на выполнение «адачи в библиотеке
+//       sleep(round(FCycleTimeValue*iTaskBoreHole)); // 5мс - на выполнение «адачи в библиотеке
                              // 95 - врем€ выполнение€ кода (ниже) и sleep
                              // это эмул€ци€ квантованного предоставлени€ времени выполнени€ потока
 
@@ -568,11 +568,11 @@ begin
     end;
     tsTerminate:
       begin
-       self.FTaskCore.TaskState:= tsTerminate; //--- чтобы покинуть цикл в TaskCore.Execute;
-      if not self.FTaskSource.AbortExecution then
-       self.FTaskSource.AbortExecution:= true;
+       if self.FTaskCore.TaskState in [tsDone, tsAbortedDone] then
+        self.FTaskSource.AbortExecution:= true;
        if self.FTaskCore.Priority <> tpNormal then self.FTaskCore.Priority:= tpNormal;
        if self.FTaskCore.Suspended then self.FTaskCore.Suspended:= false;
+        self.FTaskCore.TaskState:= tsTerminate; //--- чтобы покинуть цикл в TaskCore.Execute;
       end;
 {    tsDone:
       begin
@@ -709,7 +709,7 @@ until (self.TaskState = tsTerminate) and (self.TaskCoreState = tsTerminate);
                                         Exception(tmpObject).Message +
                                         '(TTaskCore.Execute (LibraryList[self.FLibraryId].LibraryAPI.FreeTaskSource(self.FTaskNum);), unTasks)');
      PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
-     self.Sleep(iCycleTimeValue*3);
+//     self.Sleep(iCycleTimeValue*3);
    end;
 
  finally

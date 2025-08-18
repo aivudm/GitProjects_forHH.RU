@@ -100,7 +100,7 @@ try
 
  if not Assigned(TaskSourceList) then
  begin
-   TaskSourceList:= TTaskSourceList.Create(true); //---
+   TaskSourceList:= TTaskSourceList.Create; //---
    TaskSourceList.Clear;
  end;
  if not Assigned(CriticalSection) then
@@ -118,14 +118,22 @@ end;
 procedure TLibraryAPI.FinalizeDLL;
 var
  tmpTaskSource: ITaskSource;
- tmpInt: word;
+ tmpInt: integer;
 begin
  try
-{
-  for tmpInt:= 0 to (TaskSourceList.Count - 1) do
+//  FreeAndNil(TaskSourceList);
+  for tmpInt:= (TaskSourceList.Count - 1) downto 0 do
+  begin
+//    TaskSourceList.Remove(TTaskSource(TaskSourceList[tmpInt]));
+   if Assigned(TaskSourceList[tmpInt]) then
+   begin
     tmpTaskSource:= TTaskSource(TaskSourceList.Extract(TaskSourceList[tmpInt]));
-    tmpTaskSource._Release
-}
+    tmpTaskSource._Release;
+    tmpTaskSource:= nil;
+   end;
+  end;
+  FreeAndNil(TaskSourceList);
+
  finally
  // TaskSourceList.Clear;
 //  freeandnil(TaskSourceList);
@@ -171,7 +179,7 @@ var
   tmpWord: word;
 begin
   Result:= nil;
-  tmpWord:= TaskSourceList.Add(TTaskSource.Create(LibraryTaskIndex));
+  tmpWord:= TaskSourceList.Add(TTaskSource(TTaskSource.Create(LibraryTaskIndex)));
   TaskSourceList[tmpWord].TaskMainModuleIndex:= MainModuleTaskIndex;
   TaskSourceList[tmpWord].TaskSourceListIndex:= tmpWord;
   Result:= TaskSourceList[tmpWord];
@@ -198,15 +206,18 @@ end;
 //------------------------------------------------------------------------------
 procedure TLibraryAPI.FreeTaskSource(var MainModuleTaskIndex: word); safecall;
 var
-  tmpTaskSource: ITaskSource;
+  tmpTaskSource: TTaskSource;
   tmpInt: integer;
 begin
  try
   for tmpInt:= 0 to (TaskSourceList.Count - 1) do
    if TaskSourceList[tmpInt].TaskMainModuleIndex = MainModuleTaskIndex then
    begin
-    tmpTaskSource:= TTaskSource(TaskSourceList.Extract(TaskSourceList[tmpInt]));
-    tmpTaskSource._Release
+    TaskSourceList.Remove(TTaskSource(TaskSourceList[tmpInt]));
+//    tmpTaskSource:= TTaskSource(TaskSourceList.Extract(TaskSourceList[tmpInt]));
+//    tmpTaskSource._Release
+//    tmpTaskSource.Free;
+
    end;
  finally
  end;

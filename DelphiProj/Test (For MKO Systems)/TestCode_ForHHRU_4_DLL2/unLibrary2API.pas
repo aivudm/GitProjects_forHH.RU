@@ -117,11 +117,24 @@ end;
 
 procedure TLibraryAPI.FinalizeDLL;
 var
-  tmpWord: word;
+ tmpTaskSource: ITaskSource;
+ tmpInt: integer;
 begin
-// if Assigned(TaskSourceList) then
-//  freeandnil(TaskSourceList);//    TaskSourceList.Free;
- if Assigned(CriticalSection) then
+  for tmpInt:= (TaskSourceList.Count - 1) downto 0 do
+  begin
+//    TaskSourceList.Remove(TTaskSource(TaskSourceList[tmpInt]));
+   if Assigned(TaskSourceList[tmpInt]) then
+   begin
+    tmpTaskSource:= TTaskSource(TaskSourceList.Extract(TaskSourceList[tmpInt]));
+    tmpTaskSource._Release;
+    tmpTaskSource:= nil;
+   end;
+  end;
+  FreeAndNil(TaskSourceList);
+
+
+
+  if Assigned(CriticalSection) then
   freeandnil(CriticalSection); //   CriticalSection.Free;
  if Assigned(LibraryLog) then
   freeandnil(LibraryLog);
