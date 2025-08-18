@@ -20,23 +20,24 @@
     <Transaction>1899.12.30 00:00:00.000.474,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.dfm=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams.dfm</Transaction>
     <Transaction>1899.12.30 00:00:00.000.627,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams_Task1.dfm=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams.dfm</Transaction>
     <Transaction>1899.12.30 00:00:00.000.084,=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.pas</Transaction>
-    <Transaction>1899.12.30 00:00:00.000.048,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams_Task2.dfm=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.dfm</Transaction>
-    <Transaction>1899.12.30 00:00:00.000.446,C:\Users\user\Documents\Embarcadero\Studio\Projects\Project1.dproj=C:\Users\user\Documents\Embarcadero\Studio\Projects\Primer_MT_3.dproj</Transaction>
-    <Transaction>1899.12.30 00:00:00.000.479,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unTaskItem.pas=</Transaction>
     <Transaction>1899.12.30 00:00:00.000.277,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unMain.pas=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unLibrary1API.pas</Transaction>
-    <Transaction>1899.12.30 00:00:00.000.333,=C:\Users\user\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.048,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams_Task2.dfm=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.dfm</Transaction>
     <Transaction>1899.12.30 00:00:00.000.728,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\PrimerDll_1_MT_4.dproj=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Primer_MT_3.dproj</Transaction>
-    <Transaction>1899.12.30 00:00:00.000.744,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unUtils.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.479,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unTaskItem.pas=</Transaction>
     <Transaction>1899.12.30 00:00:00.000.466,=C:\Users\user\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.333,=C:\Users\user\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.446,C:\Users\user\Documents\Embarcadero\Studio\Projects\Project1.dproj=C:\Users\user\Documents\Embarcadero\Studio\Projects\Primer_MT_3.dproj</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.744,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unUtils.pas=</Transaction>
     <Transaction>1899.12.30 00:00:00.000.942,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams_Task2.pas=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.pas</Transaction>
     <Transaction>1899.12.30 00:00:00.000.046,=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.pas</Transaction>
     <Transaction>1899.12.30 00:00:00.000.007,=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.pas</Transaction>
     <Transaction>1899.12.30 00:00:00.000.033,=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.pas</Transaction>
     <Transaction>1899.12.30 00:00:00.000.403,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.pas=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unTaskSource.pas</Transaction>
-    <Transaction>1899.12.30 00:00:00.000.626,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams_Task1.pas=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams.pas</Transaction>
-    <Transaction>1899.12.30 00:00:00.000.048,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams_Task2.pas=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.pas</Transaction>
     <Transaction>1899.12.30 00:00:00.000.533,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams_Task2.pas=</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.048,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams_Task2.pas=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Unit1.pas</Transaction>
+    <Transaction>1899.12.30 00:00:00.000.626,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams_Task1.pas=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unEditInputParams.pas</Transaction>
     <Transaction>1899.12.30 00:00:00.000.656,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unLibrary1Functional.pas=</Transaction>
     <Transaction>2025.08.17 20:36:32.651,=D:\DelphiProj\TestCode_ForHHRU_4_DLL1\Ext_Unit\Shobjidl.pas</Transaction>
+    <Transaction>2025.08.18 22:16:35.073,D:\DelphiProj\TestCode_ForHHRU_4_DLL1\unErrorException.pas=</Transaction>
   </Transactions>
 </BorlandProject>

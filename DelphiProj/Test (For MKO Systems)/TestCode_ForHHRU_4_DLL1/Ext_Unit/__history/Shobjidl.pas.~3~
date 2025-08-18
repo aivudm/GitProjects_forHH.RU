@@ -1,0 +1,242 @@
+unit Shobjidl;
+
+interface
+
+uses
+  ComObj, ActiveX, Windows;
+
+const
+  CLSID_FileOpenDialog: TGUID = '{DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7}';
+  SID_IShellItem: TGUID = '{43826D1E-E718-42EE-BC55-A1E261C37BFE}';
+
+const
+  FOS_OVERWRITEPROMPT    = $2;
+  FOS_STRICTFILETYPES    = $4;
+  FOS_NOCHANGEDIR        = $8;
+  FOS_PICKFOLDERS        = $20;
+  FOS_FORCEFILESYSTEM    = $40;
+  FOS_ALLNONSTORAGEITEMS = $80;
+  FOS_NOVALIDATE         = $100;
+  FOS_ALLOWMULTISELECT   = $200;
+  FOS_PATHMUSTEXIST      = $800;
+  FOS_FILEMUSTEXIST      = $1000;
+  FOS_CREATEPROMPT       = $2000;
+  FOS_SHAREAWARE         = $4000;
+  FOS_NOREADONLYRETURN   = $8000;
+  FOS_NOTESTFILECREATE   = $10000;
+  FOS_HIDEMRUPLACES      = $20000;
+  FOS_HIDEPINNEDPLACES   = $40000;
+  FOS_NODEREFERENCELINKS = $100000;
+  FOS_DONTADDTORECENT    = $2000000;
+  FOS_FORCESHOWHIDDEN    = $10000000;
+  FOS_DEFAULTNOMINIMODE  = $20000000;
+  FOS_FORCEPREVIEWPANEON = $40000000;
+
+const
+  SIGDN_NORMALDISPLAY               = 0;
+  SIGDN_PARENTRELATIVEPARSING       = $80018001;
+  SIGDN_DESKTOPABSOLUTEPARSING      = $80028000;
+  SIGDN_PARENTRELATIVEEDITING       = $80031001;
+  SIGDN_DESKTOPABSOLUTEEDITING      = $8004C000;
+  SIGDN_FILESYSPATH                 = $80058000;
+  SIGDN_URL                         = $80068000;
+  SIGDN_PARENTRELATIVEFORADDRESSBAR = $8007C001;
+  SIGDN_PARENTRELATIVE              = $80080001;
+  SIGDN_PARENTRELATIVEFORUI         = $80094001;
+
+type
+  PComdlgFilterSpec = ^TComdlgFilterSpec;
+  TComdlgFilterSpec = record
+    pszName: LPCWSTR;
+    pszSpec: LPCWSTR;
+  end;
+
+  TComdlgFilterSpecArray = array of TComdlgFilterSpec;
+
+  PPropertyKey = ^TPropertyKey;
+  TPropertyKey = record
+    fmtid: TGUID;
+    pid: DWORD;
+  end;
+
+  IFileDialog = interface;
+
+  IModalWindow = interface(IUnknown)
+    ['{B4DB1657-70D7-485E-8E3E-6FCB5A5C1802}']
+    function Show(hwndParent: HWND): HRESULT; stdcall;
+  end;
+
+  IShellItem = interface(IUnknown)
+    ['{43826D1E-E718-42EE-BC55-A1E261C37BFE}']
+    function BindToHandler(const pbc: IBindCtx; const bhid: TGUID;
+      const riid: TIID; out ppv): HResult; stdcall;
+    function GetParent(var ppsi: IShellItem): HResult; stdcall;
+    function GetDisplayName(sigdnName: DWORD; var ppszName: LPWSTR): HResult; stdcall;
+    function GetAttributes(sfgaoMask: DWORD; var psfgaoAttribs: DWORD): HResult; stdcall;
+    function Compare(const psi: IShellItem; hint: DWORD;
+      var piOrder: Integer): HResult; stdcall;
+  end;
+
+  IShellItemFilter = interface(IUnknown)
+    ['{2659B475-EEB8-48B7-8F07-B378810F48CF}']
+    function IncludeItem(const psi: IShellItem): HResult; stdcall;
+    function GetEnumFlagsForItem(const psi: IShellItem;
+      var pgrfFlags: DWORD): HResult; stdcall;
+  end;
+
+  IFileDialogEvents = interface(IUnknown)
+    ['{973510DB-7D7F-452B-8975-74A85828D354}']
+    function OnFileOk(const pfd: IFileDialog): HResult; stdcall;
+    function OnFolderChanging(const pfd: IFileDialog;
+      const psiFolder: IShellItem): HResult; stdcall;
+    function OnFolderChange(const pfd: IFileDialog): HResult; stdcall;
+    function OnSelectionChange(const pfd: IFileDialog): HResult; stdcall;
+    function OnShareViolation(const pfd: IFileDialog; const psi: IShellItem;
+      out pResponse: DWORD): HResult; stdcall;
+    function OnTypeChange(const pfd: IFileDialog): HResult; stdcall;
+    function OnOverwrite(const pfd: IFileDialog; const psi: IShellItem;
+      out pResponse: DWORD): HResult; stdcall;
+  end;
+
+  IFileDialog = interface(IModalWindow)
+    ['{42F85136-DB7E-439C-85F1-E4075D135FC8}']
+    function SetFileTypes(cFileTypes: UINT; rgFilterSpec: TComdlgFilterSpecArray): HResult; stdcall;
+    function SetFileTypeIndex(iFileType: UINT): HResult; stdcall;
+    function GetFileTypeIndex(var piFileType: UINT): HResult; stdcall;
+    function Advise(const pfde: IFileDialogEvents; var pdwCookie: DWORD): HResult; stdcall;
+    function Unadvise(dwCookie: DWORD): HResult; stdcall;
+    function SetOptions(fos: DWORD): HResult; stdcall;
+    function GetOptions(var pfos: DWORD): HResult; stdcall;
+    function SetDefaultFolder(const psi: IShellItem): HResult; stdcall;
+    function SetFolder(const psi: IShellItem): HResult; stdcall;
+    function GetFolder(var ppsi: IShellItem): HResult; stdcall;
+    function GetCurrentSelection(var ppsi: IShellItem): HResult; stdcall;
+    function SetFileName(pszName: LPCWSTR): HResult; stdcall;
+    function GetFileName(var pszName: LPCWSTR): HResult; stdcall;
+    function SetTitle(pszTitle: LPCWSTR): HResult; stdcall;
+    function SetOkButtonLabel(pszText: LPCWSTR): HResult; stdcall;
+    function SetFileNameLabel(pszLabel: LPCWSTR): HResult; stdcall;
+    function GetResult(var ppsi: IShellItem): HResult; stdcall;
+    function AddPlace(const psi: IShellItem; fdap: DWORD): HResult; stdcall;
+    function SetDefaultExtension(pszDefaultExtension: LPCWSTR): HResult; stdcall;
+    function Close(hr: HResult): HResult; stdcall;
+    function SetClientGuid(const guid: TGUID): HResult; stdcall;
+    function ClearClientData: HResult; stdcall;
+    function SetFilter(const pFilter: IShellItemFilter): HResult; stdcall;
+  end;
+
+  IEnumShellItems = interface(IUnknown)
+    ['{70629033-E363-4A28-A567-0DB78006E6D7}']
+    function Next(celt: ULONG; out rgelt; pceltFetched: PLongint): HResult; stdcall;
+    function Skip(celt: ULONG): HResult; stdcall;
+    function Reset: HResult; stdcall;
+    function Clone(out ppenum: IEnumShellItems): HResult; stdcall;
+  end;
+
+  IShellItemArray = interface(IUnknown)
+    ['{B63EA76D-1F85-456F-A19C-48159EFA858B}']
+    function BindToHandler(const pbc: IBindCtx; const rbhid: TGUID;
+      const riid: TIID; out ppvOut): HResult; stdcall;
+    function GetPropertyStore(flags: DWORD; const riid: TIID; out ppv): HResult; stdcall;
+    function GetPropertyDescriptionList(const keyType: TPropertyKey;
+      const riid: TIID; out ppv): HResult; stdcall;
+    function GetAttributes(dwAttribFlags: DWORD; sfgaoMask: DWORD;
+      var psfgaoAttribs: DWORD): HResult; stdcall;
+    function GetCount(var pdwNumItems: DWORD): HResult; stdcall;
+    function GetItemAt(dwIndex: DWORD; var ppsi: IShellItem): HResult; stdcall;
+    function EnumItems(var ppenumShellItems: IEnumShellItems): HResult; stdcall;
+  end;
+
+  IFileOpenDialog = interface(IFileDialog)
+    ['{D57C7288-D4AD-4768-BE02-9D969532D960}']
+    function GetResults(var ppenum: IShellItemArray): HResult; stdcall;
+    function GetSelectedItems(var ppsai: IShellItemArray): HResult; stdcall;
+  end;
+
+  TFileDialogEvents = class(TInterfacedObject, IFileDialogEvents)
+  private
+    function OnFileOk(const pfd: IFileDialog): HResult; stdcall;
+    function OnFolderChanging(const pfd: IFileDialog;
+      const psiFolder: IShellItem): HResult; stdcall;
+    function OnFolderChange(const pfd: IFileDialog): HResult; stdcall;
+    function OnSelectionChange(const pfd: IFileDialog): HResult; stdcall;
+    function OnShareViolation(const pfd: IFileDialog; const psi: IShellItem;
+      out pResponse: DWORD): HResult; stdcall;
+    function OnTypeChange(const pfd: IFileDialog): HResult; stdcall;
+    function OnOverwrite(const pfd: IFileDialog; const psi: IShellItem;
+      out pResponse: DWORD): HResult; stdcall;
+  public
+    ResultFileName: WideString;
+  end;
+
+function SHCreateItemFromParsingName(pszPath: LPCWSTR; const pbc: IBindCtx;
+  const riid: TIID; out ppv): HResult; stdcall; external 'shell32.dll';
+
+function SelectDirectory(Parent: HWND; const Caption: WideString; const Root: WideString;
+  var Directory: WideString): Boolean;
+
+implementation
+
+{ TFileDialogEvents }
+
+function TFileDialogEvents.OnFileOk(const pfd: IFileDialog): HResult;
+var
+  ShellItem: IShellItem;
+  szName: PWideChar;
+begin
+  if pfd.GetResult(ShellItem)=S_OK then
+  begin
+    if ShellItem.GetDisplayName(SIGDN_FILESYSPATH, szName)=S_OK then
+    begin
+      self.ResultFileName:= szName;
+      CoTaskMemFree(szName);
+    end;
+  end;
+  Result:=S_OK;
+end;
+
+function TFileDialogEvents.OnFolderChange(const pfd: IFileDialog): HResult;
+begin
+  Result:=S_OK;
+end;
+
+function TFileDialogEvents.OnFolderChanging(const pfd: IFileDialog;
+  const psiFolder: IShellItem): HResult;
+begin
+  Result:=S_OK;
+end;
+
+function TFileDialogEvents.OnOverwrite(const pfd: IFileDialog;
+  const psi: IShellItem; out pResponse: DWORD): HResult;
+begin
+  Result:=S_OK;
+end;
+
+function TFileDialogEvents.OnSelectionChange(
+  const pfd: IFileDialog): HResult;
+begin
+  Result:=S_OK;
+end;
+
+function TFileDialogEvents.OnShareViolation(const pfd: IFileDialog;
+  const psi: IShellItem; out pResponse: DWORD): HResult;
+begin
+  Result:=S_OK;
+end;
+
+function TFileDialogEvents.OnTypeChange(const pfd: IFileDialog): HResult;
+begin
+  Result:=S_OK;
+end;
+
+{ SelectDirectory }
+{Реализация в вызывающем приложении}
+{ SelectFile }
+{Реализация в вызывающем приложении}
+
+
+initialization
+  OleInitialize(nil);
+
+end.
+

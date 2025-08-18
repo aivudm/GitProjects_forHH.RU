@@ -17,11 +17,12 @@ uses
   unConfirmDlg in 'unConfirmDlg.pas' {formConfirmDlg};
 
 {$R *.res}
-
+{
 var
   hUniqueMapping : THandle;
   hFirstWindow : THandle;
   sAppName: PWChar;
+}
 begin
 {
  sAppName:= PWChar(application.ExeName + '1');

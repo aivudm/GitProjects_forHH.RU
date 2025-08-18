@@ -96,7 +96,6 @@
             <Form>formEditParams_Task1</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="unErrorException.pas"/>
         <DCCReference Include="unTaskSource.pas"/>
         <DCCReference Include="unEditInputParams_Task2.pas">
             <Form>formEditParams_Task2</Form>

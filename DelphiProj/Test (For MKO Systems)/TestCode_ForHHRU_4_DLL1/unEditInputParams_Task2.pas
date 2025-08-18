@@ -42,7 +42,7 @@ procedure TformEditParams_Task2.bbOpenFileClick(Sender: TObject);
 var
   tmpWideString: WideString;
 begin
- if SelectFile(Handle, wsTask1_Name, wsTask2_DefaultDirectory, tmpWideString) then
+ if SelectFile(Handle, wsTask2_Name, wsTask2_DefaultDirectory, tmpWideString) then
  begin
   setlength(tmpWideString, length(tmpWideString) + 1);
   try
