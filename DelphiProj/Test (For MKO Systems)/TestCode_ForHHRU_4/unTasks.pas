@@ -800,8 +800,9 @@ begin
   GetMem(cdsData.lpData, cdsData.cbData);
   try
     StrPCopy(cdsData.lpData, PWChar(inputString));
-    tmpHandle:= formMain.Handle; //FindWindow(nil, PWChar(formMain.ClassName));
-    //Отсылаем сообщение в окно главного модуля
+//    tmpHandle:= formMain.Handle; //FindWindow(nil, PWChar(formMain.ClassName));
+    tmpHandle:= formMain.reThreadInfo_Main.Handle;
+    //Отсылаем сообщение в окно отображения информации о потоке (в главном модуле)
 //    PostThreadMessage(FindWindow(nil, PWChar(formMain.Caption)),
 //    PostMessage(FindWindow(nil, PWChar(formMain.ClassName)),
     SendMessage(tmpHandle,

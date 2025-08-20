@@ -117,10 +117,11 @@
             <DesignClass>TDataModule</DesignClass>
         </DCCReference>
         <DCCReference Include="unUtilCommon.pas"/>
-        <DCCReference Include="unUtils.pas"/>
+        <DCCReference Include="unUtils.pas">
+            <Form>/,</Form>
+        </DCCReference>
         <DCCReference Include="unConfirmDlg.pas">
             <Form>formConfirmDlg</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>

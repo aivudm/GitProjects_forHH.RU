@@ -56,7 +56,7 @@ type
   private
     { Private declarations }
     procedure WMWindowPosChanging(var Msg: TWMWindowPosChanging); message WM_WINDOWPOSCHANGING;
-    procedure WMCopyData(var MessageData: TWMCopyData); message WM_COPYDATA;
+//    procedure WMCopyData(var MessageData: TWMCopyData); message WM_COPYDATA;
     procedure reThreadInfo_Main_WndProc_Current(var Message: TMessage);
     procedure memThreadInfo_1_WndProc_Current(var Message: TMessage);
     procedure memLogInfo_2_WndProc_Current(var Message: TMessage);
@@ -77,12 +77,12 @@ uses unVariables, unTools, unUtils, unUtilCommon, unTasks, unInfoWindow, unConfi
 
 {$R *.dfm}
 
+{
 procedure TformMain.WMCopyData(var MessageData: TWMCopyData);
 var
   tmpWord: word;
   tmpString: WideString;
 begin
-//  if MessageData.CopyDataStruct.dwData = CMD_SetMemoLine then
   if MessageData.CopyDataStruct.dwData = CMD_SetMemoLine then
   begin
   tmpString:= PWChar(MessageData.CopyDataStruct.lpData);
@@ -99,6 +99,7 @@ begin
     MessageData.Result := 0;
 
 end;
+}
 
 procedure TformMain.WMWindowPosChanging(var Msg: TWMWindowPosChanging);
 begin
@@ -123,26 +124,55 @@ var
   tmpBool: boolean;
   tmpInt: integer;
   tmpTaskItem: TTaskItem;
+  tmpCopyDataStruct: PCopyDataStruct;
+  tmpWord: word;
+  tmpString: WideString;
 begin
  tmpBool:= true;
- if (Message.Msg = WM_Data_Update) and (Message.LParam = CMD_DeleteTaskItem) then
- begin
 
-   lbThreadList.ItemIndex:= Message.WParam;
-   tmpTaskItem:= lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem;
+//--- Если сообщение получено от другого потока, то сразу вернём управление потоку-отправителю, не дожидаясь окончания обработки данного сообщени
+ if InSendMessage() then
+  ReplyMessage(ord(true));
+
+ case Message.Msg of
+//---    WM_COPYDATA:
+   WM_COPYDATA:
+   begin
+    tmpCopyDataStruct:= Pointer(Message.LParam);
+    if tmpCopyDataStruct.dwData = CMD_SetMemoLine then
+    begin
+     tmpString:= PWChar(tmpCopyDataStruct.lpData);
+     tmpWord:= StrToInt(GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1, IndexInString(sDelimiterNumTask, tmpString, IndexInString(sDelimiterNumTask, tmpString, 1) + 1) - 1));
+     tmpString:= GetSubStr(tmpString, IndexInString(sDelimiterNumTask, tmpString, 2) + 2, - 1);
+     if tmpWord > formMain.reThreadInfo_Main.Items.Count  then
+      formMain.reThreadInfo_Main.Items.Add(tmpString)
+     else
+      formMain.reThreadInfo_Main.Items[tmpWord]:= tmpString;
+    end;
+   end;
+
+//---    WM_Data_Update:
+   WM_Data_Update:
+   begin
+    if (Message.LParam = CMD_DeleteTaskItem) then
+    begin
+
+     lbThreadList.ItemIndex:= Message.WParam;
+     tmpTaskItem:= lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem;
 //--- Передвинем номера строк в Мемо для всех задач, номера которых после удаляемой строки
-   for tmpInt:= lbThreadList.ItemIndex to (lbThreadList.Count - 1) do
-     if (lbThreadList.Items.Objects[tmpInt] as TTaskItem).LineIndex_ForView > tmpTaskItem.LineIndex_ForView then
-        (lbThreadList.Items.Objects[tmpInt] as TTaskItem).LineIndex_ForView:= (lbThreadList.Items.Objects[tmpInt] as TTaskItem).LineIndex_ForView - 1;
+     for tmpInt:= lbThreadList.ItemIndex to (lbThreadList.Count - 1) do
+      if (lbThreadList.Items.Objects[tmpInt] as TTaskItem).LineIndex_ForView > tmpTaskItem.LineIndex_ForView then
+         (lbThreadList.Items.Objects[tmpInt] as TTaskItem).LineIndex_ForView:= (lbThreadList.Items.Objects[tmpInt] as TTaskItem).LineIndex_ForView - 1;
 //--- Удаление строки Мемо, соответствующей задаче из списка задач
 //   reThreadInfo_Main.Lines.Delete(TaskList[Message.WParam].LineIndex_ForView);
 //--- После сдвига номеров строк в Мемо для всех задач, удаляем последнюю строку Мемо
 //--- Отображение оставшихся задач автоматически сдвинется вверх по строкам мемо в процессе получения отчётов от задач
-   reThreadInfo_Main.Items.Delete(reThreadInfo_Main.Items.Count - 1);
-   lbThreadList.DeleteSelected;
+      reThreadInfo_Main.Items.Delete(reThreadInfo_Main.Items.Count - 1);
+      lbThreadList.DeleteSelected;
+      tmpBool:= false;
+ end;
 
-   tmpBool:= false;
-
+   end;
  end;
 
  if Assigned(memThreadInfo_1_WndProc_Original) and tmpBool then
