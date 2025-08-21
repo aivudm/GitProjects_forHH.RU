@@ -1,7 +1,7 @@
 unit unVariables;
 
 interface
-uses Windows, SysUtils, Classes, IOUtils, ActiveX, ComObj, Vcl.AxCtrls, System.Diagnostics, System.Contnrs, Dialogs,
+uses Windows, SysUtils, Classes, IOUtils, ActiveX, ComObj, Vcl.AxCtrls, System.Diagnostics, System.Contnrs, Dialogs, DateUtils,
      unTaskSource, unEditInputParams_Task1;
 
 type
@@ -59,6 +59,7 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
+   procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
@@ -76,6 +77,7 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
     FTaskMainModuleIndex: word;
     FTaskSourceListIndex: word;
     FTaskState: TTaskState;
+    FOwnerThread: DWORD;
     FTaskStringList: TStringList;
     FStringStream: TStringStream;
     FStringStream_copy: TStringStream;
@@ -90,6 +92,7 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
     FAbortExecution: boolean;
     procedure TaskProcedure; safecall;
     function Task1_WinExecute (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask1_Result: TTask_Result): HRESULT;
+    procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
 
    public
     constructor Create(TaskLibraryIndex: word);
@@ -104,6 +107,7 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
     function GetAbortExecutionState: boolean; safecall;
     procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
+    procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
     property TaskMainModuleIndex: WORD read FTaskMainModuleIndex write FTaskMainModuleIndex;
     property TaskSourceListIndex: WORD read FTaskSourceListIndex write FTaskSourceListIndex;
@@ -196,7 +200,7 @@ begin
 //--- Создание потока для передачи информации для журнала в "управляющий поток" - TaskItem
 //--- Запись в поток "начальных данных" (наименование, номер)
   FStringStream_Log:= TStringStream.Create(tmpString, TEncoding.ANSI);
-  FTaskStream_Log:= TStreamAdapter.Create(FStringStream, soReference);
+  FTaskStream_Log:= TStreamAdapter.Create(FStringStream_Log, soReference);
 
 //--- Добавление созданного объекта Задачи в список Задач
 //   FTaskSourceList:= TaskSourceList.Add(self);
@@ -277,6 +281,13 @@ begin
 end;
 
 //------------------------------------------------------------------------------
+procedure TTaskSource.SetOwnerThread(inputOwnerThread: DWORD); safecall;
+begin
+  FOwnerThread:= inputOwnerThread;
+end;
+
+
+//------------------------------------------------------------------------------
 function TTaskSource.GetTask_Result: TTask_Result; safecall;
 begin
   Result:= FTask_Result;
@@ -350,6 +361,7 @@ var
   tmpArray_WideString: TArray_WideString;
   tmpTask1_Parameters: TTask1_Parameters;
   tmpObject: TObject;
+  tmpLibraryAPI: ILibraryAPI;
  begin
 try
  case self.FTaskLibraryIndex {TaskLibraryIndex} of
@@ -380,6 +392,15 @@ try
                                     FTaskMainModuleIndex, self.FTask_Result);
 except
  tmpObject:= ExceptObject;
+ try
+  tmpLibraryAPI:= TLibraryAPI.Create;
+  self.WriteDataToLog(format(wsTask_AbortedOnError,
+                      [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex, Exception(tmpObject).ClassName +
+                      ', E.Message = ' + Exception(tmpObject).Message]),
+                        'TaskSource.TaskProcedure', 'unVariables');
+    finally
+     tmpLibraryAPI._Release;
+    end;
 // raise;
 end;
   end;
@@ -400,7 +421,7 @@ var
   tmpStartupInfo: TStartupInfo;
   tmpProcessInfo: TProcessInformation;
   tmpExitCode: Cardinal;
-
+  tmpLibraryAPI: ILibraryAPI;
 //--- Начало Задачи №1 - TaskSource.Task1_WinExecute ------------------------------------
 begin
 try
@@ -456,30 +477,44 @@ try
         tmpStreamWriter.WriteLine(tmpWideString);
        end;
 //------------------------------------------------------------------------------
-
-      ZeroMemory(@tmpStartupInfo, SizeOf(tmpStartupInfo));
-      tmpStartupInfo.cb := SizeOf(tmpStartupInfo);
-      tmpStartupInfo.dwFlags      := STARTF_USESHOWWINDOW;
-      tmpStartupInfo.wShowWindow := SW_NORMAL;
+ try
+  ZeroMemory(@tmpStartupInfo, SizeOf(tmpStartupInfo));
+  tmpStartupInfo.cb := SizeOf(tmpStartupInfo);
+  tmpStartupInfo.dwFlags      := STARTF_USESHOWWINDOW;
+  tmpStartupInfo.wShowWindow := SW_NORMAL;
 //--- Запускаем процесс Shell-командера
 
-      if CreateProcess(nil, PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2), nil, nil, False, CREATE_NEW_CONSOLE or NORMAL_PRIORITY_CLASS, nil, nil, tmpStartupInfo, tmpProcessInfo)
-            then
-      begin
+  if CreateProcess(nil, PChar(inputParam1 + wsSignofWorkWileClosing + inputParam2), nil, nil, False, CREATE_NEW_CONSOLE or NORMAL_PRIORITY_CLASS, nil, nil, tmpStartupInfo, tmpProcessInfo)  then
+  begin
 //--- На всякий случай - ждём завершения инициализации
-       WaitForInputIdle(tmpProcessInfo.hProcess, INFINITE);
+   WaitForInputIdle(tmpProcessInfo.hProcess, INFINITE);
 //--- Ожидаем "до конца", либо будет принудительно завершён из главного модуля
-       WaitForSingleObject(tmpProcessInfo.hProcess, INFINITE);
+   WaitForSingleObject(tmpProcessInfo.hProcess, INFINITE);
 //Получаем код завершения.
-       GetExitCodeProcess(tmpProcessInfo.hProcess, tmpExitCode);
-      end
-      else
-      begin
-       showmessage(format(wsProcessCreateError, [GetLastError]));
-       RaiseLastWin32Error; //RaiseLastOSError;
-      end;
+   GetExitCodeProcess(tmpProcessInfo.hProcess, tmpExitCode);
+  end
+  else
+  begin
+   showmessage(format(wsProcessCreateError, [GetLastError]));
+   RaiseLastWin32Error; //RaiseLastOSError;
+  end;
 
+  try
+   tmpLibraryAPI:= TLibraryAPI.Create;
+   self.WriteDataToLog(format(wsTask_DoneMessage, [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex]), 'Task1_FileFinderByMask', 'unVariables');
+  finally
+   tmpLibraryAPI._Release;
+  end;
 
+ except
+  on tmpE: Exception do
+  begin
+   self.WriteDataToLog(format(wsTask_AbortedOnError,
+                       [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex, tmpE.ClassName +
+                       ', E.Message = ' + tmpE.Message]),
+                      'Task1_WinExecute', 'unVariables');
+  end;
+ end;
 
 finally
  CloseHandle(tmpProcessInfo.hProcess);
@@ -494,6 +529,47 @@ finally
 end;
 
 end;
+
+//------------------------------------------------------------------------------
+procedure TTaskSource.WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
+var
+  tmpWideString: WideString;
+  tmpCardinal: Cardinal;
+  tmpLibraryAPI: ILibraryAPI;
+begin
+ CriticalSection.Enter;
+  tmpWideString:= '---- ';
+  tmpWideString:= tmpWideString + format(wsResultStreamTitle, [FTaskLibraryIndex, FTaskLibraryIndex]);
+  tmpWideString:= tmpWideString + ' ---------------------'
+                + #13#10
+                + DatetimeToStr(today())
+                + #13#10
+                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
+                + #13#10
+                + E_source1
+                + #13#10
+                + '--------------------------------------------------';
+  FStringStream_Log.WriteString(tmpWideString);
+  CriticalSection.Leave;
+//--- Обновить информацию в ТМемо (с журналом работы)
+  try
+   if not PostThreadMessage(self.FOwnerThread, WM_Data_Update, 0, CMD_SetMemoLogStreamUpd) then
+   begin
+    try
+     tmpLibraryAPI:= TLibraryAPI.Create;
+     self.WriteDataToLog(format(wsTask_ErrorByPostThreadMessage,
+                        [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex, GetLastError()]),
+                  'TaskSource.WriteDataToLog', 'unVariables');
+    finally
+     tmpLibraryAPI._Release;
+    end;
+   end;
+  finally
+
+  end;
+end;
+
+
 
 {
 procedure TTaskSource.SendInfoToLog(inputString: WideString);

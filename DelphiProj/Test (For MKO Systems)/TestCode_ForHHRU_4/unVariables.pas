@@ -73,6 +73,7 @@ type
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
+   procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
@@ -232,7 +233,7 @@ var
   iniFile: TIniFile;
   logFileName: WideString;
   logFileBuffer: TFileBuffer;
-  logFileStringList: TStringList;
+//  logFileStringList: TStringList;
   logFileStream: TFileStream;
   logFileStringStream: TStringStream;
   logFileStream_LastPos: Cardinal = 0;
@@ -408,7 +409,7 @@ else
 
 logFileName:= sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log'));
 //--- Создание потока для файла журнала
-//logFileStream:= TFileStream.Create(logFileName, fmOpenRead or fmShareDenyWrite);
+logFileStream:= TFileStream.Create(logFileName, fmOpenRead or fmShareDenyWrite);
 //SetLength(logFileBuffer, logFileStream.Size);
 //logFileStream.ReadBuffer(Pointer(logFileBuffer)^, Length(logFileBuffer));
 //logFileStream.Position:= 0;
@@ -416,15 +417,12 @@ logFileName:= sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.E
 logFileStringStream:= TStringStream.Create;
 logFileStringStream.LoadFromFile(logFileName);
 
-logFileStringList:= TStringList.Create;
-logFileStringList.LoadFromStream(logFileStringStream);
-
 finalization
+
+FreeAndNil(logFileStream);
 logFileStringStream.SaveToFile(logFileName);
 FreeAndNil(LibraryList);
 FreeAndNil(iniFile);
-//FreeAndNil(logFileStream);
 FreeAndNil(logFileStringStream);
-FreeAndNil(logFileStringList);
 
 end.

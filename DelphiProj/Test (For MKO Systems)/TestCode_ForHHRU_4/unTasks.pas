@@ -260,7 +260,7 @@ try
 //--- поэтому устанавливаем Прервано
      self.FTaskItemOwner.TaskState:= tsTerminate;
      self.FStringStream_Log.WriteString(Exception(tmpObject).ClassName + ', E.Message = ' + tmpWideString + '(TTaskCore.Execute, unTasks)');
-     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
     end;
 //--- Фиксируем общее время выполнения задачи
     self.FTaskItemOwner.FEndTickCount:= GetTickCount();
@@ -299,7 +299,7 @@ try
                                     ', E.Message = ' +
                                     tmpE.Message +
                                     '(TTaskCore.DoTerminate, unTasks)');
-    PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+    PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
 
    end;
    raise Exception.Create(PAnsiChar(tmpString));
@@ -321,7 +321,7 @@ finally
  self.FTaskSource:= nil;
 //--- Записать в журнал отчёт о завершении данной задачи (потока)
  FStringStream_Log.WriteString(format(wsTaskCore_Terminated, [self.FTaskNum, self.ThreadID]));
- PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+ PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoLogStreamUpd);
 end;
 
 end;
@@ -444,7 +444,7 @@ try
   if Assigned(E) then
   begin
    self.FStringStream_Log.WriteString(E.ClassName + ', E.Message = ' + E.Message + ' (TTaskItem.OnTerminate, unTasks)');
-   PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+   PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
   end;
   raise Exception.Create(PAnsiChar(E.ClassName + ', E.Message = ' + E.Message));
  end;
@@ -459,13 +459,13 @@ except
                                     ', E.Message = ' +
                                     Exception(tmpExcept).Message +
                                     '(TTaskCore.DoTerminate, unTasks)');
-    PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+    PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
  end;
 end;
 //--- Записать в журнал отчёт о завершении данной задачи (потока)
 try
  FStringStream_Log.WriteString(format(wsTaskItem_Terminated, [self.FTaskNum, self.ThreadID]));
- PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+ PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
  self.Sleep(iCycleTimeValue*3); //--- пауза для получения данных главным потоком
 finally
  if Assigned(self.FStringStream_Log) then
@@ -477,6 +477,7 @@ end;
 end;
 
 
+//------------------------------------------------------------------------------
 function TTaskItem.IsTerminated: boolean;
 begin
   Result:= self.Terminated;
@@ -487,11 +488,13 @@ procedure TTaskItem.Execute;
 var
   tmpProc: TTaskProcedure;
   tmpWord: word;
+  tmpBool: BOOL;
   tmpStreamWriter: TStreamWriter;
   tmpInt: integer;
   tmpInt64: Int64;
   tmpE: Exception;
   tmpObject: TObject;
+  tmpMsg: TMsg;
 begin
 //--- Создаём новый объект "Ядро исходника Задачи" - для получения функционала управления потоком
 //--- Делаем это в главном модуле, так как этот объект "продолжение" TaskItem, который становится аналогом
@@ -504,8 +507,15 @@ begin
 //--- от ядра задачи
  StringStream_Core_Log:= TStringStream.Create('', TEncoding.ANSI); //--- При создании ядра не пишем в лог отдельное сообщение
  StringStream_Core_Log.LoadFromStream(Stream_Core_Log);
-
 }
+
+//--- В объект TaskSource ядра задачи (в библиотеку) запишем ID потока - TaskItem
+//--- для оповещения TaskItem ядром задачи о необходимости обновления журнала (в главаном модуле в визуальном компоненте)
+//--- Обработка сообщений от ядра-задачи будет в TaskItem.Queue, а в исходнике задаче отправляется сообщение PostThreadMessage)
+ self.FTaskCore.TaskSource.SetOwnerThread(GetCurrentThreadId);
+//--- Сделаем "фиктивную" выборку из очереди, чтобы создать очередь
+ tmpBool:= PeekMessage(tmpMsg, 0, WM_Data_Update, WM_Data_Update, PM_Remove);
+
  self.TaskCoreState:= tsActive;
  self.FTaskCore.Start;
  tmpInt64:= 0;
@@ -521,7 +531,7 @@ begin
                                                 TaskList[self.FTaskNum].ThreadID,
                                                 TaskList[self.FTaskNum].TaskCore.ThreadID]) +
                                                 ' (formTools.btnNewThreadClick(), unTools)');
- PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+ PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoLogStreamUpd);
 
 //--- Для отработки (удалить после...)
  try
@@ -581,8 +591,20 @@ begin
 }
    end;
 
+//--- Проверка очереди сообщений потока TaskItem на наличие сообщений от ядра задачи
+//    tmpBool:= true;
+//    while tmpBool do
+//    begin
+     tmpBool:= PeekMessage(tmpMsg, 0, WM_Data_Update, WM_Data_Update, PM_Remove);
+     if (tmpMsg.message = WM_Data_Update) and (tmpMsg.LParam = CMD_SetMemoLogStreamUpd) then
+     begin
+      PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, self.FTaskNum, CMD_SetMemoLogStreamUpd);
+     end;
+//    end;
 //--- Отчёт о сотоянии и результатах в главный модуль через self.PeriodReport (мс)
-   if ((GetTickCount - tmpInt64) > self.PeriodReport) and (self.TaskState <> tsTerminate) then
+   if ((GetTickCount - tmpInt64) > self.PeriodReport)
+      and (self.TaskState <> tsTerminate)
+      or ((tmpMsg.message = WM_Data_Update) and (tmpMsg.LParam = CMD_SetMemoStreamUpd)) then
    begin
 //--- При выводе отчёта, также читаем промежуточные результаты от задачи и показываем в визуальных компонентах главного потока
 //--- все потоки выводят информацию через одну переменную (запись) OutInfo_ForViewing
@@ -640,7 +662,7 @@ begin
       begin
        if self.StringStream_LastPos < self.Stream.Position then
        begin
-          PostMessage(FInfo_ForViewing.hMemoThreadInfo_1, WM_Data_Update, self.FInfo_ForViewing.IndexInViewComponent, CMD_SetMemoStreamUpd);
+        PostMessage(FInfo_ForViewing.hMemoThreadInfo_1, WM_Data_Update, self.FInfo_ForViewing.IndexInViewComponent, CMD_SetMemoStreamUpd);
        end;
       end;
 
@@ -662,7 +684,7 @@ begin
                                     ', Err.Message = ' +
                                     tmpE.Message +
                                     '(TTaskCore.DoTerminate, unTasks)');
-    PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+    PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoLogStreamUpd);
    end;
  end;
 
@@ -708,7 +730,7 @@ until (self.TaskState = tsTerminate) and (self.TaskCoreState = tsTerminate);
                                         ', E.Message = ' +
                                         Exception(tmpObject).Message +
                                         '(TTaskCore.Execute (LibraryList[self.FLibraryId].LibraryAPI.FreeTaskSource(self.FTaskNum);), unTasks)');
-     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoLogStreamUpd);
 //     self.Sleep(iCycleTimeValue*3);
    end;
 
@@ -866,7 +888,7 @@ begin
                                     ', Err.Message = ' +
                                     tmpE.Message +
                                     '(TTaskItem.SendReportToMainProcess, unTasks)');
-     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+     PostMessage(FInfo_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoLogStreamUpd);
     end;
  end;
 

@@ -27,6 +27,7 @@ type
     { Private declarations }
   public
     { Public declarations }
+   TaskSourceListIndex: word;
   end;
 
 var
@@ -35,7 +36,7 @@ var
 
 
 implementation
-//uses Shobjidl;
+uses unVariables;
 {$R *.dfm}
 
 procedure TformEditParams_Task1.bbOpenDirectoryClick(Sender: TObject);
@@ -64,7 +65,11 @@ begin
 try
  if (not TDirectory.Exists(edTargetDirectory.Text)) or (edTargetDirectory.Text = '') then
  begin
-  showmessage(wsTask1_TargetDirectoryNotFound);
+  TaskSourceList[TaskSourceListIndex].WriteDataToLog(wsResultStreamTitle +
+                               wsCRLF +
+                               format(wsTask_TargetDirectoryNotFound, [edTargetDirectory.Text]),
+                               'TformEditParams_Task1.btbRunTaskClick', 'unformEditParams_Task1');
+  showmessage(format(wsTask_TargetDirectoryNotFound, [edTargetDirectory.Text]));
   exit;
  end;
 //  GetMem(tmpPWideChar, tmpWord + 1);

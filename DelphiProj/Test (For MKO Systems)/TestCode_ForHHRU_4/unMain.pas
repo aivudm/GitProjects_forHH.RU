@@ -57,9 +57,10 @@ type
     { Private declarations }
     procedure WMWindowPosChanging(var Msg: TWMWindowPosChanging); message WM_WINDOWPOSCHANGING;
 //    procedure WMCopyData(var MessageData: TWMCopyData); message WM_COPYDATA;
-    procedure reThreadInfo_Main_WndProc_Current(var Message: TMessage);
-    procedure memThreadInfo_1_WndProc_Current(var Message: TMessage);
-    procedure memLogInfo_2_WndProc_Current(var Message: TMessage);
+//    procedure formMain_WndProc_Current(var Message: TMessage);
+    procedure reThreadInfo_Main_WndProc_Current(var inputMsg: TMessage);
+    procedure memThreadInfo_1_WndProc_Current(var inputMsg: TMessage);
+    procedure memLogInfo_2_WndProc_Current(var inputMsg: TMessage);
   public
     { Public declarations }
     procedure SetButtonState_ThreadList(ThreadNum: word);
@@ -67,6 +68,7 @@ type
 
 var
   formMain: TformMain;
+  formMain_WndProc_Original: TWndMethod;
   reThreadInfo_Main_WndProc_Original: TWndMethod;
   memThreadInfo_1_WndProc_Original: TWndMethod;
   memLogInfo_2_WndProc_Original: TWndMethod;
@@ -119,7 +121,7 @@ begin
  lbThreadListClick(Sender);
 end;
 
-procedure TformMain.reThreadInfo_Main_WndProc_Current(var Message: TMessage);
+procedure TformMain.reThreadInfo_Main_WndProc_Current(var inputMsg: TMessage);
 var
   tmpBool: boolean;
   tmpInt: integer;
@@ -134,11 +136,11 @@ begin
  if InSendMessage() then
   ReplyMessage(ord(true));
 
- case Message.Msg of
+ case inputMsg.Msg of
 //---    WM_COPYDATA:
    WM_COPYDATA:
    begin
-    tmpCopyDataStruct:= Pointer(Message.LParam);
+    tmpCopyDataStruct:= Pointer(inputMsg.LParam);
     if tmpCopyDataStruct.dwData = CMD_SetMemoLine then
     begin
      tmpString:= PWChar(tmpCopyDataStruct.lpData);
@@ -154,10 +156,10 @@ begin
 //---    WM_Data_Update:
    WM_Data_Update:
    begin
-    if (Message.LParam = CMD_DeleteTaskItem) then
+    if (inputMsg.LParam = CMD_DeleteTaskItem) then
     begin
 
-     lbThreadList.ItemIndex:= Message.WParam;
+     lbThreadList.ItemIndex:= inputMsg.WParam;
      tmpTaskItem:= lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem;
 //--- Передвинем номера строк в Мемо для всех задач, номера которых после удаляемой строки
      for tmpInt:= lbThreadList.ItemIndex to (lbThreadList.Count - 1) do
@@ -176,31 +178,31 @@ begin
  end;
 
  if Assigned(memThreadInfo_1_WndProc_Original) and tmpBool then
-  reThreadInfo_Main_WndProc_Original(Message);
+  reThreadInfo_Main_WndProc_Original(inputMsg);
 
 end;
 
-procedure TformMain.memThreadInfo_1_WndProc_Current(var Message: TMessage);
+procedure TformMain.memThreadInfo_1_WndProc_Current(var inputMsg: TMessage);
 var
   tmpStringList: TStringList;
 begin
 // if (Message.Msg = EM_LINESCROLL) or ((Message.Msg = WM_VSCROLL)) then
- if (Message.Msg = WM_Data_Update) and (Message.LParam = CMD_SetMemoStreamUpd) then
+ if (inputMsg.Msg = WM_Data_Update) and (inputMsg.LParam = CMD_SetMemoStreamUpd) then
  begin
-  if Message.WParam = Info_ForViewing.CurrentViewingTask then
+  if inputMsg.WParam = Info_ForViewing.CurrentViewingTask then
   begin
-   if TaskList[Message.WParam].StringStream.Position < TaskList[Message.WParam].Stream.Position then
+   if TaskList[inputMsg.WParam].StringStream.Position < TaskList[inputMsg.WParam].Stream.Position then
    begin
-    TaskList[Message.WParam].StringStream.LoadFromStream(TaskList[Message.WParam].Stream);
-    TaskList[Message.WParam].StringStream.Seek(0, soEnd);
+    TaskList[inputMsg.WParam].StringStream.LoadFromStream(TaskList[inputMsg.WParam].Stream);
+    TaskList[inputMsg.WParam].StringStream.Seek(0, soEnd);
    end;
-   if (TaskList[Message.WParam].StringStream.Position > TaskList[Message.WParam].StringStream_LastPos) then
+   if (TaskList[inputMsg.WParam].StringStream.Position > TaskList[inputMsg.WParam].StringStream_LastPos) then
    begin
-    TaskList[Message.WParam].StringStream.Position:= TaskList[Message.WParam].StringStream_LastPos;
+    TaskList[inputMsg.WParam].StringStream.Position:= TaskList[inputMsg.WParam].StringStream_LastPos;
     try
       tmpStringList:= TStringList.Create;
-      tmpStringList.LoadFromStream(TaskList[Message.WParam].StringStream);
-      TaskList[Message.WParam].StringStream_LastPos:= TaskList[Message.WParam].StringStream.Position;
+      tmpStringList.LoadFromStream(TaskList[inputMsg.WParam].StringStream);
+      TaskList[inputMsg.WParam].StringStream_LastPos:= TaskList[inputMsg.WParam].StringStream.Position;
       memThreadInfo_1.Lines.AddStrings(tmpStringList);
     finally
      FreeAndNil(tmpStringList);
@@ -211,12 +213,12 @@ begin
  end;
 
  if Assigned(memThreadInfo_1_WndProc_Original) then
-  memThreadInfo_1_WndProc_Original(Message);
+  memThreadInfo_1_WndProc_Original(inputMsg);
 
 end;
 
-
-procedure TformMain.memLogInfo_2_WndProc_Current(var Message: TMessage);
+{
+procedure TformMain.formMain_WndProc_Current(var inputMsg: TMessage);
 var
   tmpWord: word;
   tmpInt: integer;
@@ -224,7 +226,7 @@ var
   tmpStringList: TStringList;
 begin
  tmpBool:= false;
- if (Message.Msg = WM_Data_Update) and (Message.WParam = CMD_SetMemoStreamUpd) then
+ if (inputMsg.Msg = WM_Data_Update) and (inputMsg.LParam = CMD_SetMemoStreamUpd) then
  begin
   try
 //--- Проверка на новые данные от API библиотек
@@ -256,28 +258,84 @@ begin
        end;
      end;
 
+    end;
 
-//--- Проверка на новые данные от ядра задачи
-     for tmpInt:= 0 to (TaskList.Count - 1) do
-     begin
+
+  finally
+   tmpBool:= true;
+  end;
+
+ end;
+
+ if Assigned(formMain_WndProc_Original) and (not  tmpBool) then
+  formMain_WndProc_Original(Message);
+
+end;
+}
+procedure TformMain.memLogInfo_2_WndProc_Current(var inputMsg: TMessage);
+var
+  tmpWord: word;
+  tmpInt: integer;
+  tmpBool: boolean;
+  tmpStringList: TStringList;
+begin
+ tmpBool:= false;
+ if (inputMsg.Msg = WM_Data_Update) and (inputMsg.LParam = CMD_SetMemoLogStreamUpd) then
+ begin
+  try
+    tmpInt:= inputMsg.WParam;
+    if TaskList.Count > tmpInt then //--- асинхроггые сообщения могут приходить ещё после удаления всех элементов списка задач
+    begin
+//--- Проверка/Загрузка новых данных от потока (задач библиотек через TaskItem), который направил данное сообщение
+      if TaskList[tmpInt].StringStream_Log.Position < TaskList[tmpInt].Stream_Log.Position then
+      begin
+       TaskList[tmpInt].StringStream_Log.LoadFromStream(TaskList[tmpInt].Stream_Log);
+       TaskList[tmpInt].StringStream_Log.Seek(0, soEnd);
+      end;
+      if Assigned(TaskList[tmpInt].StringStream_Log) then
+       if (TaskList[tmpInt].StringStream_Log.Position > TaskList[tmpInt].StringStream_Log_LastPos) then
+       begin
+        TaskList[tmpInt].StringStream_Log.Position:= TaskList[tmpInt].StringStream_Log_LastPos;
+        try
+         tmpStringList:= TStringList.Create;
+         tmpStringList.LoadFromStream(TaskList[tmpInt].StringStream_Log);
+         TaskList[tmpInt].StringStream_Log_LastPos:= TaskList[tmpInt].StringStream_Log.Position;
+         memLogInfo_2.Lines.AddStrings(tmpStringList);
+        finally
+         FreeAndNil(tmpStringList);
+        end;
+
+       end;
+
+
+//--- Проверка/Загрузка новых данных от ядра задачи
       if Assigned(TaskList[tmpInt].StringStream_Core_Log) then
-       if TaskList[tmpInt].StringStream_Core_Log.Position > TaskList[tmpInt].StringStream_Core_Log_LastPos then
+       if TaskList[tmpInt].StringStream_Core_Log.Position < TaskList[tmpInt].StringStream_Core_Log_LastPos then
        begin
         TaskList[tmpInt].StringStream_Core_Log.Position:= TaskList[tmpInt].StringStream_Core_Log_LastPos;
-        logFileStringList.LoadFromStream(TaskList[tmpInt].StringStream_Core_Log);
-        TaskList[tmpInt].StringStream_Core_Log_LastPos:= TaskList[tmpInt].StringStream_Core_Log.Position;
-        memLogInfo_2.Lines.AddStrings(logFileStringList);
+        try
+         tmpStringList:= TStringList.Create;
+         tmpStringList.LoadFromStream(TaskList[tmpInt].StringStream_Core_Log);
+         TaskList[tmpInt].StringStream_Core_Log_LastPos:= TaskList[tmpInt].StringStream_Core_Log.Position;
+         memLogInfo_2.Lines.AddStrings(tmpStringList);
+        finally
+         FreeAndNil(tmpStringList);
+        end;
        end;
-     end;
     end;
 
 
 //--- Проверка на новые данные от потока главного модуля
-   if logFileStream_LastPos < logFileStringStream.Position then
+   if logFileStringStream.Position < logFileStream.Position then
    begin
-    logFileStringList.LoadFromStream(logFileStringStream);
-    memLogInfo_2.Lines.AddStrings(logFileStringList);
     logFileStream_LastPos:= logFileStringStream.Position;
+    try
+     tmpStringList:= TStringList.Create;
+     tmpStringList.LoadFromStream(logFileStringStream);
+     memLogInfo_2.Lines.AddStrings(tmpStringList);
+    finally
+     FreeAndNil(tmpStringList);
+    end;
    end;
 
   finally
@@ -287,7 +345,7 @@ begin
  end;
 
  if Assigned(memLogInfo_2_WndProc_Original) and (not  tmpBool) then
-  memLogInfo_2_WndProc_Original(Message);
+  memLogInfo_2_WndProc_Original(inputMsg);
 
 end;
 
@@ -296,8 +354,8 @@ procedure TformMain.WMDataUpdate(var updMessage: TMessage);
 var
   pBuffer: PWideChar;
 begin
-  pBuffer:= PWideChar(updMessage.LParam);
-//  memInfoTread.Lines.Add(updMessage.WParam.ToString());
+  pBuffer:= PWideChar(updinputMsg.LParam);
+//  memInfoTread.Lines.Add(updinputMsg.WParam.ToString());
   memLogInfo_2.Lines.Add(pBuffer);
 end;
 }
@@ -424,7 +482,7 @@ try
  try
   if reThreadInfo_Main.Items.Count > 0 then
   begin
-   PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+   PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
    reThreadInfo_Main.Items.Delete(reThreadInfo_Main.Items.Count - 1);
   end;
  except
@@ -509,7 +567,6 @@ begin
     Application.Terminate;
   end;
 
-
  sbMain.Panels[0].Text:= 'ThreadId (процесса): ' + inttostr(GetCurrentThreadId);
 
 //--- Заполнение глобальных переменных
@@ -521,7 +578,11 @@ begin
  reThreadInfo_Main_WndProc_Original:= formMain.reThreadInfo_Main.WindowProc;
  formMain.reThreadInfo_Main.WindowProc:= reThreadInfo_Main_WndProc_Current;
 
- //--- Настройка обработки сообщения для информации о задачах
+ //--- Настройка обработки сообщения от потоков (PostTHreadMessage) в поток главного модуля
+// formMain_WndProc_Original:= formMain.WindowProc;
+// formMain.WindowProc:= formMain_WndProc_Current;
+
+  //--- Настройка обработки сообщения для информации о задачах
  memThreadInfo_1_WndProc_Original:= formMain.memThreadInfo_1.WindowProc;
  formMain.memThreadInfo_1.WindowProc:= memThreadInfo_1_WndProc_Current;
 
@@ -530,7 +591,7 @@ begin
  formMain.memLogInfo_2.WindowProc:= memLogInfo_2_WndProc_Current;
 
 //--- Прокрутить ТМемо с журналом работы на последнюю строку
- PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+ PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
 
 end;
 
@@ -559,6 +620,9 @@ var
 
 begin
 try
+ if lbThreadList.ItemIndex < 0 then
+    exit;
+
  tmpInt:=  TaskList.IndexOf(lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem);
  tmpStringList:= TStringList.Create;
  if lbThreadList.ItemIndex < 0 then
@@ -621,8 +685,6 @@ except
 end;
 
 finally
- if Assigned(tmpStringList) then
-  FreeAndNil(tmpStringList);
 end;
 
 //--- Выделим соответсвующую строку состояния задачи в memInfoTread

@@ -11,6 +11,10 @@ const
   wsAllMask: WideString = '*';
   wsPartMaskDelemiter: WideString = '*';
   dwMaxStringLength = 2048;
+  CMD_SetMemoLogStreamUpd = 4; //--- Наш код для обновления данных от потока в компоненты отображения
+  UserOffset = 2048;
+  WM_APP = $8000;
+  wm_data_update = WM_APP + UserOffset;
 
   wsCRLF = #13#10;
   wsTask1_Name: WideString = 'Поиск файлов по маске';
@@ -20,17 +24,20 @@ const
 //  wsTask1_Result_TemplateView: WideString = 'Соответствие маскам: %s, ' + wsCRLF + ' файл: %s';
   wsTask1_TotalResultByMask_TemplateView = 'Маска файлов: [%s]: %d' + wsCRLF;
   wsTask1_TotalResult_TemplateView: WideString = 'Всего найдено соответствий: %d';
-  wsTask1_TargetDirectoryNotFound: WideString = 'Целевая директория не найдена.';
-  wsTask1_TargetFileNotFound: WideString = 'Целевой файл: %s не найден.';
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
   wsTask2_TotalResultTitle_TemplateView: WideString = 'Всего найдено совпадений: %d';
   wsTask2_Result_TemplateView: WideString = 'Шаблон: %12s, Позиция в файле: %d';
   wsTask2_TotalResult_TemplateView: WideString = 'Шаблон: %12s, Всего совпадений: %d';
   wsResultStreamTitle: WideString = 'Библиотека №%d, Задача №%d';
+  wsTask_TargetDirectoryNotFound: WideString = 'Целевая директория не найдена: %s';
+  wsTask_TargetFileNotFound: WideString = 'Целевой файл: %s не найден.';
   wsTask_AbortedOnRequest: WideString = 'Выполнение прервано по запросу главного модуля';
+  wsTask_AbortedOnError: WideString = 'Выполнение задачи %d (%s) потока %d прервано из-за ошибки: %s';
+  wsTask_ErrorByPostThreadMessage: WideString = 'Ошибка выполнения PostThreadMessage(...)  %d (%s) потока %d прервано из-за ошибки ОС: %d';
   wsFileDlgFilter = 'All Files' + #0 + '*.*' + #0 + 'Text Files' + #0 + '*.txt' + #0#0;
   wsTask1_DefaultDirectory = 'C:\Users\user\AppData\Roaming\Primer_MT_3';
   wsTask2_DefaultDirectory = 'C:\Users\user\AppData\Roaming\Primer_MT_4';
+  wsTask_DoneMessage: WideString = 'Выполнение задачи %d (%s) потока %d завершено.';
 
 
 //--- Для Задачи №2 ------------------------------------------------------------
@@ -125,7 +132,6 @@ var
 //function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT;
 
 //--- Вспомогательные функции
-procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
 function GetWorkingDirectoryName(): WideString;
 
 //--- Для Задачи №1 ------------
@@ -685,29 +691,6 @@ begin
   on E: Exception do
     Writeln(E.ClassName, ': ', E.Message);
  end;
-end;
-
-//------------------------------------------------------------------------------
-procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
-var
-  tmpWideString: WideString;
-  tmpCardinal: Cardinal;
-begin
-try
-  tmpWideString:= '--------------- Библиотека №1 -------------------------------'
-                + #13#10
-                + DatetimeToStr(today())
-                + #13#10
-                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
-                + #13#10
-                + E_source1
-                + #13#10
-                + '-------------------------------------------------------------';
-  LibraryLog.StringStream.WriteString(tmpWideString);
-
-finally
-
-end;
 end;
 
 

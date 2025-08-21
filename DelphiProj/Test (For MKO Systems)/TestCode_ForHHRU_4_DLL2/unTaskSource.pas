@@ -5,6 +5,11 @@ uses   Windows, ActiveX, Classes, IOUtils, SysUtils, System.SyncObjs, Dialogs, D
 
 //--- Для Задачи №1 ------------------------------------------------------------
 const
+  CMD_SetMemoLogStreamUpd = 4; //--- Наш код для обновления данных от потока в компоненты отображения
+  UserOffset = 2048;
+  WM_APP = $8000;
+  wm_data_update = WM_APP + UserOffset;
+
   wsTask1_Name: WideString = 'Выполнение внешних командных модулей';
   wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
@@ -20,6 +25,9 @@ const
   wsIniFileName = 'Primer_MT_4_Lib2.ini';
   wsTask1_TargetFileNotFound: WideString = 'Целевой файл: %s не найден.';
   wsProcessCreateError: WideString = 'Ошибка создания процесса: %d';
+  wsTask_ErrorByPostThreadMessage: WideString = 'Ошибка выполнения PostThreadMessage(...)  %d (%s) потока %d прервано из-за ошибки ОС: %d';
+  wsTask_AbortedOnError: WideString = 'Выполнение задачи %d (%s) потока %d прервано из-за ошибки: %s';
+  wsTask_DoneMessage: WideString = 'Выполнение задачи %d (%s) потока %d завершено.';
 
 
 //--- Для Задачи №2 ------------------------------------------------------------

@@ -2,7 +2,7 @@ unit unVariables;
 
 interface
 uses Windows, SysUtils, Classes, IOUtils, ActiveX, ComObj, Vcl.AxCtrls,
-     System.Diagnostics, System.Contnrs, Dialogs, IniFiles, EncdDecd,
+     System.Diagnostics, System.Contnrs, Dialogs, IniFiles, EncdDecd, DateUtils,
      unTaskSource, unEditInputParams_Task1, unEditInputParams_Task2;
 
 type
@@ -57,6 +57,7 @@ type
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
+   procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
@@ -74,6 +75,7 @@ type
     FTaskMainModuleIndex: word;
     FTaskSourceListIndex: word;
     FTaskState: TTaskState;
+    FOwnerThread: DWORD;
 //    FTaskStringList: TStringList;
     FStringStream: TStringStream;
     FStringStream_copy: TStringStream;
@@ -89,7 +91,6 @@ type
     procedure TaskProcedure; safecall;
     function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out inoutTask1_Result: TTask_Result; out inoutTask1_Results: TTask_Results): HRESULT;
     function Task2_FindInFilesByPattern (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; var inoutTask2_Results: TTask_Results): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
-
    public
     constructor Create(TaskLibraryIndex: word);
     procedure AbortTaskSource; safecall;
@@ -103,6 +104,8 @@ type
     function GetAbortExecutionState: boolean; safecall;
     procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
+    procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
+    procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
     property TaskMainModuleIndex: WORD read FTaskMainModuleIndex write FTaskMainModuleIndex;
     property TaskSourceListIndex: WORD read FTaskSourceListIndex write FTaskSourceListIndex;
@@ -200,7 +203,7 @@ begin
 //--- Создание потока для передачи информации для журнала в "управляющий поток" - TaskItem
 //--- Запись в поток "начальных данных" (наименование, номер)
   FStringStream_Log:= TStringStream.Create(tmpString, TEncoding.ANSI);
-  FTaskStream_Log:= TStreamAdapter.Create(FStringStream, soReference);
+  FTaskStream_Log:= TStreamAdapter.Create(FStringStream_Log, soReference);
 
 //--- Добавление созданного объекта Задачи в список Задач
   FAbortExecution:= false; //--- флаг для немедленного (без создания исключения) прекращения и удаления объекта TaskSource
@@ -283,6 +286,13 @@ begin
 end;
 
 //------------------------------------------------------------------------------
+procedure TTaskSource.SetOwnerThread(inputOwnerThread: DWORD); safecall;
+begin
+  FOwnerThread:= inputOwnerThread;
+end;
+
+
+//------------------------------------------------------------------------------
 function TTaskSource.GetTask_Result: TTask_Result; safecall;
 begin
   Result:= FTask_Result;
@@ -357,6 +367,7 @@ var
   tmpTask1_Parameters: TTask1_Parameters;
   tmpTask2_Parameters: TTask2_Parameters;
   tmpObject: TObject;
+  tmpLibraryAPI: ILibraryAPI;
 
 begin
 try
@@ -387,6 +398,16 @@ try
                                  FTaskMainModuleIndex, self.FTask_Result, self.FTask_Results);
     except
      tmpObject:= ExceptObject;
+    try
+     tmpLibraryAPI:= TLibraryAPI.Create;
+     self.WriteDataToLog(format(wsTask_AbortedOnError,
+                        [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex, Exception(tmpObject).ClassName +
+                                        ', E.Message = ' +
+                                        Exception(tmpObject).Message]),
+                        'TaskSource.TaskProcedure', 'unVariables');
+    finally
+     tmpLibraryAPI._Release;
+    end;
 //     raise;
     end;
    end;
@@ -427,7 +448,16 @@ try
                                      FTaskMainModuleIndex {Task1_Parameters.inputParam4}, self.FTask_Results); //, nil, 0);
     except
      tmpObject:= ExceptObject;
-//     tmpWideString:= Exception(tmpObject).Message;
+    try
+     tmpLibraryAPI:= TLibraryAPI.Create;
+     self.WriteDataToLog(format(wsTask_AbortedOnError,
+                        [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex, Exception(tmpObject).ClassName +
+                                        ', E.Message = ' +
+                                        Exception(tmpObject).Message]),
+                        'TaskSource.TaskProcedure', 'unVariables');
+    finally
+     tmpLibraryAPI._Release;
+    end;
 //     raise;
     end;
 
@@ -453,6 +483,7 @@ var
   tmpWord: word;
   tmpBool: Boolean;
   tmpWideString, tmpWideString1: WideString;
+  tmpLibraryAPI: ILibraryAPI;
 //-------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
@@ -463,6 +494,7 @@ try //
 //--- Начальные значения для результирующего потока в главный модуль
    FStringStream.Clear;
    FStringStream.Position:= 0;
+
 //--- Дополнительный вывод результата в файл (в основном для удобства проверки работы алгоритма)
    if inputParam4 then //--- Запись результата в файл
    begin
@@ -481,9 +513,10 @@ try //
     tmpStreamWriter:= TFile.CreateText(tmpWideString)
    end;
   except
-   on E: Exception {EStreamError} do
+   on tmpE: Exception {EStreamError} do
    begin
-    FStringStream_Log.WriteString(wsResultStreamTitle + wsCRLF + E.ClassName + ', E.Message = ' + E.Message + '(Task1_FileFinderByMask, unVariables)');
+    self.WriteDataToLog(tmpE.ClassName + ', E.Message = ' +
+                        tmpE.Message, 'Task1_FileFinderByMask', 'unVariables');
     exit;
    end;
   end;
@@ -505,6 +538,7 @@ try //
    tmpStreamWriter.WriteLine(tmpWideString)
   end;
 
+  try
 //--- Извлечение элементов-масок из входящей строки (inputParam1)
    GetPatternsFromString(inputParam1, tmpMaskItems, tmpMaskCount);
 //--- заполнение поля исходными значениями в переменной результата задачи
@@ -609,6 +643,23 @@ try //
          end;
         end;
 
+    try
+     tmpLibraryAPI:= TLibraryAPI.Create;
+     self.WriteDataToLog(format(wsTask_DoneMessage, [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex]), 'Task1_FileFinderByMask', 'unVariables');
+    finally
+     tmpLibraryAPI._Release;
+    end;
+
+  except
+   on tmpE: Exception do
+   begin
+    self.WriteDataToLog(format(wsTask_AbortedOnError,
+                        [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex, tmpE.ClassName +
+                                        ', E.Message = ' + tmpE.Message]),
+                   'Task1_FileFinderByMask', 'unVariables');
+   end;
+  end;
+
 
  finally
   if inputParam4 then
@@ -639,6 +690,7 @@ var
   tmpPatternItems: RawByteString;
   tmpPatternCount, tmpWord, tmpWord1, tmpWord2: word;
   tmpSearchPatternSet: array of TSearchPatternSet;
+  tmpLibraryAPI: ILibraryAPI;
 
 //------------------------------------------------------------------------------
 procedure CountPatternIncluding(inputTargetFileName: WideString; inputParam4: boolean; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask_Results; inputStreamWriter: TStreamWriter);
@@ -648,9 +700,6 @@ var
   tmpWord: word;
   tmpBool: boolean;
   tmpDword: DWORD;
-//  tmpInt: integer;
-//  tmpBaseStartPosForAllPatterns: DWORD;
-
 begin
 try
   //--- Создание потока для целевого файла
@@ -667,6 +716,7 @@ try
     inoutTask2_Results[tmpWord].SearchPattern:= inputSearchPatternSet[tmpWord].Pattern;
    end;
 
+   try
 //--- Поиск в файле
        while (tmpFileStream.Position < tmpFileStream.Size) do
         begin
@@ -746,6 +796,15 @@ try
 
         end;
 
+   except
+    on tmpE: Exception do
+    begin
+     self.WriteDataToLog(tmpE.ClassName + ', E.Message = ' +
+                   tmpE.Message, 'CountPatternIncluding/Task2_FindInFilesByPattern', 'unVariables');
+    end;
+   end;
+
+
 finally
  FreeAndNil(tmpFileStream);
 end;
@@ -786,9 +845,10 @@ try
    tmpStreamWriter:= TFile.CreateText(tmpWideString);
   end;
  except
-  on E: Exception {EStreamError} do
+  on tmpE: Exception {EStreamError} do
   begin
-   FStringStream_Log.WriteString(wsResultStreamTitle + wsCRLF + E.ClassName + ', E.Message = ' + E.Message + '(Task1_FileFinderByMask, unVariables)');
+   self.WriteDataToLog(wsResultStreamTitle + wsCRLF + tmpE.ClassName + ', E.Message = ' + tmpE.Message,
+                  'Task2_FindInFilesByPattern', 'unVariables');
    exit;
   end;
  end;
@@ -819,7 +879,7 @@ try
 //--- Преобразование шаблонов из WideString (формат отображения) в array of byte
  setlength(tmpSearchPatternSet, tmpPatternCount);
  setlength(inoutTask2_Results, tmpPatternCount);
-
+try
  for tmpWord:= 0 to tmpPatternCount - 1 do
  begin
   setlength(tmpSearchPatternSet[tmpWord].Pattern, length(tmpPatternItemsStr[tmpWord]));
@@ -858,6 +918,24 @@ try
   tmpStreamWriter.Close;
  end;
 
+ try
+  tmpLibraryAPI:= TLibraryAPI.Create;
+  self.WriteDataToLog(format(wsTask_DoneMessage, [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex]), 'Task1_FileFinderByMask', 'unVariables');
+ finally
+  tmpLibraryAPI._Release;
+ end;
+
+except
+ on tmpE: Exception do
+ begin
+     self.WriteDataToLog(format(wsTask_AbortedOnError,
+                        [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex, tmpE.ClassName +
+                                        ', E.Message = ' +
+                                        tmpE.Message]),
+                  'Task2_FindInFilesByPattern', 'unVariables');
+ end;
+end;
+
 finally
  if inputParam4 then
  begin
@@ -868,6 +946,44 @@ end;
 
 end;
 
+//------------------------------------------------------------------------------
+procedure TTaskSource.WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
+var
+  tmpWideString: WideString;
+  tmpCardinal: Cardinal;
+  tmpLibraryAPI: ILibraryAPI;
+begin
+ CriticalSection.Enter;
+  tmpWideString:= '---- ';
+  tmpWideString:= tmpWideString + format(wsResultStreamTitle, [FTaskLibraryIndex, FTaskLibraryIndex]);
+  tmpWideString:= tmpWideString + ' ---------------------'
+                + #13#10
+                + DatetimeToStr(today())
+                + #13#10
+                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
+                + #13#10
+                + E_source1
+                + #13#10
+                + '--------------------------------------------------';
+  FStringStream_Log.WriteString(tmpWideString);
+  CriticalSection.Leave;
+//--- Обновить информацию в ТМемо (с журналом работы)
+  try
+   if not PostThreadMessage(self.FOwnerThread, WM_Data_Update, 0, CMD_SetMemoLogStreamUpd) then
+   begin
+    try
+     tmpLibraryAPI:= TLibraryAPI.Create;
+     self.WriteDataToLog(format(wsTask_ErrorByPostThreadMessage,
+                        [self.FTaskLibraryIndex, tmpLibraryAPI.GetTaskList[self.FTaskLibraryIndex], self.FTaskMainModuleIndex, GetLastError()]),
+                  'TaskSource.WriteDataToLog', 'unVariables');
+    finally
+     tmpLibraryAPI._Release;
+    end;
+   end;
+  finally
+
+  end;
+end;
 
 //---------------- Подпрограммы вне классов ------------------------------------
 

@@ -110,7 +110,7 @@ begin
  //   TaskList[iTaskListNum].TaskCore.TaskSource.TaskMainModuleIndex:= iTaskListNum;
 //   tmpIntrfTaskSource.TaskMainModuleIndex:= iTaskListNum;
 
-//--- 2.1 Настройка потока передачи результатов
+//--- 2.1 Настройка потока передачи информации для журнала
 //--- от задач (в библиотеках) в главный модуль
    TaskList[iTaskListNum].Stream_Log:= TOleStream.Create(TaskList[iTaskListNum].TaskSource.Task_Stream_Log);
    TaskList[iTaskListNum].Stream_Log.Position:= 0;
@@ -384,7 +384,7 @@ try
    if Assigned(LibraryList[tmpInt].Stream) then
     if LibraryList[tmpInt].Stream.Position > LibraryList[tmpInt].Stream_LastPos then
     begin
-     PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+     PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
      exit;
     end;
   end;
@@ -392,7 +392,7 @@ try
 //--- Проверка на новые данные от потока главного модуля
    if logFileStream_LastPos < logFileStringStream.Position then
    begin
-     PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, CMD_SetMemoStreamUpd, 0);
+     PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
    end;
 
 finally

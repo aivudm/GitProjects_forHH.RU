@@ -54,7 +54,7 @@ object formTools: TformTools
       Top = 18
       Width = 246
       Height = 17
-      Caption = #1057#1086#1086#1073#1097#1077#1085#1080#1077' WM_Copy_Data'
+      Caption = #1057#1086#1086#1073#1097#1077#1085#1080#1077' WM_CopyData'
       Checked = True
       TabOrder = 0
       TabStop = True
