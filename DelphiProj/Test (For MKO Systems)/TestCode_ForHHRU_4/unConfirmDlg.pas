@@ -25,28 +25,25 @@ type
    ConfirmResult: TConfirmResult;
   end;
 
-var
-  formConfirmDlg: TformConfirmDlg;
-
 implementation
 {$R *.dfm}
 
 procedure TformConfirmDlg.bbYesClick(Sender: TObject);
 begin
  ConfirmResult:= YesResult;
- formConfirmDlg.Close;
+ Close;
 end;
 
 procedure TformConfirmDlg.bbCancelClick(Sender: TObject);
 begin
  ConfirmResult:= CancelResult;
- formConfirmDlg.Close;
+ Close;
 end;
 
 procedure TformConfirmDlg.bbNoClick(Sender: TObject);
 begin
  ConfirmResult:= NoResult;
- formConfirmDlg.Close;
+ Close;
 end;
 
 end.

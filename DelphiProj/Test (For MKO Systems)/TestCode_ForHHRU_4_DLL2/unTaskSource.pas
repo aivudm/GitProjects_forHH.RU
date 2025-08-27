@@ -8,8 +8,12 @@ const
   CMD_SetMemoLogStreamUpd = 4; //--- Наш код для обновления данных от потока в компоненты отображения
   UserOffset = 2048;
   WM_APP = $8000;
+  NotifySignBit = $80000000; //--- бит для определения "наших" сообщений об обновлении (для wParam)
   wm_data_update = WM_APP + UserOffset;
 
+  wsLibraryTitle = 'Подключена библиотека: %d (%s), кол-во задач - %d';
+  wsLibraryStreamTitle = 'Dll API: %d (%s)';
+  wsLibrary_OnError: WideString = 'Исключительная ситуация: %s (ошибка ОС: %d)';
   wsTask1_Name: WideString = 'Выполнение внешних командных модулей';
   wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
   wsTask2_ResultFileNameByDefault: WideString = 'Lib1_Task2_Result.txt';
@@ -27,7 +31,7 @@ const
   wsProcessCreateError: WideString = 'Ошибка создания процесса: %d';
   wsTask_ErrorByPostThreadMessage: WideString = 'Ошибка выполнения PostThreadMessage(...)  %d (%s) потока %d прервано из-за ошибки ОС: %d';
   wsTask_AbortedOnError: WideString = 'Выполнение задачи %d (%s) потока %d прервано из-за ошибки: %s';
-  wsTask_DoneMessage: WideString = 'Выполнение задачи %d (%s) потока %d завершено.';
+  wsTask_DoneMessage: WideString = 'Выполнение задачи %d (%s) потока %d завершено. Код завершения: %d';
 
 
 //--- Для Задачи №2 ------------------------------------------------------------
@@ -107,7 +111,6 @@ type
 //------------------------------------------------------------------------------
 
 //--- Вспомогательные попрограммы
-procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
 
 var
   CriticalSection: TCriticalSection;
@@ -146,36 +149,6 @@ try
 finally
 end;
 end;
-
-//------------------------------------------------------------------------------
-procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
-var
-  tmpWideString: WideString;
-  tmpCardinal: Cardinal;
-begin
-try
-  tmpWideString:= '--------------- Библиотека №2 -------------------------------'
-                + #13#10
-                + DatetimeToStr(today())
-                + #13#10
-                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
-                + #13#10
-                + E_source1
-                + #13#10
-                + '-------------------------------------------------------------';
-  LibraryLog.StringStream.WriteString(tmpWideString);
-
-finally
-
-end;
-end;
-
-
-//------------------------------------------------------------------------------------------------------------------------------------
-//------------------------------ Для Задачи №1 ---------------------------------------------------------------------------------------
-//------------------------------------------------------------------------------------------------------------------------------------
-
-
 
 
 

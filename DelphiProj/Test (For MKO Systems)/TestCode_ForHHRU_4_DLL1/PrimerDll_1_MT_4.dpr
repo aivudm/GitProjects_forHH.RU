@@ -33,13 +33,13 @@ begin
     begin
 //--- Проверка на существование экземпляра интерфейса DllAPI
       if LibraryAPI = nil then
-        LibraryAPI := TLibraryAPI.Create;
-      Pointer(Intf) := nil;
-      ILibraryAPI(Intf) := LibraryAPI;
-      Result := S_OK;
+        LibraryAPI:= TLibraryAPI.Create;
+      Pointer(Intf):= nil;
+      ILibraryAPI(Intf):= LibraryAPI;
+      Result:= S_OK;
     end
     else
-      Result := E_NOINTERFACE;
+      Result:= E_NOINTERFACE;
     ActiveX.SetErrorInfo(0, nil);
   except
 

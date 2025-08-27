@@ -111,7 +111,6 @@ object formMain: TformMain
         TabOrder = 0
         WantReturns = False
         WordWrap = False
-        OnClick = memThreadInfo_1Click
       end
       object memLogInfo_2: TMemo
         Left = 497
@@ -122,6 +121,15 @@ object formMain: TformMain
         ScrollBars = ssBoth
         TabOrder = 1
       end
+    end
+    object bThreadDeleteAll: TButton
+      Left = 502
+      Top = 23
+      Width = 105
+      Height = 25
+      Caption = #1059#1076#1072#1083#1080#1090#1100' '#1074#1089#1077
+      TabOrder = 6
+      OnClick = bThreadDeleteAllClick
     end
   end
   object sbMain: TStatusBar

@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Menus, Vcl.ExtCtrls, Vcl.StdCtrls,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Menus, Vcl.ExtCtrls, Vcl.StdCtrls, Contnrs,
   IOUtils, ActiveX, Vcl.AxCtrls, EncdDecd;
 
 type
@@ -23,7 +23,6 @@ type
     lbLibraryList: TListBox;
     odGetLibrary: TOpenDialog;
     Button1: TButton;
-    tmLogUpdate: TTimer;
     procedure miExitClick(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure btnNewThreadClick(Sender: TObject);
@@ -34,7 +33,6 @@ type
     procedure lbLibraryListClick(Sender: TObject);
     procedure SaveSettingsformTools(Sender: TObject);
     procedure Button1Click(Sender: TObject);
-    procedure tmLogUpdateTimer(Sender: TObject);
   private
     { Private declarations }
     procedure WMWINDOWPOSCHANGING(var Msg: TWMWINDOWPOSCHANGING); message WM_WINDOWPOSCHANGING;
@@ -64,12 +62,9 @@ end;
 
 procedure TformTools.btnNewThreadClick(Sender: TObject);
  var
-    iTaskListNum: word;
-    iThreadNum: integer;
-    pTaskSource: Pointer;
+    tmpInt: word;
     tmpIntrfDllAPI: ILibraryAPI;
     tmpIntrfTaskSource: ITaskSource;
-    tmpDWord: DWORD;
     tmpWord: word;
 begin
  try
@@ -81,23 +76,25 @@ begin
   //--- 1. Создаём новый объект "Задача", затем помещаем его в массив объектов типа "Список Задач"
   //--- Порядковый номер библиотеки в Перечне библиотек и порядковый номер шаблона задачи точно соответствуют
   //--- их порядковым номерам в визуальных компонентах lbLibraryList и lbTemplateTaskList
-  iTaskListNum:= TaskList.Add(TTaskItem.Create(LibraryList[lbLibraryList.ItemIndex].LibraryId, lbTemplateTaskList.ItemIndex, tsNotDefined));
+  tmpInt:= TaskList.Add(TTaskItem.Create(lbLibraryList.ItemIndex, lbTemplateTaskList.ItemIndex, tsNotDefined));
   //--- Запись Id библиотеки (так как индексы задач в библиотеках нумеруются с 0 (не уникальны))
   //--- и текущего номера задачи (в текущем списке активных задач) в объект TaskItem
-  TaskList[iTaskListNum].SetTaskNum(iTaskListNum);
+  TaskList[tmpInt].SetTaskNum(tmpInt);
+
+  TaskList[tmpInt].MainModuleOwner:= GetCurrentThreadId;
 
   //--- 2. Создаём новый объект "Исходник Задачи", затем помещаем его в массив объектов типа "Список Исходников Задач" - нужна реализация каждого объекта, так как они будут выполняться в потоках
   //--- в TaskSource прописывается индекс задачи в библиотеке и он больше не может изменяться
   try
-   TaskList[iTaskListNum].TaskCore:= TTaskCore.Create();
-   TaskList[iTaskListNum].TaskCore.TaskItemOwner:= TaskList[iTaskListNum].GetTaskItem;   //--- передачей владельца в TaskCore
+   TaskList[tmpInt].TaskCore:= TTaskCore.Create();
+   TaskList[tmpInt].TaskCore.TaskItemOwner:= TaskList[tmpInt].GetTaskItem;   //--- передачей владельца в TaskCore
 //--- Настроим ядро задачи на соответствующую задачу из библиотек
    tmpWord:= lbTemplateTaskList.ItemIndex;
 
 //--- В TaskItem и TaskCore свои ссылки на объект TaskSource в библиотеке
 
-   TaskList[iTaskListNum].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(tmpWord, iTaskListNum));
-   TaskList[iTaskListNum].TaskCore.SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.GetTaskSource(iTaskListNum));
+   TaskList[tmpInt].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(tmpWord, tmpInt));
+   TaskList[tmpInt].TaskCore.SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.GetTaskSource(tmpInt));
 
 //-------------------------------------------------------------------------------------------------------------------------------------
 //   tmpIntrfDllAPI:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI;
@@ -112,32 +109,32 @@ begin
 
 //--- 2.1 Настройка потока передачи информации для журнала
 //--- от задач (в библиотеках) в главный модуль
-   TaskList[iTaskListNum].Stream_Log:= TOleStream.Create(TaskList[iTaskListNum].TaskSource.Task_Stream_Log);
-   TaskList[iTaskListNum].Stream_Log.Position:= 0;
+   TaskList[tmpInt].Stream_Log:= TOleStream.Create(TaskList[tmpInt].TaskSource.Stream_Log);
+   TaskList[tmpInt].Stream_Log.Position:= 0;
 
 //--- от ядра задачи в главный модуль
-   TaskList[iTaskListNum].Stream_Core_Log:= TOleStream.Create(TaskList[iTaskListNum].TaskCore.TaskCoreStream_Log);
-   TaskList[iTaskListNum].Stream_Core_Log.Position:= 0;
+   TaskList[tmpInt].Stream_Core_Log:= TOleStream.Create(TaskList[tmpInt].TaskCore.TaskCoreStream_Log);
+   TaskList[tmpInt].Stream_Core_Log.Position:= 0;
 
 //--- Запускаем получение потока информации для журнала
 //--- от задачи (в библиотеке)
-   TaskList[iTaskListNum].StringStream_Log:= TStringStream.Create(format(wsHeaderThreadInfo, [TaskList[iTaskListNum].TaskNum]), TEncoding.ANSI);
-   TaskList[iTaskListNum].StringStream_Log.LoadFromStream(TaskList[iTaskListNum].Stream_Log);
-   DecodeStream(TaskList[iTaskListNum].StringStream_Log, TaskList[iTaskListNum].StringStream_Log);
+   TaskList[tmpInt].StringStream_Log:= TStringStream.Create;
+   TaskList[tmpInt].StringStream_Log.LoadFromStream(TaskList[tmpInt].Stream_Log);
+   DecodeStream(TaskList[tmpInt].StringStream_Log, TaskList[tmpInt].StringStream_Log);
 
 //--- от ядра задачи
-   TaskList[iTaskListNum].StringStream_Core_Log:= TStringStream.Create('', TEncoding.ANSI); //--- При создании ядра не пишем в лог отдельное сообщение
-   TaskList[iTaskListNum].StringStream_Core_Log.LoadFromStream(TaskList[iTaskListNum].Stream_Core_Log);
-   DecodeStream(TaskList[iTaskListNum].StringStream_Core_Log, TaskList[iTaskListNum].StringStream_Core_Log);
+   TaskList[tmpInt].StringStream_Core_Log:= TStringStream.Create('', TEncoding.ANSI); //--- При создании ядра не пишем в лог отдельное сообщение
+   TaskList[tmpInt].StringStream_Core_Log.LoadFromStream(TaskList[tmpInt].Stream_Core_Log);
+   DecodeStream(TaskList[tmpInt].StringStream_Core_Log, TaskList[tmpInt].StringStream_Core_Log);
 
-   //--- 2.2 Настройка потока передачи результатов из библиотек в главный модуль
-   TaskList[iTaskListNum].Stream:= TOleStream.Create(TaskList[iTaskListNum].TaskSource.Task_ResultStream);
-   TaskList[iTaskListNum].Stream.Position:= 0;
+//--- 2.2 Настройка потока передачи результатов от задач в главный модуль
+   TaskList[tmpInt].Stream:= TOleStream.Create(TaskList[tmpInt].TaskSource.Stream_Result);
+   TaskList[tmpInt].Stream.Position:= 0;
 
 //--- Запускаем получение потока из задачи в библиотеке
-   TaskList[iTaskListNum].StringStream:= TStringStream.Create;
-   TaskList[iTaskListNum].StringStream.LoadFromStream(TaskList[iTaskListNum].Stream);
-   DecodeStream(TaskList[iTaskListNum].StringStream, TaskList[iTaskListNum].StringStream);
+   TaskList[tmpInt].StringStream:= TStringStream.Create;
+   TaskList[tmpInt].StringStream.LoadFromStream(TaskList[tmpInt].Stream);
+   DecodeStream(TaskList[tmpInt].StringStream, TaskList[tmpInt].StringStream);
 
 
   finally
@@ -148,27 +145,24 @@ begin
 
 
 //--- 3. Добавляем "Новый Поток" в перечень потоков (листбокс)
-//  formMain.lbThreadList.Items.Add(format(wsHeaderThreadInfo + '%3d: %s',
-//                                                              [iTaskListNum,
-//                                                             TaskList[iTaskListNum].TaskName]));
-  formMain.lbThreadList.Items.AddObject(format(wsHeaderThreadInfo + ': %s',
-                                                              [iTaskListNum,
-                                                             TaskList[iTaskListNum].TaskName]), TaskList[iTaskListNum]);
-
-
 //--- 4. Назначим объекты для отображения информации от задач (потоков)
-  TaskList[iTaskListNum].LineIndex_ForView:= formMain.reThreadInfo_Main.Items.Add(sWaitForThreadAnswer);
+//--- Назначаем в визуальном компоненте номер строки для вывода расширенной информации о процессе выполнения задачи
+//--- равной номеру строки самой задачи в списке задач
+{  TaskList[tmpInt].LineIndex_ForView:=} formMain.lbThreadList.Items.AddObject(format(wsHeaderThreadInfo + ': %s',
+                                                              [tmpInt,
+                                                             TaskList[tmpInt].TaskName]), TaskList[tmpInt]);
+//--- Так тоже работало всегда, но вернее логически второй вариант
+{  TaskList[tmpInt].LineIndex_ForView:=} formMain.reThreadInfo_Main.Items.Add(sWaitForThreadAnswer);
 
-//  TaskList[iTaskListNum].HandleWinForView:= formMain.memThreadInfo.Handle;
-  TaskList[iTaskListNum].SetInfo_ForViewing(Info_ForViewing);
+  TaskList[tmpInt].SetInfo_ForViewing(Info_ForViewing);
 
-//--- Помещаем информацию о потоке Задачи т потоке ядра задачи в хранилице ThreadID
+//--- Помещаем информацию о потоке Задачи и потоке ядра задачи в хранилице ThreadID
 //--- Для контроля ресурсов потоков
   setlength(ThreadStorList, length(ThreadStorList) + 1);
-  ThreadStorList[length(ThreadStorList) - 1].cTask_ThreadId:= TaskList[iTaskListNum].ThreadID;
+  ThreadStorList[length(ThreadStorList) - 1].cTask_ThreadId:= TaskList[tmpInt].ThreadID;
 //--- Запускаем Задачу на выполнение
-   TaskList[iTaskListNum].TaskState:= tsActive;
-   TaskList[iTaskListNum].Suspended:= false;
+   TaskList[tmpInt].TaskState:= tsActive;
+   TaskList[tmpInt].Suspended:= false;
 
 
  finally
@@ -189,16 +183,22 @@ end;
 
 procedure TformTools.btnLoadLibraryClick(Sender: TObject);
 var
- tmpItem, tmpItem1, tmpLibraryNum: word;
- tmpLibraryTask: TLibraryTask;
-
+ tmpInt: integer;
+ tmpLibraryNum: word;
 begin
   if (Sender as TObject).ClassType.ClassName = 'TButton' then
   begin
    odGetLibrary.Files.Clear;
    if TFile.Exists(sWorkDirectory) then
     odGetLibrary.InitialDir:= sWorkDirectory;
-   if Not odGetLibrary.Execute(formTools.Handle) then Exit;
+   if Not odGetLibrary.Execute(formTools.Handle) then
+    Exit;
+
+   for tmpInt:= 0 to odGetLibrary.Files.Count-1 do
+   begin
+    if IsLibraryAlreadeUsed(odGetLibrary.Files[tmpInt]) then
+     odGetLibrary.Files.Delete(tmpInt);
+   end;
   end
   else
    LibraryList.Clear;
@@ -206,27 +206,25 @@ begin
  try
 //--- Временный объект "Описатель библиотеки"
 //--- для получения информации о библиотеке
-  tmpLibraryTask:= TLibraryTask.Create;
-  for tmpItem:= 0 to odGetLibrary.Files.Count-1 do
+  for tmpInt:= 0 to odGetLibrary.Files.Count-1 do
   begin
 //--- Создание объекта библиотек
 //--- Индекс соответсвует индексу строки при получении списка реализуемых задач
 //--- полученных через интерфейс DllAPI
    tmpLibraryNum:= LibraryList.Add(TLibraryTask.Create);
  //--- По номеру библиотеки с списке библиотек получим её наименование и список реализованных в ней функций
-   GetLibraryInfo(odGetLibrary.Files.Strings[tmpItem], tmpLibraryNum);
+   if GetLibraryInfo(odGetLibrary.Files.Strings[tmpInt], tmpLibraryNum) then
  //--- Если наименование не получено от Dll, значит Dll "не наша", просто пропускаем её
-   if LibraryList[tmpLibraryNum].LibraryName <> '' then
-    begin
+//    if LibraryList[tmpLibraryNum].LibraryName <> '' then
+   begin
 //     LibraryList[tmpLibraryNum]:= tmpLibraryTask;
  //--- Добавим библиотеку в список доступных библиотек в визуальном компоненте (ListBox)
-     lbLibraryList.Items.Add(LibraryList[tmpLibraryNum].LibraryName);
-    end
-    else
-     LibraryList[tmpLibraryNum].Clear;
+    lbLibraryList.AddItem(LibraryList[tmpLibraryNum].LibraryName, LibraryList[tmpLibraryNum]);
+   end
+   else
+    LibraryList.Remove(LibraryList[tmpLibraryNum]);
  end;
  finally
-  FreeAndNil(tmpLibraryTask);
  end;
 
  lbLibraryList.ItemIndex:= 0;
@@ -298,19 +296,20 @@ end;
 
 procedure TformTools.lbLibraryListClick(Sender: TObject);
 var
-  tmpItem: integer;
+  tmpInt, tmpItem: integer;
   tmpTaskTemplateIndex: integer;
-  tmpLibraryTask: TLibraryTask;
 begin
 //--- Выведем список доступных в библиотеке задач в визуальный компонент (ListBox)
+ if lbLibraryList.ItemIndex < 0 then
+  exit;
+
   lbTemplateTaskList.Clear;
-
   tmpTaskTemplateIndex:= lbLibraryList.ItemIndex;
-  if tmpTaskTemplateIndex < 0 then exit;
+  tmpInt:= LibraryList.IndexOf(lbLibraryList.Items.Objects[lbLibraryList.ItemIndex] as TLibraryTask);
 
-  for tmpItem:= 0 to (LibraryList[tmpTaskTemplateIndex].TaskCount - 1) do
+  for tmpItem:= 0 to (LibraryList[tmpInt].TaskCount - 1) do
   begin
-   lbTemplateTaskList.AddItem(LibraryList[tmpTaskTemplateIndex].TaskTemplateName[tmpItem], Sender);
+   lbTemplateTaskList.AddItem(LibraryList[tmpInt].TaskTemplateName[tmpItem], Sender);
   end;
 end;
 
@@ -372,33 +371,6 @@ finally
 end;
 end;
 
-procedure TformTools.tmLogUpdateTimer(Sender: TObject);
-var
-  tmpInt: integer;
-begin
-try
-//--- Проверка на новые данные от потоков библиотек
- if Assigned(LibraryList) then
-  for tmpInt:= 0 to (LibraryList.Count - 1) do
-  begin
-   if Assigned(LibraryList[tmpInt].Stream) then
-    if LibraryList[tmpInt].Stream.Position > LibraryList[tmpInt].Stream_LastPos then
-    begin
-     PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
-     exit;
-    end;
-  end;
-
-//--- Проверка на новые данные от потока главного модуля
-   if logFileStream_LastPos < logFileStringStream.Position then
-   begin
-     PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
-   end;
-
-finally
-
-end;
-end;
 
 //--- Подпрограммы вне классов -------------------------------------------------
 

@@ -283,7 +283,6 @@ object formConfirmDlg: TformConfirmDlg
       Font.Style = []
       ParentFont = False
       TabOrder = 0
-      ExplicitHeight = 81
     end
   end
 end

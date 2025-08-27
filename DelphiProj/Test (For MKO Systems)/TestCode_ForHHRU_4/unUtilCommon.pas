@@ -3,7 +3,8 @@ unit unUtilCommon;
 interface
 uses
   Windows, TlHelp32, ImageHlp, PsAPI, SysUtils, Classes, Forms, Controls, StdCtrls,
-  DateUtils, Messages;
+  DateUtils, Messages,
+  unVariables;
 
 
 function GetSubStr(FullString:String;Index:Byte;Count:Integer):String;
@@ -13,11 +14,18 @@ function translate_utf8_ansi(const Source: string):string;
 procedure ListDLLsForProcess(inputProcessID: DWORD; outputStringList: TStrings);
 procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
 function ByteToWS(inputBytes: TArray<Byte>; inputBytesSize: dword): WideString;
+function GetDateTimeStr(): WideString;
+function MakeDword(inputLoWord, inputHiWord: word): DWORD;
+function MakeDwordAsSender(inputLoWord, inputHiWord: word): DWORD;
+function IsNotifyMessage(wParam: DWORD):Boolean;
+function NotifyReceiver_Thread: BOOL;
+function IsLibraryAlreadeUsed(inputLibraryFileName: WideString): boolean;
 
 
 implementation
-uses unConst, unVariables;
+uses unConst;
 
+//------------------------------------------------------------------------------
 function GetSubStr(FullString:String;Index:Byte;Count:Integer):String;
 begin
 if Count<>-1 then
@@ -50,6 +58,7 @@ begin
     end;
 end;
 
+//------------------------------------------------------------------------------
 function translate_utf8_ansi(const Source: string):string;
     var
        Iterator, SourceLength, FChar, NChar: Integer;
@@ -84,6 +93,7 @@ function translate_utf8_ansi(const Source: string):string;
        end;
     end;
 
+//------------------------------------------------------------------------------
 procedure ListDLLsForProcess(inputProcessID: DWORD; outputStringList: TStrings);
 var
   Snapshot: THandle;
@@ -119,27 +129,30 @@ begin
   end;
 end;
 
+//------------------------------------------------------------------------------
 procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
 var
   tmpWideString: WideString;
-  tmpCardinal: Cardinal;
 begin
- CriticalSection.Enter;
-  tmpWideString:= '---- Главный модуль ------------------------------'
-                + #13#10
+  tmpWideString:= '--- ';
+  tmpWideString:= tmpWideString + wsMainModule_Title
+                + wsCRLF
                 + DatetimeToStr(today())
-                + #13#10
+                + wsCRLF
                 + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
-                + #13#10
+                + wsCRLF
                 + E_source1
-                + #13#10
-                + '--------------------------------------------------';
-  logFileStringStream.WriteString(tmpWideString);
+                + wsCRLF;
+  CriticalSection.Enter;
+   logStringStream.WriteString(tmpWideString);
   CriticalSection.Leave;
 //--- Обновить информацию в ТМемо (с журналом работы)
-  PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, 0, CMD_SetMemoStreamUpd);
+//--- Если не от потока задача/ядро задачи, то TaskNum:= 0, чтобы пройти проверку на соответствие TaskNum и TaskList.Count в WndProc
+//--- Установить тип отправителя - главный модуль
+  NotifyReceiver_Thread;
 end;
 
+//------------------------------------------------------------------------------
 function ByteToWS(inputBytes: TArray<Byte>; inputBytesSize: dword): WideString;
 var
   tmpPChar: PChar;
@@ -154,6 +167,69 @@ begin
   end;
 end;
 
+//------------------------------------------------------------------------------
+function GetDateTimeStr(): WideString;
+var
+  tmpDateTime: TDateTime;
+begin
+ tmpDateTime:= now();
+ Result:= DateToStr(tmpDateTime) + ' ' + TimeToStr(tmpDateTime);
+end;
+
+//------------------------------------------------------------------------------
+function MakeDword(inputLoWord, inputHiWord: word): DWORD;
+begin
+ Result:= DWORD(inputHiWord);
+ Result:= (Result shl 16) or inputLoWord; //--- wParamHi:= sidTaskItem, wParamLo:= self.FTaskNum
+end;
+
+//------------------------------------------------------------------------------
+function MakeDwordAsSender(inputLoWord, inputHiWord: word): DWORD;
+begin
+ Result:= MakeDword(inputLoWord, inputHiWord);
+//--- Установим признак (старший бит в wParam) для распознавания сообщения-оповещения об обновлении компонентов отображения
+ Result:= Result or NotifySignBit; //--- Установка страшего бита wParam в 1
+
+end;
+
+//--- Оповещатель приёмника информации для главного модуля (вне объектов)
+function NotifyReceiver_Thread: BOOL;
+begin
+//--- Обновить информацию в ТМемо (с журналом работы)
+//--- Если не от потока задача/ядро задачи, то TaskNum:= 0, чтобы пройти проверку на соответствие TaskNum и TaskList.Count в WndProc
+//--- Установить тип отправителя - API Библиотеки
+  try
+   Result:= PostThreadMessage(0, WM_Data_Update, MakeDwordAsSender(0, WORD(msMainModule)), CMD_SetMemoLogStreamUpd);
+   if not Result then
+   begin
+     logStringStream.WriteString(format(wsTask_ErrorByPostThreadMessage,
+                                          [wsMainModule_Title, GetLastError()])
+                                   + ' (NotifyReceiverInfo, unUtilCommon)');
+   end;
+
+  finally
+  end;
+
+end;
+
+function IsLibraryAlreadeUsed(inputLibraryFileName: WideString): boolean;
+var
+  tmpInt: integer;
+begin
+ Result:= false;
+ for tmpInt:= 0 to (LibraryList.Count-1) do
+ begin
+  Result:= (LibraryList[tmpInt].LibraryFileName = inputLibraryFileName);
+  if Result then
+   exit;
+ end;
+
+end;
+//------------------------------------------------------------------------------
+function IsNotifyMessage(wParam: DWORD):Boolean;
+begin
+ Result:= (wParam and NotifySignBit) <> 0;
+end;
 
 
 end.

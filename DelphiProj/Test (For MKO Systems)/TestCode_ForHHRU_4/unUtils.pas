@@ -7,15 +7,16 @@ uses Vcl.Forms, System.Classes, System.SysUtils, Winapi.Windows, Winapi.Messages
 
 function GetWorkingDirectoryName(): WideString;
 //function IsTaskDllAttached(DllFileName: String): Integer;
-procedure GetLibraryInfo(inputDllFileName: WideString; inputLibraryNum: word);
+function GetLibraryInfo(inputDllFileName: WideString; inputLibraryNum: word): boolean;
 //procedure GetDLLExportList(const DllFileName: string; var outputList: TArray<string>);
 //--- Получение элементов из строки, разделённых ';'
 procedure GetItemsFromString(SourceBSTR: WideString; var outputStringItems: TArray_WideString);
-procedure FinalizeLibraryes;
+procedure FinalizeLibraries;
 function LoadAnyLibrary(const LibraryFileName: WideString): HMODULE;
 function GetPIDByName(const name: PWideChar): Cardinal;
 function GetThreadsInfo(PID: Cardinal; var ThreadList: TArray<WideString>): Boolean;
 function GetThreadsInfoBySubThread(PID: Cardinal; var memViewer: TMemo; memViewerLine: word): Boolean;
+function MainThread_WndProc_Hook(nCode: integer; wParam, lParam: DWORD):LRESULT; stdcall;
 
 
 implementation
@@ -53,9 +54,8 @@ end;
 end;
 
 
+//------------------------------------------------------------------------------
 function LoadAnyLibrary(const LibraryFileName: WideString): HMODULE;
-var
-  DLLPath: String;
 begin
  try
   if FileExists(LibraryFileName) then
@@ -73,6 +73,7 @@ begin
   SetLastError(0);
 end;
 
+//------------------------------------------------------------------------------
 procedure GetItemsFromString(SourceBSTR: WideString; var outputStringItems: TArray_WideString);
 var
   i: word;
@@ -90,23 +91,19 @@ begin
 end;
 
 
-procedure GetLibraryInfo(inputDllFileName: WideString; inputLibraryNum: word);
+//------------------------------------------------------------------------------
+function GetLibraryInfo(inputDllFileName: WideString; inputLibraryNum: word): boolean;
 var
   tmp_hTaskLibrary: THandle;  //--- он же HMODULE
   tmpDLLAPIProc: TDLLAPIProc;
-  tmpBSTR, tmpWString: WideString; //--- Для обмена строками с Dll только BSTR (или в Делфи WideString)
-  tmpInfoRecordSize, tmpInfoRecordCount: Byte;
+  tmpWString: WideString; //--- Для обмена строками с Dll только BSTR (или в Делфи WideString)
   tmpInt: integer;
   tmpIntrfDllAPI: ILibraryAPI;
+  tmpResult: HRESULT;
 begin
- LibraryList[inputLibraryNum].LibraryName:= '';
+// LibraryList[inputLibraryNum].LibraryName:= '';
+ Result:= false;
 try
- for tmpInt:= 0 to LibraryList.Count - 1 do
-//--- Проверяем на повтор загружаемой библиотеки, если такая уже есть, то выходим
-  if LibraryList.Items[tmpInt].LibraryFileName = inputDllFileName then
-  begin
-   LibraryList.Items[tmpInt].Free;
-  end;
 
  tmp_hTaskLibrary:= LoadAnyLibrary(inputDllFileName);
  if tmp_hTaskLibrary = INVALID_HANDLE_VALUE then
@@ -131,18 +128,60 @@ try
  end;
 
 
+//--- Настройка потока передачи результатов из библиотеки в главный модуль
+//--- Дальнейшая настройка передачи будет сделана после подключения интерфейса библиотеки
+//--- Создание потока желательно сделать до подключения интерфейса API библиотеки
+//--- Так как в будущем может потребоваться вывод сообщений в журнал в подпрограмме создания интерфейса
+//--- и тогда может получиться неинициализированная переменная LibraryList[inputLibraryNum].StringStream в оконных процедурах
+//--- на данный момент первое сообщение-оповещение посылается в подпрограмме LibraryAPI.SetOwnerThread(MainModuleThreadId);
+ tmpWString:= wsLibrary_Loaded;
+ LibraryList[inputLibraryNum].StringStream:= TStringStream.Create(tmpWString, TEncoding.ANSI);
+
 //--- Вызов интерфейса библиотеки
- tmpDLLAPIProc(ILibraryAPI, tmpIntrfDllAPI);
- if not Assigned(tmpIntrfDllAPI) then
+ tmpResult:= tmpDLLAPIProc(ILibraryAPI, tmpIntrfDllAPI);
+ if (not Assigned(tmpIntrfDllAPI)) or (tmpResult <> S_OK) then
  begin
   FreeLibrary(tmp_hTaskLibrary);
   WriteDataToLog(wsError_LoadLibraryWithTargetAPI + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
   exit;
  end;
 
+//--- Проверка на уже имеющуюся такую же библиотеку (путь другой, а функционал и версионность та же)
+//--- Если уже есть в списке библиотек такая же, то отключаем данную библиотеку и выходим
+ for tmpInt:= 0 to (inputLibraryNum - 1) do
+ begin
+  if (LibraryList.Items[tmpInt].LibraryId = tmpIntrfDllAPI.GetId) and
+     (LibraryList.Items[tmpInt].LibraryName = tmpIntrfDllAPI.Name) and
+     (LibraryList.Items[tmpInt].TaskCount = tmpIntrfDllAPI.TaskCount) then
+  begin
+   Result:= false;
+   try
+    tmpIntrfDllAPI._Release;
+   finally
+    tmpIntrfDllAPI:= nil;
+    LibraryList[inputLibraryNum].StringStream.Free;
+   end;
+   WriteDataToLog(wsError_LoadLibraryAlreadyUse + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
+  end;
+  break;
+ end;
+
+if tmpIntrfDllAPI <> nil then  //--- Библиотека прошла проверку на отсутствие дубликатов, если нет - то сразу на выход с Result:= false;
+begin
+
 //--- Сохраним интерфейс в объекте LibraryTask
  if LibraryList[inputLibraryNum].LibraryAPI = nil then
     LibraryList[inputLibraryNum].LibraryAPI:= tmpIntrfDllAPI;
+
+//--- Настройка потока (подключение к IStream) передачи результатов из библиотек в главный модуль
+ LibraryList[inputLibraryNum].Stream:= TOleStream.Create(LibraryList[inputLibraryNum].LibraryAPI.Stream_Log);
+ LibraryList[inputLibraryNum].StringStream.LoadFromStream(LibraryList[inputLibraryNum].Stream);
+ LibraryList[inputLibraryNum].Stream_LastPos:= 0;
+
+//--- Запись в библиотеку номера потока шлавного модуля
+//--- Вывод сообщения (от библиотеки) о факте подключения в компонент отображения
+ LibraryList[inputLibraryNum].LibraryAPI.SetOwnerThread(MainModuleThreadId);
+
 
 //--- Получим Id библиотеки
  LibraryList[inputLibraryNum].LibraryId:= tmpIntrfDllAPI.GetId;
@@ -150,11 +189,7 @@ try
 //--- Получим имя библиотеки
  LibraryList[inputLibraryNum].LibraryName:= tmpIntrfDllAPI.Name;
 
-  //--- Очистим переменную с именами шаблонов задач
-// inoutLibraryTask.Clear;
-
  //--- Получим количество реализованных в библиотеке задач
- LibraryList[inputLibraryNum].TaskCount:= tmpIntrfDllAPI.GetTaskList.Count;
  LibraryList[inputLibraryNum].SetTaskTemplateCount(tmpIntrfDllAPI.GetTaskList.Count);
  //--- Получим имена реализованных задач
  for tmpInt:= 0 to (tmpIntrfDllAPI.GetTaskList.Count - 1) do
@@ -173,22 +208,20 @@ try
 GetItemsFromString(tmpBSTR, TaskDllProcName);
 }
 
-//------------>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
  if intrfDllAPI = nil then
     LibraryList[inputLibraryNum].LibraryAPI:= tmpIntrfDllAPI;
+  tmpIntrfDllAPI:= nil;
 
  //--- Один раз запустим LibraryAPI.InitDLL
 //--- проверка на
   LibraryList[inputLibraryNum].LibraryAPI.InitDLL;
-  tmpIntrfDllAPI:= nil;
 
-  LibraryList[inputLibraryNum].SetLibraryFileName(inputDllFileName);
-  LibraryList[inputLibraryNum].LibraryHandle:= tmp_hTaskLibrary;
-//--- Настройка потока передачи результатов из библиотек в главный модуль
-   LibraryList[inputLibraryNum].Stream:= TOleStream.Create(LibraryList[inputLibraryNum].LibraryAPI.GetStream);
-   LibraryList[inputLibraryNum].Stream.Position:= 0;
-   LibraryList[inputLibraryNum].Stream_LastPos:= 0;
+ LibraryList[inputLibraryNum].SetLibraryFileName(inputDllFileName);
+ LibraryList[inputLibraryNum].LibraryHandle:= tmp_hTaskLibrary;
 
+ Result:= true;
+end;
 
 finally
  if tmpintrfDllAPI <> nil then
@@ -200,26 +233,26 @@ finally
 end;
 end;
 
-procedure FinalizeLibraryes;
+procedure FinalizeLibraries;
 var
-  tmpWord: word;
+  tmpInt: integer;
 begin
- for tmpWord:= 0 to (LibraryList.Count - 1) do
+ for tmpInt:= 0 to (LibraryList.Count - 1) do
  begin
-  if LibraryList[tmpWord].LibraryAPI <> nil then
+  if LibraryList[tmpInt].LibraryAPI <> nil then
   begin
    try
-    LibraryList[tmpWord].LibraryAPI.FinalizeDLL;
+    LibraryList[tmpInt].LibraryAPI.FinalizeDLL;
    finally
-    LibraryList[tmpWord].LibraryAPI:= nil;
+    LibraryList[tmpInt].LibraryAPI:= nil;
    end;
   end;
-  if LibraryList[tmpWord].LibraryHandle <> 0 then
+  if LibraryList[tmpInt].LibraryHandle <> 0 then
   begin
    try
-    FreeLibrary(LibraryList[tmpWord].LibraryHandle);
+    FreeLibrary(LibraryList[tmpInt].LibraryHandle);
    finally
-    LibraryList[tmpWord].LibraryHandle := 0;
+    LibraryList[tmpInt].LibraryHandle := 0;
    end;
   end;
  end;
@@ -302,6 +335,123 @@ begin
     CloseHandle(SnapProcHandle);
   end;
 end;
+
+function MainThread_WndProc_Hook(nCode: integer; wParam, lParam: DWORD):LRESULT; stdcall;
+var
+  tmpNUI: NativeUInt;
+  tmpBool: boolean;
+  tmpMsg: TMsg;
+  tmpMsgCount: byte;
+//--- Для отработки - потом удалить!
+tmpWord1, tmpWord2: word;
+begin
+try
+//Result := CallNextHookEx(hMainThreadHook, nCode, wParam, lParam);
+//exit;
+
+ if nCode < 0 then
+ begin
+   exit;
+ end;
+
+ if (nCode = HC_ACTION) then
+ begin
+//--- Проверка очереди сообщений главного потока на наличие сообщений от API библиотек, задач (TaskItem)
+//--- Если есть такие сообщения, то перенаправить их в компонент отображения главного модуля
+  tmpBool:= PeekMessage(tmpMsg, 0, WM_Data_Update, WM_Data_Update, PM_REMOVE);
+  if tmpBool and (tmpMsg.lParam = CMD_SetMemoLogStreamUpd) and IsNotifyMessage(tmpMsg.wParam) then //and (tmpMsg.hwnd = 0)then
+    begin
+     tmpMsgCount:= 0; //--- Счётчик количества пересылаемых сообщений за один перехват
+     repeat
+//--- скопируем исходные значения для отправляемого сооющения
+//--- tmpMsg.lParam нет смысла копировать, так как в этот цикл мы попадаем по условию равенства tmpMsg.lParam = CMD_SetMemoLogStreamUpd
+       tmpNUI:= tmpMsg.wParam;
+
+//--- Проверим на наличие ещё сообщений нашего типа (пока без удаления) - это для проверки условия выхода из цикла (until)
+      tmpBool:= PeekMessage(tmpMsg, 0, WM_Data_Update, WM_Data_Update, PM_REMOVE);
+//--- Для отработки - потом удалить!
+//--- Восстановление исходных значений TaskNum и SenderId из упакованного формата
+//   tmpMsg.WParam:= tmpMsg.WParam and (not NotifySignBit);
+//   tmpWord1:= tmpMsg.WParam; //--- WParamLo
+//   tmpWord2:= tmpMsg.WParam shr 16; //--- WParamHi
+
+//--- публикация нового сообщения уже для компонента отображения (TMemo)
+      PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, tmpNUI, CMD_SetMemoLogStreamUpd);
+      inc(tmpMsgCount);
+     until (not tmpBool)
+           or ((tmpMsg.hwnd <> 0) and (tmpMsg.hwnd = Info_ForViewing.hMemoLogInfo_2))
+           or (tmpMsgCount < iMsgCountForHook); //--- Это настраиваемый параметр. По умолчанию он равен
+
+   end;
+ end;
+
+finally
+Result := CallNextHookEx(hMainThreadHook, nCode, wParam, lParam);
+end;
+end;
+
+
+//------------------------------------------------------------------------------
+//-------------- Варианты (требуется доработка через вирт. память --------------
+//---- На данный момент не актуально -------------------------------------------
+//------------------------------------------------------------------------------
+
+{
+function MainThread_WndProc_Hook(nCode: integer; wParam, lParam: DWORD):LRESULT; stdcall;
+var
+  tmpInt: integer;
+  tmpBool: boolean;
+  tmpStringList: TStringList;
+  tmpPMsg: ^TCWPStruct;
+  tmpMessage_Sender: TMessage_Sender;
+  tmpPMessage_Sender: ^TMessage_Sender;
+  tmpMsg: TMsg;
+begin
+try
+ if nCode < 0 then
+ begin
+   exit;
+ end;
+
+ if (nCode = HC_ACTION) then
+  tmpBool:= true;
+  tmpPMsg:= Pointer(lParam);
+  case tmpMsg.message of
+   WM_Data_Update:
+   begin
+    if (tmpPMsg^.lParam = CMD_SetMemoLogStreamUpd) then
+    begin
+     try
+//--- Проверка очереди сообщений главного потока на наличие сообщений от API библиотек, задач (TaskItem)
+//--- Если есть такие сообщения, то перенаправить их в компонент отображения главного модуля
+      tmpBool:= false;
+//      repeat
+//       if tmpBool then
+//        tmpBool:= PeekMessage(tmpMsg, 0, WM_Data_Update, WM_Data_Update, PM_REMOVE);
+
+//--- Перенесём данные из структуры TMessage_Sender, полученного сообщения в переменную (адресное пространство) главного модуля
+       tmpPMessage_Sender:= Pointer(tmpPMsg^.wParam);
+       tmpMessage_Sender.TaskNum:= tmpPMessage_Sender^.TaskNum;
+       tmpMessage_Sender.SenderId:= tmpPMessage_Sender^.SenderId;
+       PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, Integer(@tmpMessage_Sender), CMD_SetMemoLogStreamUpd);
+
+//       tmpBool:= PeekMessage(tmpMsg, 0, WM_Data_Update, WM_Data_Update, PM_NOREMOVE);
+//      until (not tmpBool) and (tmpMsg.message = WM_Data_Update) and (tmpMsg.LParam = CMD_SetMemoLogStreamUpd);
+
+    finally
+    end;
+   end;
+
+   end;
+
+  end;
+
+finally
+ Result := CallNextHookEx(hMainThreadHook, nCode, wParam, lParam);
+end;
+
+end;
+}
 
 initialization
 

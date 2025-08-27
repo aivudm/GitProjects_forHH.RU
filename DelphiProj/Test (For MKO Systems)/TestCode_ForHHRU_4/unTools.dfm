@@ -25,7 +25,7 @@ object formTools: TformTools
     Caption = #1055#1077#1088#1077#1095#1077#1085#1100' '#1079#1072#1076#1072#1095
     TabOrder = 0
     object btnNewThread: TButton
-      Left = 147
+      Left = 149
       Top = 125
       Width = 123
       Height = 25
@@ -120,10 +120,5 @@ object formTools: TformTools
     Options = [ofHideReadOnly, ofAllowMultiSelect, ofEnableSizing]
     Left = 232
     Top = 99
-  end
-  object tmLogUpdate: TTimer
-    OnTimer = tmLogUpdateTimer
-    Left = 240
-    Top = 56
   end
 end

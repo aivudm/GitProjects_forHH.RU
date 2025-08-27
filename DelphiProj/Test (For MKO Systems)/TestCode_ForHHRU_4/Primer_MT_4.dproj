@@ -109,9 +109,6 @@
         <DCCReference Include="unMain.pas">
             <Form>formMain</Form>
         </DCCReference>
-        <DCCReference Include="unInfoWindow.pas">
-            <Form>formInfo</Form>
-        </DCCReference>
         <DCCReference Include="unDM.pas">
             <Form>DataModule1</Form>
             <DesignClass>TDataModule</DesignClass>

@@ -24,6 +24,7 @@ type
     function NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
     function GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
     function GetStream: IStream; safecall;
+    procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
     procedure FreeTaskSource(var MainModuleTaskIndex: word); safecall;
@@ -31,6 +32,7 @@ type
     property Name: BSTR read GetName;
     property Version: BSTR read GetVersion;
     property TaskCount: byte read GetTaskCount;
+    property Stream_Log: IStream read GetStream;
 
   end;
 //------------------------------------------------------------------------------
@@ -39,6 +41,9 @@ type
     FLibraryId: DWORD;
     FLibraryFuncName: BSTR;
     FTaskCount: Byte;
+    FOwnerThread: DWORD;
+    FStringStream: TStringStream;
+    FStream: IStream;
   strict protected
     function GetId: DWORD; safecall;
     function GetName: BSTR; safecall;
@@ -48,6 +53,9 @@ type
     function NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
     function GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
     function GetStream: IStream; safecall;
+    function NotifyReceiver_Thread: BOOL;
+    procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
+    procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
     procedure InitDLL; safecall;
     procedure FinalizeDLL; safecall;
     procedure FreeTaskSource(var MainModuleTaskIndex: word); safecall;
@@ -61,11 +69,18 @@ var
 implementation
 
 constructor TLibraryAPI.Create;
+var
+  tmpString: WideString;
 begin
-  inherited;
-  FLibraryId:= dllLibraryId;
-  FLibraryFuncName:= dllFuncName;
-  FTaskCount:= GetTaskList.Count;
+ inherited;
+ FLibraryId:= dllLibraryId;
+ FLibraryFuncName:= dllFuncName;
+ FTaskCount:= GetTaskList.Count;
+
+ tmpString:= format(wsLibraryTitle, [FLibraryId, FLibraryFuncName, FTaskCount]) + wsCRLF;
+ FStringStream:= TStringStream.Create(tmpString, TEncoding.ANSI);
+ FStream:= TStreamAdapter.Create(FStringStream, soReference);
+
 end;
 
 function TLibraryAPI.GetId: DWORD; safecall;
@@ -81,17 +96,28 @@ begin
 end;
 
 
+//------------------------------------------------------------------------------
 function TLibraryAPI.GetVersion: BSTR;
 begin
   Result := dllVersion;
 end;
 
+//------------------------------------------------------------------------------
 function TLibraryAPI.GetTaskCount: byte;
 begin
   Result := FTaskCount;
 end;
 
+//------------------------------------------------------------------------------
+procedure TLibraryAPI.SetOwnerThread(inputOwnerThread: DWORD); safecall;
+begin
+  FOwnerThread:= inputOwnerThread;
+//--- Обновить информацию в ТМемо (с журналом работы)
+  self.NotifyReceiver_Thread;
+end;
 
+
+//------------------------------------------------------------------------------
 procedure TLibraryAPI.InitDLL;
 begin
 try
@@ -105,9 +131,6 @@ try
  end;
  if not Assigned(CriticalSection) then
    CriticalSection:= TCriticalSection.Create();
-
- if not Assigned(LibraryLog) then
-   LibraryLog:= TLibraryLog.Create;
 
   bDllInitExecuted:= true;
 finally
@@ -132,34 +155,37 @@ begin
     tmpTaskSource:= nil;
    end;
   end;
-  FreeAndNil(TaskSourceList);
 
- finally
- // TaskSourceList.Clear;
-//  freeandnil(TaskSourceList);
- end;
+  if Assigned(CriticalSection) then
+   freeandnil(CriticalSection);
 
- if Assigned(CriticalSection) then
-  freeandnil(CriticalSection);
- if Assigned(LibraryLog) then
-  freeandnil(LibraryLog);
+  FStringStream.Clear;
+  FStream._Release;
 
 //--- Память выделялась через SysReAllocStringLen
 //--- для получения строк из визуальных компонентов
- SysFreeString(Task1_Parameters.inputParam1);
- SysFreeString(Task1_Parameters.inputParam2);
- SysFreeString(Task1_Parameters.inputParam3);
- SysFreeString(Task2_Parameters.inputParam1);
- SysFreeString(Task2_Parameters.inputParam2);
- SysFreeString(Task2_Parameters.inputParam3);
-
-
+  SysFreeString(Task1_Parameters.inputParam1);
+  SysFreeString(Task1_Parameters.inputParam2);
+  SysFreeString(Task1_Parameters.inputParam3);
+  SysFreeString(Task2_Parameters.inputParam1);
+  SysFreeString(Task2_Parameters.inputParam2);
+  SysFreeString(Task2_Parameters.inputParam3);
 
 { for tmpWord:= 0 to (TaskSourceList.Count - 1) do
   SysFreeString(TaskSourceList[tmpWord].GetTask2_ResultBuffer);
 }
 //  FNotify := nil;
   LibraryAPI := nil;
+ except
+  on tmpE: Exception do
+  begin
+   self.WriteDataToLog(format(wsLibrary_OnError,
+                        [tmpE.ClassName + ', E.Message = ' + tmpE.Message,
+                        GetLastError()]),
+                  'TLibraryAPI.FinalizeDLL', 'unLibraryAPI');
+  end;
+ end;
+
 end;
 
 
@@ -219,7 +245,14 @@ begin
 //    tmpTaskSource.Free;
 
    end;
- finally
+ except
+  on tmpE: Exception do
+  begin
+   self.WriteDataToLog(format(wsLibrary_OnError,
+                        [tmpE.ClassName + ', E.Message = ' + tmpE.Message,
+                        GetLastError()]),
+                       'TLibraryAPI.FreeTaskSource', 'unLibraryAPI');
+  end;
  end;
 end;
 
@@ -227,10 +260,51 @@ end;
 //------------------------------------------------------------------------------
 function TLibraryAPI.GetStream: IStream; safecall;
 begin
-  Result:= LibraryLog.GetStream;
+  Result:= FStream;
 end;
 
+//------------------------------------------------------------------------------
+procedure TLibraryAPI.WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString);
+var
+  tmpWideString: WideString;
+begin
+ CriticalSection.Enter;
+  tmpWideString:= '---- ';
+  tmpWideString:= tmpWideString + format(wsLibraryStreamTitle, [self.FLibraryId, self.FLibraryFuncName]);
+  tmpWideString:= tmpWideString
+                + wsCRLF
+                + GetDateTimeStr()
+                + wsCRLF
+                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
+                + wsCRLF
+                + E_source1
+                + wsCRLF;
 
+  FStringStream.WriteString(tmpWideString);
+  CriticalSection.Leave;
+
+  self.NotifyReceiver_Thread;
+
+end;
+
+function TLibraryAPI.NotifyReceiver_Thread: BOOL;
+begin
+//--- Обновить информацию в ТМемо (с журналом работы)
+//--- Если не от потока задача/ядро задачи, то TaskNum:= 0, чтобы пройти проверку на соответствие TaskNum и TaskList.Count в WndProc
+//--- Установить тип отправителя - API Библиотеки
+  try
+   Result:= PostThreadMessage(FOwnerThread, WM_Data_Update, MakeDwordAsSender(0, WORD(msLibraryAPI)), CMD_SetMemoLogStreamUpd);
+   if not Result then
+   begin
+     FStringStream.WriteString(format(wsTask_ErrorByPostThreadMessage,
+                                     [FLibraryFuncName, GetLastError()])
+                                     + ' (TLibraryAPI.NotifyReceiverInfo, unVariables)');
+   end;
+
+  finally
+  end;
+
+end;
 
 initialization
 

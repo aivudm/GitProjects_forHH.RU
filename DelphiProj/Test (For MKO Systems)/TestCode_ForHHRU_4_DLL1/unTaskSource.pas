@@ -14,9 +14,13 @@ const
   CMD_SetMemoLogStreamUpd = 4; //--- Наш код для обновления данных от потока в компоненты отображения
   UserOffset = 2048;
   WM_APP = $8000;
+  NotifySignBit = $80000000; //--- бит для определения "наших" сообщений об обновлении (для wParam)
   wm_data_update = WM_APP + UserOffset;
 
   wsCRLF = #13#10;
+  wsLibraryTitle = 'Подключена библиотека: %d (%s), кол-во задач - %d';
+  wsLibraryStreamTitle = 'Dll API: %d (%s)';
+  wsLibrary_OnError: WideString = 'Исключительная ситуация: %s (ошибка ОС: %d)';
   wsTask1_Name: WideString = 'Поиск файлов по маске';
   wsTask2_Name: WideString = 'Поиск в файлах по шаблонам';
   wsTask1_ResultFileNameByDefault: WideString = 'Lib1_Task1_Result.txt';
@@ -33,7 +37,7 @@ const
   wsTask_TargetFileNotFound: WideString = 'Целевой файл: %s не найден.';
   wsTask_AbortedOnRequest: WideString = 'Выполнение прервано по запросу главного модуля';
   wsTask_AbortedOnError: WideString = 'Выполнение задачи %d (%s) потока %d прервано из-за ошибки: %s';
-  wsTask_ErrorByPostThreadMessage: WideString = 'Ошибка выполнения PostThreadMessage(...)  %d (%s) потока %d прервано из-за ошибки ОС: %d';
+  wsTask_ErrorByPostThreadMessage: WideString = 'Ошибка выполнения PostThreadMessage(...) в: %s. Ошибка ОС: %d';
   wsFileDlgFilter = 'All Files' + #0 + '*.*' + #0 + 'Text Files' + #0 + '*.txt' + #0#0;
   wsTask1_DefaultDirectory = 'C:\Users\user\AppData\Roaming\Primer_MT_3';
   wsTask2_DefaultDirectory = 'C:\Users\user\AppData\Roaming\Primer_MT_4';
@@ -96,35 +100,11 @@ type
   TArray_WideString = array [0..High(Byte)] of WideString;
 //------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
-
-  ILibraryLog = interface (IInterface)
-  ['{417D26A0-0BA7-4F69-877C-0E80A224E8EA}']
-    function GetStream: IStream; safecall;
-    property Stream: IStream read GetStream;
-  end;
-
-//------------------------------------------------------------------------------
-  TLibraryLog = class(TInterfacedObject, ILibraryLog)
-  strict private
-    FStringStream: TStringStream;
-    FStream: IStream;
-  strict protected
-  public
-    constructor Create();
-    function GetStream: IStream; safecall;
-    property StringStream: TStringStream read FStringStream;
-    property Stream: IStream read GetStream;
-  end;
-//------------------------------------------------------------------------------
-
 
 var
   CriticalSection: TCriticalSection;
   Task1_Parameters: TTask1_Parameters;
   Task2_Parameters: TTask2_Parameters;
-  LibraryLog: TLibraryLog;
-
 
 
 //--- Основныеные функции (реализация функционала библиотеки)
@@ -137,7 +117,8 @@ function GetWorkingDirectoryName(): WideString;
 //--- Для Задачи №1 ------------
 //--- Извлечение элементов строки, разделённых символом-разделителем
 //procedure GetMasksFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputPatternCount: word);
-function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
+//function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
+function IsNameAccordedByMask(inputFileName, inputMask: WideString; var inputAbortExecution: boolean): boolean;
 function IsAccorded(inputMaskBool: TArray<boolean>; inputMaskCount: word): boolean;
 //procedure GetItemsFromString(inputSourceBSTR: WideString; var outputStringItems: TArray_WideString; var outputMaskCount: word);
 function GetSubStr(inSourceString: WideString; inIndex:Byte; inCount:Integer): WideString;
@@ -155,216 +136,18 @@ function SelectFile(Parent: HWND; const Caption: WideString; const Root: WideStr
 implementation
 
 
-//------------------------------------------------------------------------------
-//---------- Данные для TLibraryLog --------------------------------------
-//------------------------------------------------------------------------------
-constructor TLibraryLog.Create;
-begin
-try
- inherited Create();
- FStringStream:= TStringStream.Create('', TEncoding.ANSI);
- FStream:= TStreamAdapter.Create(FStringStream, soReference);
-
-finally
-end;
-end;
-
-
-function TLibraryLog.GetStream: IStream; safecall;
-begin
-try
-  Result:= FStream;
-finally
-end;
-end;
-
-
-{
-function Task1_FileFinderByMask (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; inputTaskMainModuleIndex: WORD; out outTask1_Result: TTask1_Result): HRESULT; //; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT;
-var
-  inputParam5, iProcedureWorkTime: DWORD;
-  tmpTargetFile: WideString;
-  tmpStreamWriter: TStreamWriter;
-  tmpMaskItems: TArray_WideString;
-  tmpMaskCount: word;
-  tmpInt, tmpInt1, tmpWord3: word;
-  tmpBool: Boolean;
-  tmpPAnsiChar: PAnsiChar;
-  tmpPWideChar: PWideChar;
-  tmpWideString: WideString;
-
-begin
-try
-    CriticalSection.Leave; //--- Вход в критическую секцию был до вызова окна с входными параметрами
-
-//  inputParam1:= '*.txt;*.txt1'; //Маска
-//  inputParam2:= 'C:\Users\user\AppData\Roaming\Primer_MT_3'; //Директория старта поиска
-//  inputParam3:= 'D:\Install\ResultSearchByMask.txt'; //Имя файла для записи результата, если inputParam4 - true
-//  inputParam4:= true; //Выбор типа вывода результата: 0 (false) - через память (указатель в outputResult, размер в outputResultSize)
-//  inputParam5:= 1000; //Период отчёта о работе
-
-// iProcedureWorkTime:= GetTickCount(); // запоминаем значение тиков в начале подпрограммы
-  case inputParam4 of
-    true:  //--- Вариант: запись результата в файл
-     begin
-//--- Если выбран режим вывода в файл, то проверим правильность имени выходного файла
-//--- Добавим к имени выходного файла информацию о номере задачи по порядку запуска потоков в главном модуле, иначе имена файлов в потоках совпадут
-       if TPath.GetFileName(inputParam3) <> '' then
-        tmpWideString:= TPath.GetFileNameWithoutExtension(inputParam3) + format('_%d', [inputParam5]) + TPath.GetExtension(inputParam3)
-       else
-        tmpWideString:= TPath.GetFileNameWithoutExtension(wsTask1_ResultFileNameByDefault) + format('_%d', [inputParam5]) + TPath.GetExtension(wsTask1_ResultFileNameByDefault);
-//--- ...правильность имени выходной директории
-       if TPath.GetDirectoryName(inputParam3) <> '' then
-        tmpWideString:= TPath.GetDirectoryName(inputParam3) + '\' + tmpWideString
-       else
-        tmpWideString:= TDirectory.GetCurrentDirectory() + '\' + tmpWideString;
-
-        tmpStreamWriter:= TFile.CreateText(tmpWideString);
-
-//--- Извлечение элементов-масок из входящей строки (inputParam1)
-   GetItemsFromString(inputParam1, tmpMaskItems, tmpMaskCount);
-//--- Цикл перебора и сравнения с масками всех файлов в целевой директории
-   outTask1_Result.dwEqualsCount:= 0; //--- Счётчик совпадений
-
-       for tmpTargetFile in TDirectory.GetFiles(inputParam2, wsAllMask,
-            TSearchOption.soAllDirectories) do
-        begin
-          sleep(500); //--- Для отработки (для замедления процесса)
-         tmpBool:= false;
-         for tmpInt:= 0 to tmpMaskCount do
-         begin
-          if (TPath.GetExtension(tmpTargetFile) = tmpMaskItems[tmpInt]) and (not tmpBool) then
-          begin
-           inc(outTask1_Result.dwEqualsCount);
-           tmpBool:= true;
-           if tmpBool then
-           begin
-            tmpStreamWriter.WriteLine(tmpTargetFile + ', ');
-            if (GetTickCount() - iProcedureWorkTime) >=  inputParam5 then
-             begin
-              tmpStreamWriter.Flush;
-              iProcedureWorkTime:= GetTickCount(); // запоминаем текущее значение тиков
-             end;
-           end;
-          end;
-         end;
-        end;
-
-       tmpPAnsiChar:= 'Всего найдено совпадений: ';
-       tmpStreamWriter.WriteLine(tmpPAnsiChar + IntToStr(outTask1_Result.dwEqualsCount));
-       tmpStreamWriter.Close;
-
-     end;
-
-    false:   //--- Настройка памяти для выгрузки результата
-     begin
-
-     end;
-   end;
-
-finally
- if Win32Check(Assigned(tmpStreamWriter)) then
-    freeandnil(tmpStreamWriter); //    tmpStreamWriter.Free;
-
-end;
-end;
-
-
-procedure CountPatternIncluding(inputTargetFileName: WideString; inputParam4: boolean; var inputSearchPatternSet: array of TSearchPatternSet; inputPattenCount: DWORD; var inoutTask2_Results: TTask_Results; inputStreamWriter: TStreamWriter);
-var
-  tmpFileStream: TFileStream;
-  tmpTargetFileBuffer: TTargetFile;
-  tmpWord: word;
-  tmpBool: boolean;
-  tmpDword: DWORD;
-//  tmpInt: integer;
-//  tmpBaseStartPosForAllPatterns: DWORD;
-
-begin
-try
-  //--- Создание потока для целевого файла
-  tmpFileStream:= TFileStream.Create(inputTargetFileName, fmOpenRead or fmShareDenyWrite);
-  SetLength(tmpTargetFileBuffer, tmpFileStream.Size);
-  tmpFileStream.ReadBuffer(Pointer(tmpTargetFileBuffer)^, Length(tmpTargetFileBuffer));
-  tmpFileStream.Position:= 0;
-
-//--- Начальные условия - поиск с начала файла
-//--- заполнение поля "шаблон" в переменной результата задачи
-   for tmpWord:= 0 to inputPattenCount - 1 do //sizeof(inputSearchPatternSet) do
-   begin
-    inputSearchPatternSet[tmpWord].LastPosBeginSearch:= 0;
-    inoutTask2_Results[tmpWord].SearchPattern:= inputSearchPatternSet[tmpWord].Pattern;
-   end;
-
-//--- Поиск в файле
-       while (tmpFileStream.Position < tmpFileStream.Size) do
-        begin
-//------------------------------------------------------------------------------
-//          sleep(500); //--- Для отработки (для замедления процесса)
-//------------------------------------------------------------------------------
-
-         tmpBool:= false;
-         tmpDword:= 0;
-
-//=== В цикле перебираем все шаблоны и выполняем поиск каждого (или одного, если режим многопоточности)
-         for tmpWord:= 0 to inputPattenCount - 1 do //sizeof(inputSearchPatternSet) do
-         begin
-//--- Проверка: поиск по жанному шаблону уже прогнан до конца файла...
-          if inputSearchPatternSet[tmpWord].LastPosBeginSearch < iPatternNotFound then
-          begin
-//--- Если, хотя бы раз выполняется условиек LastPosBeginSearch < iPatternNotFound, значит есть ещё шаблоны прогнанные не до конца файла
-           tmpBool:= true;
-           tmpFileStream.Position:= inputSearchPatternSet[tmpWord].LastPosBeginSearch;
-           tmpDWord:= GetPosForPattern(Pointer(tmpTargetFileBuffer), tmpFileStream.Size,
-                               inputSearchPatternSet[tmpWord], tmpFileStream.Position); //inputSearchPatternSet[tmpWord].LastPosBeginSearch);
-
-           if (tmpDWord < iPatternNotFound) then
-           begin
-            inputSearchPatternSet[tmpWord].LastPosBeginSearch:= tmpDword + inputSearchPatternSet[tmpWord].PatternSize + 1; //--- Сохраняем позицию, с которой будет продолжен поиск по данному шаблону
-
-//--- В tmpFileStream.Position храним наименьшую позицию начала поиска для шаблонов
-//--- именно по этой переменной и определим конец поиска в цикле while
-           if tmpFileStream.Position > inputSearchPatternSet[tmpWord].LastPosBeginSearch then
-            tmpFileStream.Position:= inputSearchPatternSet[tmpWord].LastPosBeginSearch;
-            inc(inoutTask2_Results[tmpWord].dwEqualsCount);
-            CriticalSection.Enter;
-            inputStreamWriter.WriteLine(format(wsTask2_Result_TemplateView, [ByteToWS(inputSearchPatternSet[tmpWord].Pattern, inputSearchPatternSet[tmpWord].PatternSize),
-                                                                             inputSearchPatternSet[tmpWord].LastPosBeginSearch]));
-            CriticalSection.Leave;
-
-           end
-           else
-           begin
-            inputSearchPatternSet[tmpWord].LastPosBeginSearch:= iPatternNotFound;
-           end;
-          end;
-         end;
-
-//--- Если все щаблоны проверены до конца файла, то ставим на конец файла и далее выходим из whilr
-         if not tmpBool then
-          tmpFileStream.Position:= tmpFileStream.Size;
-
-        end;
-
-finally
- FreeAndNil(tmpFileStream);
-end;
-end;
-
-}
-
 //------------------------------------------------------------------------------------------------------------------------------------
 //------------------------------ Для Задачи №1 ---------------------------------------------------------------------------------------
 //------------------------------------------------------------------------------------------------------------------------------------
 
 
 //-------------------------------------------------------------------------------
-function IsNameAccordedByMask(inputFileName, inputMask: WideString): boolean;
+function IsNameAccordedByMask(inputFileName, inputMask: WideString; var inputAbortExecution: boolean): boolean;
 var
   tmpMaskPart: WideString;
   tmpMaskParts: array of WideString;
   tmpMaskPartsCount: word;
-  tmpBool: boolean;
+  tmpBool, tmpBool1: boolean;
   tmpInt: integer;
   tmpWord: word;
   tmpIsDelemiterFirst,
@@ -378,7 +161,7 @@ begin
   tmpIsDelemiterFirst:= (IndexInString(wsPartMaskDelemiter, inputMask, 1) = 1);
   tmpIsDelemiterLast:= (IndexInString(wsPartMaskDelemiter, inputMask, length(inputMask)) = 1);
   repeat
-//--- Копируем до разделителя частей масок
+//--- Выделяем и переносим в массив все части маски
    tmpMaskPart:= GetSubStr(inputMask, 1, (length(inputMask) - (length(inputMask) - pos(wsPartMaskDelemiter, inputMask, 1)) - 1));
    if length(tmpMaskPart) > 0 then
    begin
@@ -391,25 +174,41 @@ begin
    else  //--- значит первый символ в маске это разделитель частей "*", удаляем его
     delete(inputMask, 1, Length(wsPartMaskDelemiter)); //--- удалим прочтённую запись и разделитель частей масок
 
-  until (pos(wsPartMaskDelemiter, inputMask, 1) = 0) and (length(inputMask) = 0);
+  until (pos(wsPartMaskDelemiter, inputMask, 1) = 0) and (length(inputMask) = 0) or inputAbortExecution;
 
   tmpBool:= true; //--- Признак соответствия имени маски (всем частям маски), при первом несоответсвие станет false и выходим из цикла
-  repeat
 //--- Проход по всем выделенным частям маски
    for tmpInt:= 0 to (tmpMaskPartsCount - 1) do
    begin
-    tmpWord:= IndexInString(tmpMaskParts[tmpInt], inputFileName, 1);
-    tmpBool:= (tmpWord > 0)
-              and (not ((tmpWord = 0) and (not tmpIsDelemiterFirst) and (length(inputFileName) > length(tmpMaskParts[tmpWord]))))  //--- исключаем ситуацию: первая часть маски начинается не с разделителя
-              and (not ((tmpWord = (tmpMaskPartsCount - 1)) and (not tmpIsDelemiterLast) and (tmpWord <> (length(inputFileName) - length(tmpMaskParts[tmpInt]) + 1))));
+    repeat
+     tmpWord:= IndexInString(tmpMaskParts[tmpInt], inputFileName, 1);
+//--- Условие только для последней части маски
+     tmpBool1:= (((tmpInt = (tmpMaskPartsCount - 1)) and (not tmpIsDelemiterLast) and (tmpWord = (length(inputFileName) - length(tmpMaskParts[tmpInt]) + 1))))
+                    {последняя часть маски}            {последняя части не "*"}          {послед. часть совпадает с концом наим.файла}
+                or ((tmpInt = (tmpMaskPartsCount - 1)) and (tmpIsDelemiterLast) and (tmpWord > 0));
+                    {последняя часть маски}            {есть последний "*"}      {есть совпададение с последней частью маски}
+
+     tmpBool:= (tmpWord > 0)
+               and (not ((tmpInt = 0) and (not tmpIsDelemiterFirst) and (length(inputFileName) > length(tmpMaskParts[0]))))  //--- исключаем ситуацию: первая часть маски начинается не с разделителя
+               and (not tmpBool1);
+//--- Вырезаем часть до, найденной части маски, включая текущую часть маски, из имени файла.
+     if tmpWord > 0 then
+      delete(inputFileName, 1, tmpWord + Length(tmpMaskPart) - 1); //--- удалим прочтённую запись и разделитель частей масок
+
+//--- Цикл repeat необходим только для последней части маски
+//--- Выходим из цикла repeat: когда достигнуто одно из условий:
+    until (tmpWord = 0)                                           //--- Нет совпадения на лючой части маски
+          or ((tmpInt = (tmpMaskPartsCount - 1)) and (tmpWord = 0))  //--- на последней части маски нет совпадения
+          or ((tmpInt < (tmpMaskPartsCount - 1)) and (tmpBool))   //--- не последняя часть маски и есть совпадения
+          or tmpBool1                                             //--- Последняя часть маски точно в конце имени файла
+          or (length(inputFileName) = 0)                          //--- Достигнут конец строки имени файла
+          or inputAbortExecution;                                 //--- Получен сигнал на немедленную остановку работы
+
     if not tmpBool then
      break;
-//--- Вырезаем часть до, найденной части маски, включая текущую часть маски, из имени файла.
-    delete(inputFileName, 1, Length(tmpMaskPart)); //--- удалим прочтённую запись и разделитель частей масок
-   end;
-  until (not tmpBool) or (length(inputMask) = 0);
+   end;     {последняя часть маски}            {нет совпадения по тек. части}   {тек. часть не последняя и есть совпадение}
 
-  Result:= tmpBool;
+  Result:= tmpBool or tmpBool1;
  finally
 
  end;

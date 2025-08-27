@@ -26,6 +26,7 @@ type
     { Private declarations }
   public
     { Public declarations }
+   TaskSourceListIndex: word;
   end;
 
 var
@@ -35,7 +36,7 @@ var
 
 
 implementation
-
+uses unVariables;
 {$R *.dfm}
 
 procedure TformEditParams_Task1.btbRunTaskClick(Sender: TObject);
@@ -47,7 +48,7 @@ begin
 try
  if not TFile.Exists(edShellCommander.Text) then
  begin
-  WriteDataToLog(format(wsTask1_TargetFileNotFound, [edShellCommander.Text]),
+  TaskSourceList[TaskSourceListIndex].WriteDataToLog(format(wsTask1_TargetFileNotFound, [edShellCommander.Text]),
                         'TformEditParams_Task1.btbRunTaskClick', 'unformEditParams_Task1');
   showmessage(format(wsTask1_TargetFileNotFound, [edShellCommander.Text]));
   exit;
@@ -92,7 +93,7 @@ try
 //   iniFile.WriteString(wsIniFileTitle1, wsIniFileParam1, edResultFile.Text);
   except
    on E: EIniFileException do
-      WriteDataToLog(E.ClassName + '. ' + E.Message,
+      TaskSourceList[TaskSourceListIndex].WriteDataToLog(E.ClassName + '. ' + E.Message,
                         'TformEditParams_Task1.FormClose', 'unformEditParams_Task1');
   end;
  end;
