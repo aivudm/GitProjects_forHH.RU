@@ -630,7 +630,6 @@ try
     exit;
 
  tmpInt:=  TaskList.IndexOf(lbThreadList.Items.Objects[lbThreadList.ItemIndex] as TTaskItem);
- tmpStringList:= TStringList.Create;
  if lbThreadList.ItemIndex < 0 then
  begin
   memThreadInfo_1.Lines.Clear;

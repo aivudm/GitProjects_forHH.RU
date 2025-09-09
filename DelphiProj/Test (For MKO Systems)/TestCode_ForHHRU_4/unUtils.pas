@@ -233,32 +233,8 @@ finally
 end;
 end;
 
-procedure FinalizeLibraries;
-var
-  tmpInt: integer;
-begin
- for tmpInt:= 0 to (LibraryList.Count - 1) do
- begin
-  if LibraryList[tmpInt].LibraryAPI <> nil then
-  begin
-   try
-    LibraryList[tmpInt].LibraryAPI.FinalizeDLL;
-   finally
-    LibraryList[tmpInt].LibraryAPI:= nil;
-   end;
-  end;
-  if LibraryList[tmpInt].LibraryHandle <> 0 then
-  begin
-   try
-    FreeLibrary(LibraryList[tmpInt].LibraryHandle);
-   finally
-    LibraryList[tmpInt].LibraryHandle := 0;
-   end;
-  end;
- end;
-end;
 
-
+//------------------------------------------------------------------------------
 function GetThreadsInfo(PID: Cardinal; var ThreadList: TArray<WideString>): Boolean;
   var
     SnapProcHandle: THandle;
@@ -287,7 +263,7 @@ function GetThreadsInfo(PID: Cardinal; var ThreadList: TArray<WideString>): Bool
       end;
   end;
 
-
+//------------------------------------------------------------------------------
 function GetThreadsInfoBySubThread(PID: Cardinal; var memViewer: TMemo; memViewerLine: word): Boolean;
   var
     SnapProcHandle: THandle;
@@ -314,7 +290,7 @@ function GetThreadsInfoBySubThread(PID: Cardinal; var memViewer: TMemo; memViewe
       end;
   end;
 
-
+//------------------------------------------------------------------------------
 function GetPIDByName(const name: PWideChar): Cardinal;
 var
   SnapProcHandle: THandle;
@@ -336,6 +312,7 @@ begin
   end;
 end;
 
+//------------------------------------------------------------------------------
 function MainThread_WndProc_Hook(nCode: integer; wParam, lParam: DWORD):LRESULT; stdcall;
 var
   tmpNUI: NativeUInt;
@@ -389,6 +366,36 @@ finally
 Result := CallNextHookEx(hMainThreadHook, nCode, wParam, lParam);
 end;
 end;
+
+//------------------------------------------------------------------------------
+procedure FinalizeLibraries;
+var
+  tmpInt: integer;
+begin
+ for tmpInt:= 0 to (LibraryList.Count - 1) do
+ begin
+  if LibraryList[tmpInt].LibraryAPI <> nil then
+  begin
+   try
+    LibraryList[tmpInt].LibraryAPI.FinalizeDLL;
+   finally
+    LibraryList[tmpInt].Stream.Free;
+    LibraryList[tmpInt].StringStream.Free;
+   end;
+  end;
+  if LibraryList[tmpInt].LibraryHandle <> 0 then
+  begin
+   try
+    LibraryList[tmpInt].LibraryAPI._Release;
+    LibraryList[tmpInt].LibraryAPI:= nil;
+    FreeLibrary(LibraryList[tmpInt].LibraryHandle);
+   finally
+    LibraryList[tmpInt].LibraryHandle := 0;
+   end;
+  end;
+ end;
+end;
+
 
 
 //------------------------------------------------------------------------------

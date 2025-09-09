@@ -49,13 +49,12 @@ var
 begin
 //    with TStringStream.Create('') do
  ssTMP:= TStringStream.Create('');
-    with ssTMP do
-    try
-        CopyFrom(Stream, Stream.Size - Stream.Position);
-        Result := DataString;
-    finally
-     Free;
-    end;
+ try
+  ssTMP.CopyFrom(Stream, Stream.Size - Stream.Position);
+  Result := ssTMP.DataString;
+ finally
+  FreeAndNil(ssTMP);
+ end;
 end;
 
 //------------------------------------------------------------------------------

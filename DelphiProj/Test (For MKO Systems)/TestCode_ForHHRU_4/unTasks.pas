@@ -3,7 +3,7 @@ unit unTasks;
 interface
 uses
   Winapi.Windows, Winapi.Messages, Vcl.Forms, System.Classes, System.SysUtils, System.SyncObjs, System.Diagnostics, Vcl.ExtCtrls, System.Contnrs,
-  IdUDPClient, Dialogs, IOUtils, ActiveX, Vcl.AxCtrls,
+  IdUDPClient, Dialogs, IOUtils, ActiveX, Vcl.AxCtrls, IdGlobal,
   unConst, unVariables;
 
 type
@@ -47,10 +47,8 @@ type
     FStringStream_LastPos: DWORD;
     FStream: TStream;
     FStream_Log: TStream;
-    FOLEStream: IStream;  //--- Поток в "COM-формате" принимаем посредством TStreamAdapter
     FStringStream_Log: TStringStream;
     FStringStream_Log_LastPos: DWORD;
-    FOLEStream_Log: IStream;  //--- Поток в "COM-формате" принимаем посредством TStreamAdapter
     FStream_Core_Log: TStream;
     FStringStream_Core_Log: TStringStream;
     FStringStream_Core_Log_LastPos: DWORD;
@@ -202,7 +200,7 @@ function GetViewComponentLineIndex(inputTaskNum: word): word;
 
 
 implementation
-uses unMain, unUtilCommon, IdGlobal, unUtils;
+uses unMain, unUtilCommon, unUtils;
 
 //------------------------------------------------------------------------------
 //---------- Данные для TTaskCore ----------------------------------------------
@@ -307,13 +305,13 @@ try
 // self.FTaskSource:= nil;
   self.TaskSource._Release;
  except
-  if Assigned(tmpE) then
+  on tmpE: Exception do
    begin
     self.WriteDataToLog(tmpE.ClassName + ', E.Message = ' + tmpE.Message,
                                     'TTaskCore.DoTerminate', 'unTasks');
 
+    raise Exception.Create(PAnsiChar(AnsiString(tmpString)));
    end;
-   raise Exception.Create(PAnsiChar(tmpString));
  end;
 finally
   tmpExcept:= TThread(self).FatalException;
@@ -327,6 +325,18 @@ finally
                          'TTaskCore.DoTerminate', 'unTasks');
   end;
 
+  if Assigned(self.FStream) then
+   FreeAndNil(self.FStream);
+  if Assigned(self.FStream_Log) then
+   FreeAndNil(self.FStream_Log);
+  if Assigned(self.FStringStream) then
+   FreeAndNil(self.FStringStream);
+  if Assigned(self.FStringStream_Log) then
+   FreeAndNil(self.FStringStream_Log);
+  if Assigned(self.FTaskCoreStream) then
+   self.FTaskCoreStream._Release;
+  if Assigned(self.FTaskCoreStream_Log) then
+   self.FTaskCoreStream_Log._Release;
 end;
 
 end;
@@ -368,7 +378,7 @@ begin
    begin
     tmpWideString:= inttostr(self.FTaskNum) + ' (' + self.FTaskName + ')';
     FStringStream_Log.WriteString(format(wsTask_ErrorByPostThreadMessage,
-                                          [tmpWideString, GetLastError()])
+                                          [tmpWideString, GetLastError(), SysErrorMessage(GetLastError)])
                                    + ' (TTaskCore.NotifyReceiverInfo, unTaskItem)');
    end;
 
@@ -382,9 +392,7 @@ end;
 //------------------------------------------------------------------------------
 constructor TTaskItem.Create(TaskLibraryId, TaskTemplateId: word; inputBeginState: TTaskState);
 var
-  tmpWord: word;
   tmpBool: boolean;
-  Stream: TStream;
 begin
 try
  //--- Установим начальное состояние задачи в tsNotDefined
@@ -468,34 +476,30 @@ end;
 //------------------------------------------------------------------------------
 procedure TTaskItem.OnTerminate(Sender: TObject);
 var
-  E: Exception;
   tmpExcept: TObject;
 begin
 try
  try
 //  FreeAndNil(self.FTaskSource);
+
   if Assigned(self.FPauseEvent) then
    FreeAndNil(self.FPauseEvent);
   if Assigned(self.FStream) then
    FreeAndNil(self.FStream);
   if Assigned(self.FStringStream) then
    FreeAndNil(self.FStringStream);
-  if Assigned(self.FOLEStream) then
-   FreeAndNil(self.FOLEStream);
-  if Assigned(self.FOLEStream_Log) then
-   FreeAndNil(self.FOLEStream_Log);
+
   if Assigned(self.FClientUDP) then
    FreeAndNil(self.FClientUDP);
   if Assigned(self.FTaskCore) then
    FreeAndNil(self.FTaskCore);
-
  except
-  if Assigned(E) then
+  on tmpE: Exception do
   begin
-   self.WriteDataToLog(E.ClassName + ', E.Message = ' + E.Message,
+   self.WriteDataToLog(tmpE.ClassName + ', E.Message = ' + tmpE.Message,
                        'TTaskItem.OnTerminate', 'unTasks');
+   raise Exception.Create(PAnsiChar(tmpE.ClassName + ', Error.Message = ' + tmpE.Message));
   end;
-  raise Exception.Create(PAnsiChar(E.ClassName + ', E.Message = ' + E.Message));
  end;
 
 except
@@ -515,10 +519,16 @@ try
                            'TTaskItem.DoTerminate', 'unTasks');
  self.Sleep(iCycleTimeValue*3); //--- Чтобы TaskItem успел перенаправить сообщение на обновление компонента отображения журнала
 finally
- if Assigned(self.FStringStream_Log) then
-  FreeAndNil(self.FStringStream_Log);
+
  if Assigned(self.FStream_Log) then
   FreeAndNil(self.FStream_Log);
+ if Assigned(self.FStringStream_Log) then
+  FreeAndNil(self.FStringStream_Log);
+ if Assigned(self.FStream_Core_Log) then
+  self.FStream_Core_Log:= nil;
+ if Assigned(self.FStringStream_Core_Log) then
+  FreeAndNil(self.FStringStream_Core_Log);
+
 end;
 
 end;
@@ -533,16 +543,13 @@ end;
 //------------------------------------------------------------------------------
 procedure TTaskItem.Execute;
 var
-  tmpProc: TTaskProcedure;
   tmpStreamWriter: TStreamWriter;
   tmpBool: BOOL;
   tmpInt: integer;
   tmpInt64: Int64;
-  tmpDWORD: DWORD;
-  tmpE: Exception;
   tmpObject: TObject;
   tmpMsg: TMsg;
-  tmpMessage_Sender: TMessage_Sender;
+//  tmpSystemTimes: TSystemTimes;
 begin
 //--- Создаём новый объект "Ядро исходника Задачи" - для получения функционала управления потоком
 //--- Делаем это в главном модуле, так как этот объект "продолжение" TaskItem, который становится аналогом
@@ -611,6 +618,7 @@ begin
 
 //--- Фиксируем текущее время (для вывода на экран)
        self.FEndTickCount:= GetTickCount();
+//       self.GetCPUUsage(tmpSystemTimes);
       end;
     tsAbortedDone:
     begin
@@ -738,7 +746,7 @@ begin
 
 //--- При других ошибках в TaskItem попадаем в этот except
  except
-  if Assigned(tmpE) then
+  on tmpE: Exception do
    begin
     self.WriteDataToLog(tmpE.ClassName + ', Err.Message = ' + tmpE.Message,
                        'TTaskCore.DoTerminate', 'unTasks');
@@ -861,22 +869,23 @@ var
 //------------ Подпрограммы TTaskItem.SendReportToMainProcess ------------------
 procedure SendToViewByWmCopyData(inputString: WideString);
 var
-  cdsData: TCopyDataStruct;
+  tmpCDS: TCopyDataStruct;
   tmpHandle: THandle;
 begin
-  cdsData.dwData := CMD_SetMemoLine;
-  cdsData.cbData := Length(PChar(inputString)) * sizeof(Char) + 1;
-  GetMem(cdsData.lpData, cdsData.cbData);
+  tmpCDS.dwData:= CMD_SetMemoLine;
+  tmpCDS.cbData:= Length(PChar(inputString)) * sizeof(Char) + 1;
+  GetMem(tmpCDS.lpData, tmpCDS.cbData);
   try
-    StrPCopy(cdsData.lpData, PWChar(inputString));
+    StrPCopy(tmpCDS.lpData, PWChar(inputString));
 //    tmpHandle:= formMain.Handle; //FindWindow(nil, PWChar(formMain.ClassName));
     tmpHandle:= formMain.reThreadInfo_Main.Handle;
-    //Отсылаем сообщение в окно отображения информации о потоке (в главном модуле)
-//    PostThreadMessage(FindWindow(nil, PWChar(formMain.Caption)),
-//    PostMessage(FindWindow(nil, PWChar(formMain.ClassName)),
-    SendMessage(tmpHandle, WM_COPYDATA, Handle, Integer(@cdsData));
+//--- Отсылаем сообщение в окно отображения информации о потоке (в главном модуле)
+//--- В главном потоке на входе оконной процедуры выполняется первичная обработка при помощи
+//--- if InSendMessage() then ReplyMessage(), поэтому ожидания конца обработки сообщения не происходит
+//--- и управление сразу возвращается в поток-отправитель. Таким образом можно условно принять, что условие ТЗ на асинхронный обмен выполнено .
+    SendMessage(tmpHandle, WM_COPYDATA, Handle, Integer(@tmpCDS));
   finally
-    FreeMem(cdsData.lpData, cdsData.cbData);
+    FreeMem(tmpCDS.lpData, tmpCDS.cbData);
   end;
 end;
 //------------------------------------------------------------------------------
@@ -900,14 +909,14 @@ begin
 
 //------------------------------------------------------------------------------
     tmpAnsiString:= AnsiString(tmpWideString);
-    tmpAnsiString:= format(sDelimiterNumTask + '%d' + sDelimiterNumTask,
+    tmpAnsiString:= format(AnsiString(sDelimiterNumTask) + '%d' + AnsiString(sDelimiterNumTask),
                                                       [self.FTaskNum {self.FLineIndex_ForView}]) + tmpAnsiString;
 
     case ModulsExchangeType of
      etMessage_WMCopyData:
      begin
       //--- После каждого цикла запускаем передачу информации в окно главной формы
-      SendToViewByWmCopyData(tmpAnsiString);
+      SendToViewByWmCopyData(WideString(tmpAnsiString));
      end;
 
      etClientServerUDP:
@@ -991,7 +1000,7 @@ begin
    begin
     tmpWideString:= inttostr(self.FTaskNum) + ' (' + self.FTaskName + ')';
     FStringStream_Log.WriteString(format(wsTask_ErrorByPostThreadMessage,
-                                          [tmpWideString, GetLastError()])
+                                          [tmpWideString, GetLastError(), SysErrorMessage(GetLastError)])
                                    + ' (TTaskItem.NotifyReceiverInfo, unTaskItem)');
    end;
 
@@ -1038,8 +1047,10 @@ initialization
 
 finalization
 
-// if Assigned(TaskList) then TaskList.Free;
+ if Assigned(TaskList) then
+  FreeAndNil(TaskList);
 // if Assigned(FileList) then FileList.Free;
-// if Assigned(CriticalSection) then CriticalSection.Free;
+ if Assigned(CriticalSection) then
+  FreeAndNil(CriticalSection);
 
 end.

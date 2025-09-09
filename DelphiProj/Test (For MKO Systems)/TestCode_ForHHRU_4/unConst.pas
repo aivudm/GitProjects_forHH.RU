@@ -30,7 +30,7 @@ const
   wsMainModule_Title = 'Главный модуль';
   wsLibrary_Title = 'Библиотека (%s)';
   wsLibrary_Loaded = 'Загружена библиотека: ';
-  wsTask_ErrorByPostThreadMessage: WideString = 'Ошибка выполнения PostThreadMessage(...) в: %s. Ошибка ОС: %d';
+  wsTask_ErrorByPostThreadMessage: WideString = 'Ошибка выполнения PostThreadMessage(...) в: %s. Ошибка ОС: %d (%s)';
   wsTaskItem_Title = wsHeaderThreadInfo + ' (ThreadID: %d)';
   wsTaskCore_Title = 'Ядро задачи %3d (ThreadID: %d)';
   wsTaskCore_Title1 = 'Ядро задачи %3d (ThreadID: %d): ошибка ОС - %d';

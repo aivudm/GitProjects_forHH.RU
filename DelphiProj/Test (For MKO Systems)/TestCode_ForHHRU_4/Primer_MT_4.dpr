@@ -42,6 +42,7 @@ begin
     end;
 
 }
+//  ReportMemoryLeaksOnShutdown := True;
   MainModuleThreadId:= GetCurrentThreadId;
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
