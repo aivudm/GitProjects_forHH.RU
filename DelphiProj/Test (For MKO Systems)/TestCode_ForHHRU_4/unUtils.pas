@@ -1,7 +1,7 @@
 unit unUtils;
 
 interface
-uses Vcl.Forms, System.Classes, System.SysUtils, Winapi.Windows, Winapi.Messages, Vcl.StdCtrls, IOUtils,
+uses Vcl.Forms, System.Classes, System.SysUtils, Winapi.Windows, Winapi.Messages, Vcl.StdCtrls, IOUtils,  Vcl.Dialogs,
      Vcl.AxCtrls, TlHelp32, ImageHlp, {PsAPI,}
      unVariables;
 
@@ -56,21 +56,32 @@ end;
 
 //------------------------------------------------------------------------------
 function LoadAnyLibrary(const LibraryFileName: WideString): HMODULE;
+
 begin
  try
   if FileExists(LibraryFileName) then
   begin
-   Result := LoadLibrary(PWideChar(LibraryFileName)); //LoadLibraryEx(PWideChar(LibraryFileName), 0, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR or LOAD_LIBRARY_SEARCH_DEFAULT_DIR);
-   Win32Check(Result <> 0);
+   Result := SafeLoadLibrary(LibraryFileName); // LoadLibrary(PWideChar(LibraryFileName)); //LoadLibraryEx(PWideChar(LibraryFileName), 0, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR or LOAD_LIBRARY_SEARCH_DEFAULT_DIR);
+   if Result = 0 then
+   begin
+    Result:= INVALID_HANDLE_VALUE;
+    showmessage(format(wsError_LoadLibrary,
+                         [LibraryFileName, GetLastError(), SysErrorMessage(GetLastError())]));
+    WriteDataToLog(format(wsError_LoadLibrary,
+                         [LibraryFileName, GetLastError(), SysErrorMessage(GetLastError())]),
+                         'LoadAnyLibrary()', 'unUtils');
+    exit;
+   end;
+//   Win32Check(Result <> 0);
   end
   else
   begin
    Result:= 0;
    exit;
   end;
+  SetLastError(0);
  finally
  end;
-  SetLastError(0);
 end;
 
 //------------------------------------------------------------------------------
@@ -108,22 +119,31 @@ try
  tmp_hTaskLibrary:= LoadAnyLibrary(inputDllFileName);
  if tmp_hTaskLibrary = INVALID_HANDLE_VALUE then
  begin
-  WriteDataToLog(wsError_LoadLibrary + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
+  WriteDataToLog(format(wsError_LoadLibrary,
+                        [inputDllFileName, GetLastError(), SysErrorMessage(GetLastError())]),
+                        'GetLibraryInfo()', 'unUtils');
   exit;
  end;
 
 
 //--- Получение интерфейса данной библиотеки с задачами
  try
+  @tmpDLLAPIProc:= nil; //--- для более быстрого точного определения получен или нет адрес
   @tmpDLLAPIProc:= GetProcAddress(tmp_hTaskLibrary, DllProcName_LibraryInfo);
-  if not Win32Check(Assigned(tmpDLLAPIProc)) then
+
+//  if not Win32Check(Assigned(tmpDLLAPIProc)) then
+  if (@tmpDLLAPIProc = nil) then
   begin
    FreeLibrary(tmp_hTaskLibrary);
-   WriteDataToLog(wsError_LoadLibraryWithTargetAPI + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
+   WriteDataToLog(format(wsError_LoadLibraryWithTargetAPI,
+                        [inputDllFileName]),
+                        'GetLibraryInfo()', 'unUtils');   exit;
   end;
  except
   FreeLibrary(tmp_hTaskLibrary);
-  WriteDataToLog(wsError_LoadLibraryWithTargetAPI + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
+  WriteDataToLog(format(wsError_LoadLibraryWithTargetAPI,
+                       [inputDllFileName]),
+                       'GetLibraryInfo()', 'unUtils');
   exit;
  end;
 
@@ -138,64 +158,69 @@ try
  LibraryList[inputLibraryNum].StringStream:= TStringStream.Create(tmpWString, TEncoding.ANSI);
 
 //--- Вызов интерфейса библиотеки
+ tmpWString:= GUIDToString(ILibraryAPI);
  tmpResult:= tmpDLLAPIProc(ILibraryAPI, tmpIntrfDllAPI);
- if (not Assigned(tmpIntrfDllAPI)) or (tmpResult <> S_OK) then
+// if (not Assigned(tmpIntrfDllAPI)) or (tmpResult <> S_OK) then
+ if (tmpResult <> S_OK) then
  begin
   FreeLibrary(tmp_hTaskLibrary);
-  WriteDataToLog(wsError_LoadLibraryWithTargetAPI + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
-  exit;
- end;
-
+  WriteDataToLog(format(wsError_LoadLibraryWithTargetAPI_ErrorCode,
+                        [inputDllFileName, tmpResult]),
+                        'GetLibraryInfo()', 'unUtils');
+ end
+ else
+//--- Интерфейс библиотеки получен успешно
+ begin
 //--- Проверка на уже имеющуюся такую же библиотеку (путь другой, а функционал и версионность та же)
 //--- Если уже есть в списке библиотек такая же, то отключаем данную библиотеку и выходим
- for tmpInt:= 0 to (inputLibraryNum - 1) do
- begin
-  if (LibraryList.Items[tmpInt].LibraryId = tmpIntrfDllAPI.GetId) and
-     (LibraryList.Items[tmpInt].LibraryName = tmpIntrfDllAPI.Name) and
-     (LibraryList.Items[tmpInt].TaskCount = tmpIntrfDllAPI.TaskCount) then
+  for tmpInt:= 0 to (inputLibraryNum - 1) do
   begin
-   Result:= false;
-   try
-    tmpIntrfDllAPI._Release;
-   finally
-    tmpIntrfDllAPI:= nil;
-    LibraryList[inputLibraryNum].StringStream.Free;
+   if (LibraryList.Items[tmpInt].LibraryId = tmpIntrfDllAPI.GetId) and
+      (LibraryList.Items[tmpInt].LibraryName = tmpIntrfDllAPI.Name) and
+      (LibraryList.Items[tmpInt].TaskCount = tmpIntrfDllAPI.TaskCount) then
+   begin
+    Result:= false;
+    try
+     tmpIntrfDllAPI._Release;
+    finally
+     tmpIntrfDllAPI:= nil;
+     LibraryList[inputLibraryNum].StringStream.Free;
+    end;
+    WriteDataToLog(wsError_LoadLibraryAlreadyUse + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
    end;
-   WriteDataToLog(wsError_LoadLibraryAlreadyUse + ': ' + inputDllFileName, 'GetLibraryInfo()', 'unUtils');
+   break;
   end;
-  break;
- end;
 
-if tmpIntrfDllAPI <> nil then  //--- Библиотека прошла проверку на отсутствие дубликатов, если нет - то сразу на выход с Result:= false;
-begin
+ if tmpIntrfDllAPI <> nil then  //--- Библиотека прошла проверку на отсутствие дубликатов, если нет - то сразу на выход с Result:= false;
+ begin
 
 //--- Сохраним интерфейс в объекте LibraryTask
- if LibraryList[inputLibraryNum].LibraryAPI = nil then
-    LibraryList[inputLibraryNum].LibraryAPI:= tmpIntrfDllAPI;
+  if LibraryList[inputLibraryNum].LibraryAPI = nil then
+     LibraryList[inputLibraryNum].LibraryAPI:= tmpIntrfDllAPI;
 
 //--- Настройка потока (подключение к IStream) передачи результатов из библиотек в главный модуль
- LibraryList[inputLibraryNum].Stream:= TOleStream.Create(LibraryList[inputLibraryNum].LibraryAPI.Stream_Log);
- LibraryList[inputLibraryNum].StringStream.LoadFromStream(LibraryList[inputLibraryNum].Stream);
- LibraryList[inputLibraryNum].Stream_LastPos:= 0;
+  LibraryList[inputLibraryNum].Stream:= TOleStream.Create(LibraryList[inputLibraryNum].LibraryAPI.Stream_Log);
+  LibraryList[inputLibraryNum].StringStream.LoadFromStream(LibraryList[inputLibraryNum].Stream);
+  LibraryList[inputLibraryNum].Stream_LastPos:= 0;
 
 //--- Запись в библиотеку номера потока шлавного модуля
 //--- Вывод сообщения (от библиотеки) о факте подключения в компонент отображения
- LibraryList[inputLibraryNum].LibraryAPI.SetOwnerThread(MainModuleThreadId);
+  LibraryList[inputLibraryNum].LibraryAPI.SetOwnerThread(MainModuleThreadId);
 
 
 //--- Получим Id библиотеки
- LibraryList[inputLibraryNum].LibraryId:= tmpIntrfDllAPI.GetId;
+  LibraryList[inputLibraryNum].LibraryId:= tmpIntrfDllAPI.GetId;
 
 //--- Получим имя библиотеки
- LibraryList[inputLibraryNum].LibraryName:= tmpIntrfDllAPI.Name;
+  LibraryList[inputLibraryNum].LibraryName:= tmpIntrfDllAPI.Name;
 
  //--- Получим количество реализованных в библиотеке задач
- LibraryList[inputLibraryNum].SetTaskTemplateCount(tmpIntrfDllAPI.GetTaskList.Count);
+  LibraryList[inputLibraryNum].SetTaskTemplateCount(tmpIntrfDllAPI.GetTaskList.Count);
  //--- Получим имена реализованных задач
- for tmpInt:= 0 to (tmpIntrfDllAPI.GetTaskList.Count - 1) do
- begin
-  LibraryList[inputLibraryNum].TaskTemplateName[tmpInt]:= tmpIntrfDllAPI.GetTaskList.Strings[tmpInt];
- end;
+  for tmpInt:= 0 to (tmpIntrfDllAPI.GetTaskList.Count - 1) do
+  begin
+   LibraryList[inputLibraryNum].TaskTemplateName[tmpInt]:= tmpIntrfDllAPI.GetTaskList.Strings[tmpInt];
+  end;
 
 // tmpIntrfDllAPI.GetFormParams;
 
@@ -205,22 +230,23 @@ begin
   delete(tmpBSTR, 1, Length(LibraryName) + 1); //--- удалим прочтённую запись и разделитель
 
 //--- Выделим наименования всех реализуемых задач
-GetItemsFromString(tmpBSTR, TaskDllProcName);
+  GetItemsFromString(tmpBSTR, TaskDllProcName);
 }
 
 
- if intrfDllAPI = nil then
-    LibraryList[inputLibraryNum].LibraryAPI:= tmpIntrfDllAPI;
-  tmpIntrfDllAPI:= nil;
+  if intrfDllAPI = nil then
+     LibraryList[inputLibraryNum].LibraryAPI:= tmpIntrfDllAPI;
+   tmpIntrfDllAPI:= nil;
 
  //--- Один раз запустим LibraryAPI.InitDLL
 //--- проверка на
-  LibraryList[inputLibraryNum].LibraryAPI.InitDLL;
+   LibraryList[inputLibraryNum].LibraryAPI.InitDLL;
 
- LibraryList[inputLibraryNum].SetLibraryFileName(inputDllFileName);
- LibraryList[inputLibraryNum].LibraryHandle:= tmp_hTaskLibrary;
+  LibraryList[inputLibraryNum].SetLibraryFileName(inputDllFileName);
+  LibraryList[inputLibraryNum].LibraryHandle:= tmp_hTaskLibrary;
 
- Result:= true;
+  Result:= true;
+ end; //--- else
 end;
 
 finally
@@ -231,6 +257,7 @@ finally
   tmpintrfDllAPI:= nil;
  end;
 end;
+
 end;
 
 

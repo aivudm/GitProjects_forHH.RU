@@ -242,13 +242,17 @@ begin
     NativeUInt(msMainModule): //--- 0
      begin
 //--- ѕроверка на новые данные от потока главного модул€
-      if logStringStream.Position < logFileStream.Position then
+//--- если в logStringStream по€вились новые данные, то занести их в файл журнала
+//--- и вывести в компонент отображени€ журнала на главной форме
+      if logStringStream.Position > logFileStream.Position then
       begin
-       logFileStream_LastPos:= logStringStream.Position;
+       logFileStream.Write(logStringStream.Bytes[logFileStream_LastPos], logStringStream.Position - logFileStream_LastPos);
+       logStringStream.Position:= logFileStream_LastPos;
        try
         tmpStringList:= TStringList.Create;
         tmpStringList.LoadFromStream(logStringStream);
         memLogInfo_2.Lines.AddStrings(tmpStringList);
+        logFileStream_LastPos:= logStringStream.Position;
        finally
         FreeAndNil(tmpStringList);
        end;
@@ -567,6 +571,7 @@ begin
 
  sbMain.Panels[0].Text:= 'ThreadId (процесса): ' + inttostr(GetCurrentThreadId)
                           + ' (' + inttostr(MainModuleThreadId) + ')';
+//--- —делаем "фиктивную" выборку из очереди, чтобы создать очередь
  PeekMessage(tmpMsg, 0, WM_Data_Update, WM_Data_Update, PM_NOREMOVE);
 //--- «аполнение глобальных переменных
  Info_ForViewing.hMemoThreadInfo_Main:= reThreadInfo_Main.Handle;

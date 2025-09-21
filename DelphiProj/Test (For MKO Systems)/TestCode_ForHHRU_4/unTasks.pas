@@ -353,9 +353,9 @@ begin
                 + wsCRLF
                 + GetDateTimeStr()
                 + wsCRLF
-                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
-                + wsCRLF
                 + E_source1
+                + wsCRLF
+                + '(Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName + ')'
                 + wsCRLF;
 
   FStringStream_Log.WriteString(tmpWideString);
@@ -974,10 +974,11 @@ begin
                 + wsCRLF
                 + GetDateTimeStr()
                 + wsCRLF
-                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
-                + wsCRLF
                 + E_source1
+                + wsCRLF
+                + '(Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName + ')'
                 + wsCRLF;
+
 
   FStringStream_Log.WriteString(tmpWideString);
 

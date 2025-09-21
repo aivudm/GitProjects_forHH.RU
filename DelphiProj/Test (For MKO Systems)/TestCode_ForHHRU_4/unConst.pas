@@ -44,8 +44,9 @@ const
   wsIniExchangeType_WMCopyData = 'rbMessage_WMCopyData';
   wsNameExchangeType_WMCopyData = 'Режим: Message WM_CopyData';
   wsNameExchangeType_ServerUDP = 'Режим: Сервер UDP [Порт: %5d]';
-  wsError_LoadLibrary = 'Ошибка загрузки библиотеки.';
-  wsError_LoadLibraryWithTargetAPI = 'Ошибка. Библиотека не поддерживает целевой API';
+  wsError_LoadLibrary = 'Ошибка загрузки библиотеки: %s. Ошибка ОС: %d (%s)';
+  wsError_LoadLibraryWithTargetAPI = 'Ошибка. Библиотека: %s не имеет целевого API';
+  wsError_LoadLibraryWithTargetAPI_ErrorCode = 'Ошибка. Библиотека: %s не поддерживает целевой API. HRESULT = %d';
   wsError_LoadLibraryAlreadyUse = 'Ошибка. Библиотека с данным функционалом уже используется.';
   wsError_NotDefinedMessageSender = 'Не допустимый номер отправителя сообщения от потоков, MessageSender = %d';
   wsError_TaskItemNotAssigned = 'Задача не существует. Вожможно, удалена в связи с исключительной ситуацией.';

@@ -56,7 +56,7 @@ type
 
 //------------------------------------------------------------------------------
   ITaskSource = interface (IInterface)
-  ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
+  ['{697522A7-7EEC-47D5-91E1-928242F770FE}']
    procedure TaskProcedure; safecall;
    procedure AbortTaskSource; safecall;
    function GetTaskLibraryIndex: word; safecall;

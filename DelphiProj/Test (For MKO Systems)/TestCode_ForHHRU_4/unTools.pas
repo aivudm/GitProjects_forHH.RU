@@ -196,7 +196,7 @@ begin
 
    for tmpInt:= 0 to odGetLibrary.Files.Count-1 do
    begin
-    if IsLibraryAlreadeUsed(odGetLibrary.Files[tmpInt]) then
+    if IsLibraryAlreadyUsed(odGetLibrary.Files[tmpInt]) then
      odGetLibrary.Files.Delete(tmpInt);
    end;
   end
@@ -222,7 +222,9 @@ begin
     lbLibraryList.AddItem(LibraryList[tmpLibraryNum].LibraryName, LibraryList[tmpLibraryNum]);
    end
    else
+   begin
     LibraryList.Remove(LibraryList[tmpLibraryNum]);
+   end;
  end;
  finally
  end;

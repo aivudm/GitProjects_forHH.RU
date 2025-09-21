@@ -19,7 +19,7 @@ function MakeDword(inputLoWord, inputHiWord: word): DWORD;
 function MakeDwordAsSender(inputLoWord, inputHiWord: word): DWORD;
 function IsNotifyMessage(wParam: DWORD):Boolean;
 function NotifyReceiver_Thread: BOOL;
-function IsLibraryAlreadeUsed(inputLibraryFileName: WideString): boolean;
+function IsLibraryAlreadyUsed(inputLibraryFileName: WideString): boolean;
 
 
 implementation
@@ -136,13 +136,14 @@ begin
   tmpWideString:= '--- ';
   tmpWideString:= tmpWideString + wsMainModule_Title
                 + wsCRLF
-                + DatetimeToStr(today())
-                + wsCRLF
-                + 'Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName
+                + GetDateTimeStr()
                 + wsCRLF
                 + E_source1
+                + wsCRLF
+                + '(Сообщение сгенерировано в - ' + CurrentUnitName + '\' + CurrentProcName + ')'
                 + wsCRLF;
-  CriticalSection.Enter;
+
+   CriticalSection.Enter;
    logStringStream.WriteString(tmpWideString);
   CriticalSection.Leave;
 //--- Обновить информацию в ТМемо (с журналом работы)
@@ -198,11 +199,12 @@ begin
 //--- Если не от потока задача/ядро задачи, то TaskNum:= 0, чтобы пройти проверку на соответствие TaskNum и TaskList.Count в WndProc
 //--- Установить тип отправителя - API Библиотеки
   try
-   Result:= PostThreadMessage(0, WM_Data_Update, MakeDwordAsSender(0, WORD(msMainModule)), CMD_SetMemoLogStreamUpd);
+//   Result:= PostThreadMessage(0, WM_Data_Update, MakeDwordAsSender(0, WORD(msMainModule)), CMD_SetMemoLogStreamUpd);
+   Result:= PostMessage(Info_ForViewing.hMemoLogInfo_2, WM_Data_Update, MakeDwordAsSender(0, WORD(msMainModule)), CMD_SetMemoLogStreamUpd);
    if not Result then
    begin
-     logStringStream.WriteString(format(wsTask_ErrorByPostThreadMessage,
-                                          [wsMainModule_Title, GetLastError()])
+    logStringStream.WriteString(format(wsTask_ErrorByPostThreadMessage,
+                                          [wsMainModule_Title, GetLastError(), SysErrorMessage(GetLastError())])
                                    + ' (NotifyReceiverInfo, unUtilCommon)');
    end;
 
@@ -211,7 +213,7 @@ begin
 
 end;
 
-function IsLibraryAlreadeUsed(inputLibraryFileName: WideString): boolean;
+function IsLibraryAlreadyUsed(inputLibraryFileName: WideString): boolean;
 var
   tmpInt: integer;
 begin
