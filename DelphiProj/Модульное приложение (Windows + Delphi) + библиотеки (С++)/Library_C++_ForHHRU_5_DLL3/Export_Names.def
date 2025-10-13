@@ -1,0 +1,3 @@
+LIBRARY   PrimerDll_3_MT_4
+EXPORTS
+   GetLibraryAPI   @1

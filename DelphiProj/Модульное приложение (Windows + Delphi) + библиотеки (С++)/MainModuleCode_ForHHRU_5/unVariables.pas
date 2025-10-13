@@ -1,0 +1,350 @@
+unit unVariables;
+
+interface
+uses Windows, SysUtils, Forms, System.Contnrs, StdCtrls, Classes, Winapi.Messages, IOUtils, Dialogs,
+    System.Generics.Collections, IniFiles, ActiveX, SyncObjs;
+
+type
+  BSTR = PWideChar; //WideString;
+  ITaskSource = interface;
+
+//------------------------------------------------------------------------------
+//--- Выходные параметры Задач: №0,№1 (Библиотека №0), №0 (Библиотека №1)
+  TSearchPattern = array of byte;
+
+  TTask_Result = packed record
+    dwEqualsCount: DWORD;
+    SearchPattern: TSearchPattern;
+  end;
+
+  TTask_Results = array of TTask_Result;
+
+//------------------------------------------------------------------------------
+  IBSTRItems = interface
+  ['{7988654F-59FB-401F-9E4C-972FF343C66B}']
+    function GetCount: DWORD; safecall;
+    function GetString(var ItemIndex: DWORD): BSTR; safecall;
+
+    property Count: DWORD read GetCount;
+    property Strings[var ItemIndex: DWORD]: BSTR read GetString; default;
+  end;
+
+//------------------------------------------------------------------------------
+  ILibraryAPI = interface (IInterface)
+  ['{6D0957A0-EADE-4770-B448-EEE0D92F84CF}']
+    // Методы реализуемые DLL API
+    function GetId: DWORD; safecall;
+    function GetName: BSTR; safecall;
+    function GetVersion: BSTR; safecall;
+    function GetTaskList: IBSTRItems; safecall;
+    function GetTaskCount: DWORD; safecall;
+    function NewTaskSource(var LibraryTaskIndex, MainModuleTaskIndex: word): ITaskSource; safecall;
+    function GetTaskSource(var MainModuleTaskIndex: word): ITaskSource; safecall;
+    function GetStream: IStream; safecall;
+    procedure SetOwnerThread(var inputOwnerThread: DWORD); safecall;
+    procedure InitDLL; safecall;
+    procedure FinalizeDLL; safecall;
+    procedure FreeTaskSource(var MainModuleTaskIndex: word); safecall;
+
+    property Name: BSTR read GetName;
+    property Version: BSTR read GetVersion;
+    property TaskCount: DWORD read GetTaskCount;
+    property Stream_Log: IStream read GetStream;
+
+  end;
+
+//------------------------------------------------------------------------------
+  ITaskSource = interface (IInterface)
+  ['{697522A7-7EEC-47D5-91E1-928242F770FE}']
+   procedure TaskProcedure; safecall;
+   procedure AbortTaskSource; safecall;
+   function GetTaskLibraryIndex: word; safecall;
+   function GetTask_Result: TTask_Result; safecall;
+   function GetTask_ResultByIndex(ResultIndex: integer): TTask_Result; safecall;
+   function GetTask_TotalResult: DWORD; safecall;
+   function GetTask_ResultStream: IStream; safecall;
+   function GetTask_LogStream: IStream; safecall;
+   function GetAbortExecutionState: boolean; safecall;
+   procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
+   procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
+   procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
+   property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
+   property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
+   property Task_Result: TTask_Result read GetTask_Result;
+   property Task_Results[ResultIndex: integer]: TTask_Result read GetTask_ResultByIndex;
+   property Task_TotalResult: DWORD read GetTask_TotalResult;
+   property Stream_Result: IStream read GetTask_ResultStream;
+   property Stream_Log: IStream read GetTask_LogStream;
+   property TaskMainModuleIndex: WORD write SetTaskMainModuleIndex;
+  end;
+//------------------------------------------------------------------------------
+
+//------------------------------------------------------------------------------
+
+  TDLLAPIProc = function (const inputIID: TGUID; var Intf): HRESULT; stdcall;
+//  TCallingDLLProc = procedure (var inputParam1: integer; var fsResult: TStreamWriter; iTargetWorkTime: integer); stdcall;
+//--- FileFinderByMask
+//  TCallingDLL1Proc1 = function (inputParam1, inputParam2, inputParam3: WideString; inputParam4: BOOL; iTargetWorkTime: WORD; out outputResult: Pointer; out outputResultSize: DWORD): HRESULT; stdcall;
+//--- Для нового формата вызова - через блок управления запуском и подготовкой входных и выходных данных для подпрограммы
+//--- Для вызывающего - это выхов без параметров, остальное в библиотеке
+//  TCallingDLL1Proc = function (): HRESULT; stdcall;
+//--- FileFinderByPattern
+
+  TArray_WideString = TArray<WideString>;
+  TArray_Cardinal = TArray<Cardinal>;
+
+type
+//------------------------------------------------------------------------------
+  TModulsExchangeType = (etMessage_WMCopyData = 0, etClientServerUDP = 1);
+//------------------------------------------------------------------------------
+
+  TLibraryTask = class (TObject)
+   private
+    FLibraryId: DWORD;
+    FLibraryName: WideString;
+    FTaskCount: DWORD;
+    FTaskTemplateName: TArray_WideString; //--- заполняется после подключения Dll
+    FLibraryAPI: ILibraryAPI; //--- заполняется после подключения Dll
+    FLibraryFileName: WideString;
+    FLibraryHandle: THandle;
+    FStream: TStream;
+    FStream_LastPos: Cardinal;
+    FStringStream: TStringStream;
+    FStringStream_LastPos: Cardinal;
+
+    function GetItemName(Index: integer): WideString;
+    procedure SetItemName(Index: integer; const Value: WideString);
+    function GetLibraryAPI(): ILibraryAPI;
+    procedure SetLibraryAPI(LibraryAPI: ILibraryAPI);
+
+   protected
+
+   public
+    procedure Clear;
+    procedure SetLibraryFileName(inputLibraryFileName: WideString);
+    procedure SetTaskTemplateCount(inputTaskTemplateCount: word);
+    property LibraryAPI: ILibraryAPI read FLibraryAPI write FLibraryAPI;
+    property LibraryId: DWORD read FLibraryId write FLibraryId;
+    property LibraryName: WideString read FLibraryName write FLibraryName;
+    property LibraryFileName: WideString read FLibraryFileName write SetLibraryFileName;
+    property LibraryHandle: HModule read FLibraryHandle write FLibraryHandle;
+    property TaskCount: DWORD read FTaskCount;
+    property TaskTemplateName[Index: integer]: WideString read GetItemName write SetItemName;
+    property Stream: TStream read FStream write FStream;
+    property StringStream: TStringStream read FStringStream write FStringStream;
+    property Stream_LastPos: Cardinal read FStream_LastPos write FStream_LastPos;
+    property StringStream_LastPos: Cardinal read FStringStream_LastPos write FStringStream_LastPos;
+  end;
+//------------------------------------------------------------------------------
+
+//  TLibraryList = TArray<TLibraryTaskInfo>;   //--- Применён из-за встроенного менеджера памяти
+
+//------------------------------------------------------------------------------
+  TLibraryList = class (TObjectList)   //--- Применён из-за встроенного менеджера памяти
+   private
+    function GetItem(Index: integer): TLibraryTask;
+    procedure SetItem(Index: integer; const Value: TLibraryTask);
+   public
+    property Items[Index: integer]: TLibraryTask read GetItem write SetItem; default;
+  end;
+
+//------------------------------------------------------------------------------
+
+  PCopyDataStruct = ^TCopyDataStruct;
+  TCopyDataStruct = record
+    dwData: LongInt;
+    cbData: LongInt;
+    lpData: Pointer;
+  end;
+
+//------------------------------------------------------------------------------
+  PInfoToClient = ^TInfoToClient;
+  TInfoToClient = packed record
+    text_msg : TArray_WideString;
+    size_msg : integer;
+  end;
+//------------------------------------------------------------------------------
+  TInfo_ForViewing = packed record
+   hMemoThreadInfo_Main: HWND;  //--- для журнала
+   hMemoThreadInfo_1: HWND;  //--- для информации от потоков
+   hMemoLogInfo_2: HWND;  //--- для журнала
+
+   CurrentViewingTask: integer;
+  end;
+
+ TMessageSender = (msMainModule = 0, msLibraryAPI = 1, msTaskItem = 2, msTaskCore = 3);
+//------------------------------------------------------------------------------
+  TMessage_Sender = packed record
+   TaskNum: DWORD;
+   SenderId: DWORD; //TSenderId;
+  end;
+
+//------------------------------------------------------------------------------
+  TFileBuffer = array of byte;
+//------------------------------------------------------------------------------
+  TConfirmResult = (YesResult = 1, NoResult = 2, CancelResult = 3);
+//------------------------------------------------------------------------------
+  TTaskThread = record
+    cTask_ThreadId: cardinal;
+    cTaskCore__ThreadId: cardinal;
+  end;
+
+  TThreadStorList = TArray<TTaskThread>;
+//------------------------------------------------------------------------------
+
+
+
+var
+  intrfDllAPI: ILibraryAPI;
+  hTaskLibrary: THandle;
+  iniFile: TIniFile;
+  logFileName: WideString;
+  logFileBuffer: TFileBuffer;
+//  logFileStringList: TStringList;
+  logFileStream: TFileStream;
+  logStringStream: TStringStream;
+  logFileStream_LastPos: Cardinal = 0;
+
+
+var
+  ModulsExchangeType: TModulsExchangeType = etMessage_WMCopyData;
+  iTreadCount: byte= 0;
+  aResultArraySimple: TArray<Int64>;
+
+  Info_ForViewing: TInfo_ForViewing; //--- Глобальная переменная (у каждого потока будет своя копия)
+  hDllTask: THandle;
+  sWorkDirectory: WideString = '';
+  sFileNameDefault: WideString = '';
+  sFileExtensionDefault: WideString = '.txt';
+  LibraryTask: TLibraryTask;
+  LibraryList: TLibraryList; //TObjectList<TLibraryTaskInfo>;
+  CriticalSection: TCriticalSection;
+  ThreadStorList: TThreadStorList;
+  ThreadList1, ThreadList2: TArray<WideString>;
+  MainModuleThreadId: DWORD;
+  hMainThreadHook: LRESULT;
+
+
+
+procedure InitializeVariables;
+procedure DeinitializeVariables;
+
+implementation
+uses unConst, unTasks, unUtils;
+
+procedure InitializeVariables;
+begin
+end;
+
+procedure DeinitializeVariables;
+begin
+ if Win32Check(Assigned(TaskList)) then
+ begin
+  freeandnil(TaskList);
+ end;
+
+ if Assigned(LibraryList) then
+ begin
+  freeandnil(LibraryList);
+ end;
+
+ if Assigned(iniFile) then
+  freeandnil(iniFile)
+
+end;
+
+//------------------------------------------------------------------------------
+//---------- Данные для TLibraryTask -------------------------------------------
+//------------------------------------------------------------------------------
+function TLibraryTask.GetLibraryAPI(): ILibraryAPI;
+begin
+ Result:= self.FLibraryAPI;
+end;
+
+procedure TLibraryTask.SetLibraryAPI(LibraryAPI: ILibraryAPI);
+begin
+ self.FLibraryAPI:= LibraryAPI;
+end;
+
+function TLibraryTask.GetItemName(Index: integer): WideString;
+begin
+ Result:= self.FTaskTemplateName[Index];
+end;
+
+procedure TLibraryTask.SetItemName(Index: integer; const Value: WideString);
+begin
+ self.FTaskTemplateName[Index]:= Value;
+end;
+
+procedure TLibraryTask.Clear;
+begin
+ FillChar(self.FTaskTemplateName, 0, sizeof(FTaskTemplateName));
+end;
+
+procedure TLibraryTask.SetLibraryFileName(inputLibraryFileName: WideString);
+begin
+  FLibraryFileName:= inputLibraryFileName;
+end;
+
+procedure TLibraryTask.SetTaskTemplateCount(inputTaskTemplateCount: word);
+begin
+ FTaskCount:= inputTaskTemplateCount;
+ setlength(FTaskTemplateName, inputTaskTemplateCount);
+end;
+
+
+//------------------------------------------------------------------------------
+//---------- Данные для TLibraryList ---------------------------------------
+//------------------------------------------------------------------------------
+function TLibraryList.GetItem(Index: integer): TLibraryTask;
+begin
+ Result:= TLibraryTask(inherited GetItem(Index));
+end;
+
+procedure TLibraryList.SetItem(Index: integer; const Value: TLibraryTask);
+begin
+ inherited SetItem(Index, Value);
+end;
+
+
+initialization
+//if IsTaskDllAttached() = -1 then
+// Showmessage('Не удаётся подключить библиотеку с прототипами задач');
+
+//---- Имя текущей директории приложения получаем из TDirectory.GetCurrentDirectory;
+sWorkDirectory:= GetWorkingDirectoryName();
+
+sFileNameDefault:= Copy(ExtractFileName(Application.ExeName), 1, Pos('.', ExtractFileName(Application.ExeName)) - 1);
+
+LibraryList:= TLibraryList.Create;; //TObjectList<TLibraryTaskInfo>.Create;
+
+iniFile:= TIniFile.Create(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.ini' )));
+
+{
+FileMode:= fmOpenReadWrite or fmShareDenyWrite;
+AssignFile(logFile, logFileName);
+if FileExists(sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log' ))) then
+ Append(logFile)
+else
+ Rewrite(logFile);
+}
+
+logFileName:= sWorkDirectory + '\' + ExtractFileName(ChangeFileExt(Application.ExeName, '.log'));
+//--- Создание потока для файла журнала
+logFileStream:= TFileStream.Create(logFileName, fmOpenRead or fmShareDenyWrite);
+//SetLength(logFileBuffer, logFileStream.Size);
+//logFileStream.ReadBuffer(Pointer(logFileBuffer)^, Length(logFileBuffer));
+//logFileStream.Position:= 0;
+
+logStringStream:= TStringStream.Create;
+logStringStream.LoadFromFile(logFileName);
+
+finalization
+
+FreeAndNil(logFileStream);
+logStringStream.SaveToFile(logFileName);
+FreeAndNil(LibraryList);
+FreeAndNil(iniFile);
+FreeAndNil(logStringStream);
+
+end.
