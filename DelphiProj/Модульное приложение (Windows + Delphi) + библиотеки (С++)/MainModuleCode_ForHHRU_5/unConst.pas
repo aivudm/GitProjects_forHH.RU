@@ -48,6 +48,7 @@ const
   wsError_LoadLibraryWithTargetAPI = 'Ошибка. Библиотека: %s не имеет целевого API';
   wsError_LoadLibraryWithTargetAPI_ErrorCode = 'Ошибка. Библиотека: %s не поддерживает целевой API. HRESULT = %d';
   wsError_LoadLibraryAlreadyUse = 'Ошибка. Библиотека с данным функционалом уже используется.';
+  wsError_LibraryItemNotDeleted = 'Ошибка удалении библиотеки (%s) из списка подключенных библиотек.';
   wsError_NotDefinedMessageSender = 'Не допустимый номер отправителя сообщения от потоков, MessageSender = %d';
   wsError_TaskItemNotAssigned = 'Задача не существует. Вожможно, удалена в связи с исключительной ситуацией.';
   wsResultPartDll1Task0_InfoFromTask = 'Кол-во файлов по маскам: %3d';

@@ -66,6 +66,7 @@ procedure TformTools.btnNewThreadClick(Sender: TObject);
     tmpIntrfDllAPI: ILibraryAPI;
     tmpIntrfTaskSource: ITaskSource;
     tmpWord: word;
+    tmpDWord: DWORD;
 begin
  try
   if lbTemplateTaskList.ItemIndex < 0 then
@@ -95,6 +96,10 @@ begin
 
    TaskList[tmpInt].SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.NewTaskSource(tmpWord, tmpInt));
    TaskList[tmpInt].TaskCore.SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.GetTaskSource(tmpInt));
+//--- В объект TaskSource ядра задачи (в библиотеку) временно запишем ID главного модуля
+//--- в последствие, после запуска потока на выполнение уже из него будет прописан ID потока - TaskItem
+ tmpDWord:= DWORD(GetCurrentThreadId);
+ TaskList[tmpInt].TaskCore.TaskSource.SetOwnerThread(tmpDWord);
 
 //-------------------------------------------------------------------------------------------------------------------------------------
 //   tmpIntrfDllAPI:= LibraryList[lbLibraryList.ItemIndex].LibraryAPI;
@@ -111,7 +116,6 @@ begin
 //--- от задач (в библиотеках) в главный модуль
    TaskList[tmpInt].Stream_Log:= TOleStream.Create(TaskList[tmpInt].TaskSource.Stream_Log);
    TaskList[tmpInt].Stream_Log.Position:= 0;
-//showmessage('После TaskList[tmpInt].TaskCore.SetTaskSource(LibraryList[lbLibraryList.ItemIndex].LibraryAPI.GetTaskSource(tmpInt)); tmpInt = ' + inttostr(tmpInt));
 
 //--- от ядра задачи в главный модуль
    TaskList[tmpInt].Stream_Core_Log:= TOleStream.Create(TaskList[tmpInt].TaskCore.TaskCoreStream_Log);
@@ -131,7 +135,6 @@ begin
 //--- 2.2 Настройка потока передачи результатов от задач в главный модуль
    TaskList[tmpInt].Stream:= TOleStream.Create(TaskList[tmpInt].TaskSource.Stream_Result);
    TaskList[tmpInt].Stream.Position:= 0;
-showmessage('После TaskList[tmpInt].Stream:= TOleStream.Create(TaskList[tmpInt].TaskSource.Stream_Result);');
 
 //--- Запускаем получение потока из задачи в библиотеке
    TaskList[tmpInt].StringStream:= TStringStream.Create;
@@ -175,11 +178,17 @@ end;
 
 procedure TformTools.Button1Click(Sender: TObject);
 begin
- if lbLibraryList.ItemIndex < 1 then
+ if lbLibraryList.ItemIndex < 0 then
   exit;
 
 // LibraryList[lbLibraryList.ItemIndex].Free;
 
+ if not DeleteLibraryFromList(lbLibraryList.Items[lbLibraryList.ItemIndex]) then
+ begin
+  showmessage(format(wsError_LibraryItemNotDeleted, [lbLibraryList.Items[lbLibraryList.ItemIndex]]));
+  exit;
+ end;
+ lbTemplateTaskList.Clear;
  lbLibraryList.DeleteSelected;
 end;
 

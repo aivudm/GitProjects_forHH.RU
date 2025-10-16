@@ -546,6 +546,7 @@ var
   tmpStreamWriter: TStreamWriter;
   tmpBool: BOOL;
   tmpInt: integer;
+  tmpDWord: DWORD;
   tmpInt64: Int64;
   tmpObject: TObject;
   tmpMsg: TMsg;
@@ -565,9 +566,10 @@ begin
 }
 
 //--- В объект TaskSource ядра задачи (в библиотеку) запишем ID потока - TaskItem
-//--- для оповещения TaskItem ядром задачи о необходимости обновления журнала (в главаном модуле в визуальном компоненте)
+//--- для оповещения TaskItem ядром задачи о необходимости обновления журнала (в главном модуле в визуальном компоненте)
 //--- Обработка сообщений от ядра-задачи будет в TaskItem.Queue, а в исходнике задаче отправляется сообщение PostThreadMessage)
- self.FTaskCore.TaskSource.SetOwnerThread(GetCurrentThreadId);
+ tmpDWord:= DWORD(GetCurrentThreadId);
+ self.FTaskCore.TaskSource.SetOwnerThread(tmpDWord);
 //--- Сделаем "фиктивную" выборку из очереди, чтобы создать очередь
  PeekMessage(tmpMsg, 0, WM_Data_Update, WM_Data_Update, PM_NOREMOVE);
 

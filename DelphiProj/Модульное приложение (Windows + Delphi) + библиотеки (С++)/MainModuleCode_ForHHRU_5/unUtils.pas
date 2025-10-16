@@ -13,6 +13,7 @@ function GetLibraryInfo(inputDllFileName: WideString; inputLibraryNum: word): bo
 procedure GetItemsFromString(SourceBSTR: WideString; var outputStringItems: TArray_WideString);
 procedure FinalizeLibraries;
 function LoadAnyLibrary(const LibraryFileName: WideString): HMODULE;
+function DeleteLibraryFromList(const inputLibraryName: WideString): boolean;
 function GetPIDByName(const name: PWideChar): Cardinal;
 function GetThreadsInfo(PID: Cardinal; var ThreadList: TArray<WideString>): Boolean;
 function GetThreadsInfoBySubThread(PID: Cardinal; var memViewer: TMemo; memViewerLine: word): Boolean;
@@ -249,9 +250,29 @@ finally
  end;
 
 end;
-showmessage('Конец function GetLibraryInfo(inputDllFileName: WideString; inputLibraryNum: word): boolean;');
 end;
 
+//------------------------------------------------------------------------------
+function DeleteLibraryFromList(const inputLibraryName: WideString): boolean;
+var
+  tmpInt: integer;
+begin
+  Result:= false;
+  try
+   for tmpInt:= 0 to (LibraryList.Count - 1) do
+   begin
+    if (LibraryList.Items[tmpInt].LibraryName = inputLibraryName) then
+    begin
+     LibraryList.Delete(tmpInt);
+     Result:= true;
+    end;
+
+   end;
+
+  finally
+
+  end;
+end;
 
 //------------------------------------------------------------------------------
 function GetThreadsInfo(PID: Cardinal; var ThreadList: TArray<WideString>): Boolean;

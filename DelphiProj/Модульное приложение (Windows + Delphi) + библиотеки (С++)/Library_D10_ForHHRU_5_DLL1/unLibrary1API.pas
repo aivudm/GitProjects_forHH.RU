@@ -112,7 +112,7 @@ end;
 procedure TLibraryAPI.SetOwnerThread(var inputOwnerThread: DWORD); safecall;
 begin
   FOwnerThread:= inputOwnerThread;
-//--- Обновить информацию в ТМемо (с журналом работы)
+//--- Направить извещение в главный модуль для обновления информации в компоненте отображения ("Журнал работы")
   self.NotifyReceiver_Thread;
 end;
 

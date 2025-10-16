@@ -53,7 +53,7 @@ type
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
-   procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
+   procedure SetOwnerThread(var inputOwnerThread: DWORD); safecall;
    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
@@ -97,7 +97,7 @@ type
     function GetAbortExecutionState: boolean; safecall;
     procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
-    procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
+    procedure SetOwnerThread(var inputOwnerThread: DWORD); safecall;
     procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString); safecall;
     function NotifyReceiver_Thread: BOOL;
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
@@ -286,7 +286,7 @@ begin
 end;
 
 //------------------------------------------------------------------------------
-procedure TTaskSource.SetOwnerThread(inputOwnerThread: DWORD); safecall;
+procedure TTaskSource.SetOwnerThread(var inputOwnerThread: DWORD); safecall;
 begin
   FOwnerThread:= inputOwnerThread;
 end;

@@ -9,10 +9,23 @@
 //--- Блок констант и переменных
 //_bstr_t
 short dllLibraryId = 2;
-BSTR dllFuncName = SysAllocString(L"Функционал работы с Внеш. Устр. (Библиотека №3)");
-BSTR dllVersion = SysAllocString(L"1.0");
-BSTR task1Name = SysAllocString(L"Обмен с устройством на базе микроконтроллера STM32");
+BSTR dllFuncName =  ::SysAllocString(L"Функционал работы с Внеш. Устр. (Библиотека №3)");
+BSTR dllVersion =   ::SysAllocString(L"1.0");
+BSTR task1Name =    ::SysAllocString(L"Обмен с устройством на базе микроконтроллера STM32");
 std::vector<BSTR> vNamesTask = { task1Name };
+std::string wsLibraryTitle = "Подключена библиотека : %d (%s), кол - во задач - %d";
+std::string wsResultStreamTitle = "Библиотека №d, Задача №%d";
+
+//--- Константы, определённые в главном модуле
+auto    UserOffset = 2048;
+auto    WM_Data_Update = WM_APP + UserOffset;
+auto    NotifySignBit = 0x80000000; //--- бит для определения "наших" сообщений между потоками (thread) об обновлении (для wParam)
+auto    CMD_SetMemoStreamUpd = 2; //--- Наш код для обновления данных от потока в компоненты отображения
+auto    CMD_SetMemoLogStreamUpd = 4;
+
+ULONG const MaxBufferSize_1 = 512;
+//--------------------------------------------------------------------------------------
+
 
 //typedef OLECHAR* BSTR;
 //---------------------------------------------------------------------------------------
@@ -28,6 +41,18 @@ static char* inttostr(const T& inputVal)
     return (char*)buffer;
 }
 
+static unsigned long MakeDwordAsSender(unsigned long inputLoWord, unsigned long inputHiWord)
+{
+    unsigned long result = DWORD(inputHiWord);
+    result = (result << 16) | inputLoWord;  //--- wParamHi:= sidTaskItem, wParamLo:= self.FTaskNum
+    //--- Установим признак "свой-чужой" для распознавания нашего типа оповещения об обновлении компонентов отображения
+    result = result | NotifySignBit; //--- Установка страшего бита wParam в 1
+
+    return result;
+}
+
+
+//---------------------------------------------------------------------------------------
 
 DLL3_API HRESULT API_CALL_TYPE GetLibraryAPI (REFGUID guid_in, void** intrf)
 {
@@ -38,7 +63,6 @@ DLL3_API HRESULT API_CALL_TYPE GetLibraryAPI (REFGUID guid_in, void** intrf)
 //    SysFreeString(tmpString);
 /*
     if (not IsEqualGUID((const GUID &) tmpGUID, guid_in)) {
-        MessageBox(NULL, (LPCWSTR)L"IsEqualGUID(tmpGUID, guid_in) != 0", (LPCWSTR)L"Внутри DLL3: return E_NOINTERFACE", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
         *intrf = nullptr;
         return E_NOINTERFACE;
     };
@@ -54,51 +78,6 @@ DLL3_API HRESULT API_CALL_TYPE GetLibraryAPI (REFGUID guid_in, void** intrf)
 // 
 //--- LibraryAPI
 //---------------------------------------------------------------------------------------
-LibraryAPI::LibraryAPI()
-{
-    m_libraryId = dllLibraryId;
-    m_libraryFuncName = SysAllocString(dllFuncName);
-    m_libraryVersion = SysAllocString(dllVersion);
-    m_TaskCount = 1;
-    m_Ref = 1; //--- Вместо LibraryAPI::QueryInterface(REFIID riid, void** ppv) для первого раза 
-
-    m_TaskList = new BSTRItems(vNamesTask); // static_cast<IBSTRItems*> (pBSTRItems);
-
-/*
-    const REFGUID tmpGUID = {};
-    //    const GUID* ptmpguid = &tmpGUID;
-    //    BSTR tmpString = SysAllocString(L"6D0957A0-EADE-4770-B448-EEE0D92F84CF");
-    CLSIDFromString((LPCOLESTR)(L"7988654F-59FB-401F-9E4C-972FF343C66B"), (LPCLSID)&tmpGUID);
-    m_TaskList->QueryInterface(tmpGUID, outputIBSTRItems);
-*/
-
-    //--- Создание потока для передачи информации в журнал событий главного модуля
-    if (CreateStreamOnHGlobal(m_hGlobalStream, true, &m_spStream) != S_OK)
-    {
-    };
-};
-
-
-LibraryAPI::~LibraryAPI()
-{
-    m_libraryId = 0;
-    SysFreeString(m_libraryFuncName);
-    SysFreeString(m_libraryVersion);
-    SysFreeString(task1Name);
-
-    //--- Освобождение ресурсов потоков IStream для самой библиотеки
-    m_spStream.Release();
-    m_hGlobalStream = NULL; //--- GlobalFree не требуется, так как при создании применён флаг - fDeleteOnRelease = true
-    
-
-//    m_TaskList->Release();
-//    pLibraryInfoItems->Release();
-//    pLibraryAPI->Release();
-};
-
-
-//----------------------------------------------------------------------------------------
-
 // Реализация функий IUnknown
 HRESULT LibraryAPI::QueryInterface(REFIID riid, void** ppvObject)
 {
@@ -126,7 +105,7 @@ ULONG LibraryAPI::Release()
     // становится равным нулю, объект удаляет сам себя
     if (m_Ref == 0)
     {
-        delete this;
+        //delete this;
         return 0; //--- теперь m_Ref уже не существует
     }
     else
@@ -140,6 +119,82 @@ ULONG LibraryAPI::AddRef()
 }
 //---------------------------------------------------------------------------------------
 
+LibraryAPI::LibraryAPI()
+{
+    m_libraryId = dllLibraryId;
+    m_libraryFuncName = SysAllocString(dllFuncName);
+    m_libraryVersion = SysAllocString(dllVersion);
+    m_TaskCount = 1;
+    m_Ref = 1; //--- Вместо LibraryAPI::QueryInterface(REFIID riid, void** ppv) для первого раза 
+
+    m_TaskList = new BSTRItems(vNamesTask); // static_cast<IBSTRItems*> (pBSTRItems);
+
+    /*
+        const REFGUID tmpGUID = {};
+        //    const GUID* ptmpguid = &tmpGUID;
+        //    BSTR tmpString = SysAllocString(L"6D0957A0-EADE-4770-B448-EEE0D92F84CF");
+        CLSIDFromString((LPCOLESTR)(L"7988654F-59FB-401F-9E4C-972FF343C66B"), (LPCLSID)&tmpGUID);
+        m_TaskList->QueryInterface(tmpGUID, outputIBSTRItems);
+    */
+
+    //--- Создание потока для передачи информации в журнал событий главного модуля
+    if (CreateStreamOnHGlobal(m_hGlobalStream, true, &m_spStream) == S_OK)
+    {
+        std::string tmpString(wsLibraryTitle);
+//--- Для BSTR строк необходимо небольшое преобразование в std::string
+//        _bstr_t bstrtString = dllFuncName;
+        std::string tmpString1(CW2A((LPCTSTR)CStringW(m_libraryFuncName)));
+//        std::string tmpString1((char*) _com_util::ConvertBSTRToString(dllFuncName));
+ 
+//        std::ostringstream tmpOSS;
+//        tmpOSS << tmpString1; // m_libraryFuncName;
+
+        char tmpCharBuf [MaxBufferSize_1];
+        tmpString.resize(MaxBufferSize_1, '\0');
+        ULONG tmpUL = {};
+        if (sprintf_s(tmpCharBuf, MaxBufferSize_1, tmpString.c_str(), m_libraryId, tmpString1.c_str()/*tmpOSS.str()*/, m_TaskCount) != -1)
+        {
+            tmpString = tmpCharBuf;
+            if (m_spStream->Write(tmpString.data(), tmpString.size(), &tmpUL) != S_OK)
+            {
+                MessageBox(NULL, (LPCWSTR)L"Ошибка записи строки в поток (IStream) для журнала бмблиотеки", (LPCWSTR)L"Внутри DLL3: LibraryAPI::LibraryAPI()", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
+            }
+        }
+        else
+        {
+            tmpString = "Ошибка форматирования строки (sprintf_s(...)) для журнала бмблиотеки";
+            if (m_spStream->Write(tmpString.data(), tmpString.size(), &tmpUL) != S_OK)
+            {
+            }
+        } 
+    }
+    else
+    {
+        MessageBox(NULL, (LPCWSTR)L"Ошибка создания потока IStream для журнала бмблиотеки", (LPCWSTR)L"Внутри DLL3: LibraryAPI::LibraryAPI()", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
+    };
+
+};
+
+
+LibraryAPI::~LibraryAPI()
+{
+    m_libraryId = 0;
+    SysFreeString(m_libraryFuncName);
+    SysFreeString(m_libraryVersion);
+    SysFreeString(task1Name);
+
+    //--- Освобождение ресурсов потоков IStream для самой библиотеки
+    m_spStream.Release();
+    m_hGlobalStream = NULL; //--- GlobalFree не требуется, так как при создании применён флаг - fDeleteOnRelease = true
+
+
+    //    m_TaskList->Release();
+    //    pLibraryInfoItems->Release();
+    //    pLibraryAPI->Release();
+};
+
+
+//----------------------------------------------------------------------------------------
 
 HRESULT API_CALL_TYPE LibraryAPI::GetId(unsigned long& outputId)
 {
@@ -171,12 +226,12 @@ HRESULT API_CALL_TYPE LibraryAPI::NewTaskSource(unsigned short* inputLibraryTask
     pTaskSourceList.push_back((TaskSource*) *outputTaskSource);
     auto iterList = pTaskSourceList.end();
     iterList--;
+    MessageBox(NULL, (LPCWSTR)((CA2W)inttostr(&iterList)), (LPCWSTR)L"Внутри DLL3: LibraryAPI::NewTaskSource(...). iterList = ", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
 
     (*iterList)->SetTaskMainModuleIndex(inputMainModuleTaskIndex);
 //    (TaskSource*) (*outputTaskSource).SetTaskMainModuleIndex(inputMainModuleTaskIndex);
     unsigned short tmpUS = {};
     (*iterList)->GetTaskLibraryIndex(tmpUS);
-
 
     return (S_OK);
 }
@@ -216,6 +271,8 @@ HRESULT API_CALL_TYPE LibraryAPI::GetStream(void **outputStream)
 HRESULT API_CALL_TYPE LibraryAPI::SetOwnerThread(unsigned long* inputOwnerThread)
 {
     m_OwnerThread = *inputOwnerThread;
+    NotifyReceiver_Thread(); //--- На момент вызова данной плдпрограммы из главного модуля в IStream уже есть информация, записанная в конструкторе TaskSource
+
 
     return (S_OK);
 };
@@ -255,6 +312,7 @@ HRESULT API_CALL_TYPE LibraryAPI::FinalizeDLL()
 //         pTaskSourceList.clear();
 
 
+
         return (S_OK);
     }
  catch (...)
@@ -269,9 +327,45 @@ HRESULT API_CALL_TYPE LibraryAPI::FinalizeDLL()
 
 HRESULT API_CALL_TYPE LibraryAPI::FreeTaskSource(unsigned short* inputMainModuleTaskIndex)
 {
+    MessageBox(NULL, (LPCWSTR)L"Пока ничего не делается...", (LPCWSTR)L"Внутри DLL3: TaskSource::FreeTaskSource(...)", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
 
     return (S_OK);
 }
+
+void API_CALL_TYPE LibraryAPI::WriteDataToLog(std::string inputE_source1, std::string inputCurrentProcName, std::string inputCurrentUnitName)
+{
+    std::ostringstream tmpOSS;
+    tmpOSS << "--- " << wsResultStreamTitle << "\r\n" << "Сообщение сгенерировано в - " << inputCurrentProcName << "\\" << inputCurrentUnitName << "\r\n" << inputE_source1 << "\r\n";
+    std::string tmpString = tmpOSS.str();
+
+    ULONG tmpUL = {};
+    if (m_spStream->Write(tmpString.data(), tmpString.size(), &tmpUL) != S_OK)
+    {
+        std::string tmpString = "Ощибка записи в IStream журнала. Записано байт = ";
+        tmpString += inttostr(tmpUL);
+        MessageBox(NULL, (LPCWSTR)((CA2W)tmpString.c_str()), (LPCWSTR)L"Внутри DLL3: LibraryAPI::WriteDataToLog(...)", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
+
+        return;
+    }
+    NotifyReceiver_Thread();
+}
+
+bool API_CALL_TYPE LibraryAPI::NotifyReceiver_Thread()
+{
+//--- Обновить информацию в ТМемо (с журналом работы)
+//--- Если не от потока задача/ядро задачи, то TaskNum:= 0, чтобы пройти проверку на соответствие TaskNum и TaskList.Count в WndProc
+//--- Установить тип отправителя - API Библиотеки
+    if (!PostThreadMessage(m_OwnerThread, WM_Data_Update, MakeDwordAsSender(0, WORD(MessageSender.msLibraryAPI)), CMD_SetMemoLogStreamUpd))
+    {
+        std::string tmpString = "m_OwnerThread = ";
+        tmpString += inttostr(m_OwnerThread);
+
+        return false;
+    };
+
+    return true;
+}
+
 
 //-------------------------------------------------------------------------------------------------------------------------------------
 
@@ -405,17 +499,28 @@ TaskSource::TaskSource(const unsigned short* inputTaskLibraryIndex)
      m_TaskLibraryIndex = *inputTaskLibraryIndex;
 
      //--- Создание потока для передачи результата в главный модуль
-     if (CreateStreamOnHGlobal(m_hGlobalStreamResult, true, &m_Stream_Result) != S_OK)
+     if (CreateStreamOnHGlobal(m_hGlobalStreamResult, true, &m_spStream_Result) != S_OK)
      {
+         MessageBox(NULL, (LPCWSTR) L"Ошибка создания потока IStream для результата задачи", (LPCWSTR)L"Внутри DLL3: TaskSource::TaskSource", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
      };
+//     MessageBox(NULL, (LPCWSTR)L"Создан поток IStream для результата задачи", (LPCWSTR)L"Внутри DLL3: TaskSource::TaskSource", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
 
 
      //--- Создание потока для передачи информации в журнал событий главного модуля
-     if (CreateStreamOnHGlobal(m_hGlobalStreamLog, true, &m_Stream_Log) != S_OK)
+     if (CreateStreamOnHGlobal(m_hGlobalStreamLog, true, &m_spStream_Log) == S_OK)
      {
+         std::string tmpString = wsResultStreamTitle;
+         this->WriteDataToLog(tmpString, "", "");
+     }
+     else
+     {
+         MessageBox(NULL, (LPCWSTR)L"Ошибка создания потока IStream для журнала задачи", (LPCWSTR)L"Внутри DLL3: TaskSource::TaskSource", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
      };
+//     MessageBox(NULL, (LPCWSTR)L"Создан поток IStream для журнала задачи", (LPCWSTR)L"Внутри DLL3: TaskSource::TaskSource", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
      
+
      m_Ref = 1; //--- Вместо TaskSource::QueryInterface(REFIID riid, void** ppv) для первого раза 
+//     MessageBox(NULL, (LPCWSTR)((CA2W)inttostr(m_Ref)), (LPCWSTR)L"Внутри DLL3: TaskSource::TaskSource. m_Ref = ", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
 
      m_AbortExecution = false; //--- флаг для немедленного (без создания исключения) прекращения и удаления объекта TaskSource
 
@@ -424,8 +529,8 @@ TaskSource::TaskSource(const unsigned short* inputTaskLibraryIndex)
 TaskSource::~TaskSource()
 {
     //--- Освобождение ресурсов потоков IStream для каждого TaskSource
-    m_Stream_Result.Release();
-    m_Stream_Log.Release();
+    m_spStream_Result.Release();
+    m_spStream_Log.Release();
     m_hGlobalStreamResult = NULL; //--- GlobalFree не требуется, так как при создании применён флаг - fDeleteOnRelease = true
     m_hGlobalStreamLog = NULL; //--- GlobalFree не требуется, так как при создании применён флаг - fDeleteOnRelease = true
 
@@ -437,6 +542,7 @@ HRESULT API_CALL_TYPE TaskSource::TaskProcedure()
     {
     case 0:
     {
+        MessageBox(NULL, (LPCWSTR)L"Задача в процессе разработки...", (LPCWSTR)L"Внутри DLL3: TaskSource::TaskProcedure(...)", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
     }
     default:
     {
@@ -449,6 +555,7 @@ HRESULT API_CALL_TYPE TaskSource::TaskProcedure()
 
 HRESULT API_CALL_TYPE TaskSource::AbortTaskSource()
 {
+    MessageBox(NULL, (LPCWSTR)L"В разработке...", (LPCWSTR)L"Внутри DLL3: TaskSource::AbortTaskSource()", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
 
     return (S_OK);
 }
@@ -462,32 +569,35 @@ HRESULT API_CALL_TYPE TaskSource::GetTaskLibraryIndex(unsigned short& outputLibr
 
 HRESULT API_CALL_TYPE TaskSource::GetTask_Result(Task_Result& outputTask_Result)
 {
+    MessageBox(NULL, (LPCWSTR)L"В разработке...", (LPCWSTR)L"Внутри DLL3: TaskSource::GetTask_Result", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
 
     return (S_OK);
 }
 
 HRESULT API_CALL_TYPE TaskSource::GetTask_ResultByIndex(long* ResultIndex, Task_Result& outputTask_Result)
 {
+    MessageBox(NULL, (LPCWSTR)L"В разработке...", (LPCWSTR)L"Внутри DLL3: TaskSource::GetTask_ResultByIndex(...)", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
 
     return (S_OK);
 }
 
 HRESULT API_CALL_TYPE TaskSource::GetTask_TotalResult(DWORD& outputTask_TotalResult)
 {
+    MessageBox(NULL, (LPCWSTR)L"В разработке...", (LPCWSTR)L"Внутри DLL3: TaskSource::GetTask_TotalResult(...)", MB_OK | MB_ICONINFORMATION | MB_TASKMODAL);
 
     return (S_OK);
 }
 
 HRESULT API_CALL_TYPE TaskSource::GetTask_ResultStream(void** outputResultStream)
 {
-    *outputResultStream = m_Stream_Result;
+    *outputResultStream = m_spStream_Result;
 
     return (S_OK);
 }
 
 HRESULT API_CALL_TYPE TaskSource::GetTask_LogStream(void** outputLogStream)
 {
-    *outputLogStream = m_Stream_Log;
+    *outputLogStream = m_spStream_Log;
 
     return (S_OK);
 }
@@ -514,12 +624,43 @@ HRESULT API_CALL_TYPE TaskSource::SetTaskMainModuleIndex(unsigned short* inputTa
     return (S_OK);
 }
 
-HRESULT API_CALL_TYPE TaskSource::SetOwnerThread(DWORD* inputOwnerThread)
+HRESULT API_CALL_TYPE TaskSource::SetOwnerThread(unsigned long* inputOwnerThread)
 {
     m_OwnerThread = *inputOwnerThread;
+    NotifyReceiver_Thread(); //--- На момент вызова данной плдпрограммы из главного модуля в IStream уже есть информация, записанная в конструкторе TaskSource
 
     return (S_OK);
 }
+
+void API_CALL_TYPE TaskSource::WriteDataToLog(std::string inputE_source1, std::string inputCurrentProcName, std::string inputCurrentUnitName)
+{
+    std::ostringstream tmpOSS;
+    tmpOSS << "--- " << wsResultStreamTitle << "\r\n" << "Сообщение сгенерировано в - " << inputCurrentProcName << "\\" << inputCurrentUnitName << "\r\n" << inputE_source1 << "\r\n";
+    std::string tmpString = tmpOSS.str();
+
+    ULONG tmpUL = {};
+    if (m_spStream_Log->Write(tmpString.data(), tmpString.size(), &tmpUL) != S_OK)
+    {
+        std::string tmpString = "Ощибка записи в IStream журнала. Записано байт = ";
+        tmpString += inttostr(tmpUL);
+
+        return;
+    }
+    NotifyReceiver_Thread();
+    
+}
+
+bool API_CALL_TYPE TaskSource::NotifyReceiver_Thread()
+{
+    if (!PostThreadMessage(m_OwnerThread, WM_Data_Update, MakeDwordAsSender(m_TaskMainModuleIndex, WORD(MessageSender.msTaskCore)), CMD_SetMemoLogStreamUpd))
+    {
+        std::string tmpString = "m_OwnerThread = ";
+        tmpString += inttostr(m_OwnerThread);
+    };
+
+    return true;
+}
+
 
 //---------------------------------------------------------------------------------------
 

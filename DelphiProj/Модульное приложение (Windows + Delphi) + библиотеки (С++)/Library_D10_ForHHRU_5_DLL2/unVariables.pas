@@ -55,7 +55,7 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
-   procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
+   procedure SetOwnerThread(var inputOwnerThread: DWORD); safecall;
    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;
@@ -99,7 +99,7 @@ C:\Program Files\7-Zip\7z.exe  a  -r -mx9 "%APPDATA%\123\123.zip" "C:\Windows\Wi
     function GetAbortExecutionState: boolean; safecall;
     procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
     procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
-    procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
+    procedure SetOwnerThread(var inputOwnerThread: DWORD); safecall;
     procedure WriteDataToLog(E_source1, CurrentProcName, CurrentUnitName: WideString); safecall;
     function NotifyReceiver_Thread: BOOL;
     property TaskLibraryIndex: WORD read FTaskLibraryIndex;
@@ -282,7 +282,7 @@ begin
 end;
 
 //------------------------------------------------------------------------------
-procedure TTaskSource.SetOwnerThread(inputOwnerThread: DWORD); safecall;
+procedure TTaskSource.SetOwnerThread(var inputOwnerThread: DWORD); safecall;
 begin
   FOwnerThread:= inputOwnerThread;
 end;
@@ -611,7 +611,6 @@ begin
  Result:= (Result shl 16) or inputLoWord; //--- wParamHi:= sidTaskItem, wParamLo:= self.FTaskNum
 //--- Установим признак "свой-чужой" для распознавания нашего типа оповещения об обновлении компонентов отображения
  Result:= Result or NotifySignBit; //--- Установка страшего бита wParam в 1
-
 end;
 
 

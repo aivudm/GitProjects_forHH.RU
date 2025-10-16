@@ -67,7 +67,7 @@ type
    function GetAbortExecutionState: boolean; safecall;
    procedure SetAbortExecutionState(inputAbortState: boolean); safecall;
    procedure SetTaskMainModuleIndex(inputTaskMainModuleIndex: WORD); safecall;
-   procedure SetOwnerThread(inputOwnerThread: DWORD); safecall;
+   procedure SetOwnerThread(var inputOwnerThread: DWORD); safecall;
    property AbortExecution: boolean read  GetAbortExecutionState write SetAbortExecutionState;
    property TaskLibraryIndex: WORD read GetTaskLibraryIndex;
    property Task_Result: TTask_Result read GetTask_Result;

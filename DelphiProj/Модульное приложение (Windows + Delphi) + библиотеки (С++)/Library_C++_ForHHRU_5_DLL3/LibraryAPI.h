@@ -1,6 +1,7 @@
 #pragma once
 
 #define _CRT_CPP_SECURE_OVELOAD_SECURE_NAMES 1; //--- На всякий случай: если вдруг случайно будет попытка вызвать небезопасную подпрограмму
+#define _CRT_CPP_SECURE_OVELOAD_SECURE_NAMES_COUNT 1; //--- На всякий случай: если вдруг случайно будет попытка вызвать небезопасную подпрограмму
 
 //--- Блок констант и переменных
 #ifndef IID_ILibraryAPI
@@ -19,6 +20,14 @@
 //--- Можно не объявлять макрос, а использовать готовый - STDMETHODCALLTYPE
 
 bool bDllInitExecuted = false;
+typedef struct MESSAGE_SENDER
+{
+    unsigned short msMainModule = 0;
+    unsigned short msLibraryAPI = 1;
+    unsigned short msTaskItem = 2;
+    unsigned short msTaskCore = 3;
+};
+MESSAGE_SENDER  MessageSender;
 
 /*
 #undef IsEqualGUID 
@@ -79,6 +88,9 @@ public:
     ULONG   API_CALL_TYPE AddRef();
     ULONG   API_CALL_TYPE Release();
 
+    LibraryAPI();
+    ~LibraryAPI();
+
     HRESULT API_CALL_TYPE GetId(unsigned long& outputId);
     HRESULT API_CALL_TYPE GetName(BSTR& outputName);
     HRESULT API_CALL_TYPE GetVersion(BSTR& outputVersion);
@@ -91,8 +103,9 @@ public:
     HRESULT API_CALL_TYPE InitDLL();
     HRESULT API_CALL_TYPE FinalizeDLL();
     HRESULT API_CALL_TYPE FreeTaskSource(unsigned short* inputMainModuleTaskIndex);
-    LibraryAPI();
-    ~LibraryAPI();
+    //--- Внутри библиотечные функции
+    void API_CALL_TYPE WriteDataToLog(std::string inputE_source1, std::string inputCurrentProcName, std::string inputCurrentUnitName);
+    bool API_CALL_TYPE NotifyReceiver_Thread();
 };
 
 static LibraryAPI*  pLibraryAPI = nullptr;
@@ -121,15 +134,17 @@ private:
     DWORD m_Ref;
     std::vector<BSTR> m_BSTRItems;
 public:
+
     HRESULT API_CALL_TYPE QueryInterface(REFIID riid, void** ppv);
     ULONG   API_CALL_TYPE AddRef();
     ULONG   API_CALL_TYPE Release();
 
+    BSTRItems(const std::vector<BSTR>& inputBSTRItems);
+    ~BSTRItems();
+
     HRESULT API_CALL_TYPE GetCount(unsigned long& outCount);
     HRESULT API_CALL_TYPE GetString(const unsigned long* inputIndexItem, BSTR& outString);
 //    BSTR API_CALL_TYPE GetString(const int& index);
-    BSTRItems(const std::vector<BSTR>& inputBSTRItems);
-    ~BSTRItems();
 };
 
 
@@ -160,7 +175,7 @@ public:
     virtual HRESULT API_CALL_TYPE GetAbortExecutionState(bool& outputAbortState) = 0;
     virtual HRESULT API_CALL_TYPE SetAbortExecutionState(bool* inputAbortState) = 0;
     virtual HRESULT API_CALL_TYPE SetTaskMainModuleIndex(unsigned short* inputTaskMainModuleIndex) = 0;
-    virtual HRESULT API_CALL_TYPE SetOwnerThread(DWORD* inputOwnerThread) = 0;
+    virtual HRESULT API_CALL_TYPE SetOwnerThread(unsigned long* inputOwnerThread) = 0;
 
 
 //    __declspec(property(get = GetTaskLibraryIndex)) unsigned int TaskLibraryIndex;  //--- Для использования (совместимости) в главном модуле (Delphi)
@@ -174,9 +189,9 @@ private:
     unsigned short   m_TaskMainModuleIndex;
     unsigned short   m_TaskSourceListIndex;
     unsigned long    m_OwnerThread;
-    CComPtr<IStream> m_Stream_Result;
+    CComPtr<IStream> m_spStream_Result;
 //    std::stringstream m_StringStream_Result;
-    CComPtr<IStream> m_Stream_Log;
+    CComPtr<IStream> m_spStream_Log;
     //    std::stringstream m_StringStream_Log;
     HGLOBAL m_hGlobalStreamResult = NULL;
     HGLOBAL m_hGlobalStreamLog = NULL;
@@ -206,10 +221,9 @@ public:
     HRESULT API_CALL_TYPE GetAbortExecutionState(bool& outputAbortState);
     HRESULT API_CALL_TYPE SetAbortExecutionState(bool* inputAbortState);
     HRESULT API_CALL_TYPE SetTaskMainModuleIndex(unsigned short* inputTaskMainModuleIndex);
-    HRESULT API_CALL_TYPE SetOwnerThread(DWORD* inputOwnerThread);
-//    HRESULT API_CALL_TYPE WriteDataToLog(BSTR* inputE_source1, BSTR* inputCurrentProcName, BSTR* inputCurrentUnitName);
-//    HRESULT API_CALL_TYPE NotifyReceiver_Thread(bool& outputNotifyResult);
-
-
+    HRESULT API_CALL_TYPE SetOwnerThread(unsigned long* inputOwnerThread);
+//--- Внутри библиотечные функции
+    void API_CALL_TYPE WriteDataToLog(std::string inputE_source1, std::string inputCurrentProcName, std::string inputCurrentUnitName);
+    bool API_CALL_TYPE NotifyReceiver_Thread();
 
 };

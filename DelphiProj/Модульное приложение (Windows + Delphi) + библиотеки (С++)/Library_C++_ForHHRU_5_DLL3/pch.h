@@ -16,9 +16,17 @@
 #include "framework.h"
 
 #include <vector>
+#include <string>
 #include <list>
 #include <objbase.h>
 #include <atlbase.h>
+#include <atlstr.h>
+#include <comutil.h>
+//#include <iostream>
+#include <format>
+//#include <stdio.h>
+//#include <stdlib.h>
+
 
 //#include <combaseapi.h>
 //#include <unknwn.h>
